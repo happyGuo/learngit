@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<title>关于我们</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="stylesheet" href="/css/apply.css" >
+    <link rel="stylesheet" href="/css/common.css" >
+	</head>
+	<body>
+		<div class="cont-img">
+			<img src="/image/banner.png" alt="" /> 		
+		</div>
+		<p class="about-text">
+			链农成立于2014年6月，我们是餐饮商家全品类原材料的供应商，也是餐饮商家的集中采购平台，
+			我们致力于运用互联网的优势，使得新鲜的蔬菜更高效更优质更低价从田间送到餐厅。
+			让每一个餐饮老板不再难于采购，省钱省人，像网购一样体验互联网带来的高效便捷
+		</p>
+		<div class="history">
+			<b class="history-china">链农大事记</b>
+			<b class="history-num">History</b>
+			<div class="about-img">
+				<img src="/image/about-img2.png" alt=""/>
+			</div>			
+		</div>
+		<div class="about-partent clearfix">
+			<img src="/image/about-img3.png" alt="">
+		</div>
+		<div class="about-partent clearfix">
+			<img src="/image/about-img4.png" alt="">
+		</div>
+		<p class="MsoNormal">
+			<span style="font-size:18px;line-height:27px;"><b><span style="color:#FFFFFF;background-color:#337FE5;"><a href="http://www.farmlink.cn/" target="_blank">点击进入官方网站</a><span id="__kindeditor_bookmark_end_22__"></span></span></b></span>
+		</p>
+			<a href="javascript:window.scrollTo(0,0);" style="font-size:12px;margin:5px auto;display:block;color:#fff;text-align:center;line-height:35px;background:#333;margin-bottom:-10px;">返回顶部</a>
+	</body>
+</html>

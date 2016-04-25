@@ -1,0 +1,155 @@
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 订单操作日志列表</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+
+            <form class="form-horizontal row-border" action="" method="get"
+                  style="border-bottom:1px solid #ccc; margin-bottom: 10px;">
+                <div class="form-group">
+                    <div class="col-md-10">
+                        <div class="row">
+                            <div class="col-md-2">
+                                批次号： <input type="text" name="sn" placeholder="批次号" class="form-control"
+                                            value="<?php echo isset($sn) ? $sn : '' ?>">
+                            </div>
+
+                            <div class="col-md-2">
+                               类型： 
+                               <select name="op_type" class="form-control">
+                                    <option value="">全部</option>
+                                    <option value="1" <?php if(isset($op_type) and $op_type == 1){?>selected="selected"<?php } ?>>修改实际数量</option>
+                                    <option value="2" <?php if(isset($op_type) and $op_type == 2){?>selected="selected"<?php } ?>>打折</option>
+                                    <option value="3" <?php if(isset($op_type) and $op_type == 3){?>selected="selected"<?php } ?>>修改购买数量</option>
+                               </select>
+                            </div>
+                            <div class="col-md-2">
+                                创建时间： <input type="text" name="start_time" readonly="readonly" value="<?php echo isset($start_time) ? $start_time : ''; ?>" class="form-control datepicker">
+                            </div>
+                            <div class="col-md-2">
+                                至　
+                                <input type="text" name="end_time" readonly="readonly" value="<?php echo isset($end_time) ? $end_time : ''; ?>" class="form-control datepicker">
+                            </div>
+                            <div class="col-md-1">
+                                <input type="submit"  value="搜索" class="btn btn-primary" style="margin-top:18px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                    <tr>
+                        <th>批次号</th>
+                        <th>商品名称</th>
+                        <th>类型</th>
+                        <th>修改前数据</th>
+                        <th>修改后数据</th>
+                        <th>原因</th>
+                        <th>创建时间</th>
+                        <th>订单状态</th>
+                        <th>操作平台</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    if ($logs) {
+                        foreach ($logs as $k => $v) {
+                            ?>
+                            <tr>
+                                <td>
+                                <?php  echo $v['subcontract'];?>
+                                </td>
+                                <td><?php echo !empty($v['order_sku_id'])?$this->mc->getModel('OrderSku')->findById($v['order_sku_id'])['sku_name']:''; ?></td>
+                                <td>
+                                <?php 
+                                if($v['op_type']==0){
+                                    echo '修改实际数量';
+                                }else if($v['op_type']==1){
+                                    echo '打折';
+                                }else{
+                                    echo '修改购买数量';
+                                }
+                                ?></td>
+                                <td><?php echo $v['before_value']; ?></td>
+                                <td><?php echo $v['after_value']; ?></td>
+                                <td><?php echo $v['reason']; ?></td>
+                                <td><?php echo isset($v['ctime']) ? date('Y-m-d H:i:s', $v['ctime']) : ''; ?></td>
+                                
+                                <td>
+                                    <?php
+                                    if ($v['status'] == 0) {
+                                        echo '待确认';
+                                    } elseif ($v['status'] == 1) {
+                                        echo '处理中';
+                                    } elseif ($v['status'] == 2) {
+                                        echo '处理完毕';
+                                    } elseif ($v['status'] == 3) {
+                                        echo '用户取消';
+                                    } elseif ($v['status'] == 4) {
+                                        echo '客服取消';
+                                    }
+                                    ?>
+                                </td>
+                                <td>
+                                    
+                                    <?php
+                                    if($v['platform']=='partner'){
+                                        echo '桃园系统';
+                                    }elseif($v['platform']=='app_liannong') {
+                                        echo '统一定价APP';
+                                    }elseif($v['platform']=='app_ykyj') {
+                                        echo '一客一价APP';
+                                    }elseif($v['platform']=='app_partner') {
+                                        echo '配销商APP';
+                                    }elseif($v['platform']=='backend') {
+                                        echo '运营后台';
+                                    }
+                                    ?>
+                                   
+                                </td>
+                            </tr>
+                        <?php
+                        }
+                    }
+                    ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+<?php echo isset($page)?$page:''; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+
+<script type="text/javascript">
+    $(".toggle-data").click(function () {
+        var obj = $(this).parent().next('div');
+        obj.toggle();
+
+    });
+    
+    $("form").submit(function(e){
+       var sn_val=$("input[name='sn']").val();
+       var reg = new RegExp("^[0-9]*$");
+       if(!reg.test(sn_val)){
+                  e.preventDefault();
+                  alert("订单号必须是数字!");
+       }
+    });
+</script>

@@ -1,0 +1,286 @@
+<script type="text/javascript" src="plugins/flot/jquery.flot.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.tooltip.min.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.resize.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.time.min.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.orderBars.min.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.pie.min.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.selection.min.js"></script>
+<script type="text/javascript" src="plugins/flot/jquery.flot.growraf.min.js"></script>
+<script type="text/javascript" src="plugins/easy-pie-chart/jquery.easy-pie-chart.min.js"></script>
+<!--=== Page Header ===-->
+<div class="row row-bg"> <!-- .row-bg -->
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual cyan">
+                    <div class="statbox-sparkline"><i class=" icon-list-alt"></i></div>
+                </div>
+                <div class="title">今日下单数</div>
+                <div class="value"><?php echo $todayOrderNum; ?></div>
+                <a class="more" href="<?=$this->url->get('order/list',array('start_time'=>$today)); ?>" title="收支统计管理">查看详情 <i class="pull-right icon-angle-right"></i></a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">今日下单总金额</div>
+                <div class="value"><?php echo $todayMoney; ?>元</div>
+                <a class="more">&nbsp;</a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual green">
+                    <div class="statbox-sparkline"><i class=" icon-list-alt"></i></div>
+                </div>
+                <div class="title">本月完成订单数</div>
+                <div class="value"><?php echo $monthOrderNum; ?></div>
+                <a class="more">&nbsp;</a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">本月完成订单交易总金额</div>
+                <div class="value"><?php echo $monthMoney; ?>元</div>
+                <a class="more">&nbsp;</a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+    <div class="col-sm-6 col-md-3" style="display:none;">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual green">
+                    <div class="statbox-sparkline"><i class=" icon-list-alt"></i></div>
+                </div>
+                <div class="title">本月拒收订单数</div>
+                <div class="value"><?php echo $monthRejectOrderNum; ?></div>
+                <a class="more" href="" title="">查看详情 <i class="pull-right icon-angle-right"></i></a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+    <div class="col-sm-6 col-md-3"  style="display:none;">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">本月拒收总金额</div>
+                <div class="value"><?php echo $monthRejectMoney; ?>元</div>
+                <a class="more" href="" title="">查看详情 <i class="pull-right icon-angle-right"></i></a>
+            </div>
+        </div> <!-- /.smallstat -->
+    </div> <!-- /.col-md-3 -->
+
+</div>
+<!-- /Page Header -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 订单完成情况</h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content" style="display: block;">
+                <p style="line-height: 26px;">
+                    <span>待确认：<?php echo $toAllowOrderNum; ?></span>
+                    <span style="margin-left: 15px;">处理中：<?php echo $handleOrderNum; ?></span>
+                    <span style="margin-left: 15px;">处理完毕：<?php echo $overOrderNum; ?></span>
+                    <span style="margin-left: 15px;">已取消：<?php echo $cancelOrderNum; ?></span>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 信息统计</h4>
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content" style="display: block;">
+                <p style="line-height: 26px;">
+                    <span>店铺：<a href="/shop/list" title="店铺管理"><?php echo $shopNum; ?></a></span>
+                    <span style="margin-left: 15px;">配销商：<a href="/partner/list"
+                                                            title="配销商管理"><?php echo $partnerNum; ?></a></span>
+                    <span style="margin-left: 15px;">商品：<a href="/sku/list"
+                                                           title="商品管理"><?php echo $skuNum; ?></a></span>
+                    <span style="margin-left: 15px;">用户：<a href="/user/list"
+                                                           title="前台用户管理"><?php echo $userNum; ?></a></span>
+                    <span style="margin-left: 15px;">用户常用商品：<a href="/usersku/list"
+                                                               title="用户常用管理"><?php echo $userSkuNum; ?></a></span>
+                    <br/>
+                    <span>用户收藏商品：<a href="/favor/list" title="用户收藏管理"><?php echo $favorNum; ?></a></span>
+                    <span>活动：<a href="/activity/list" title="活动管理"><?php echo $activityNum; ?></a></span>
+
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--=== Page Content ===-->
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 当月订单一览表</h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content" style="display: block;">
+                <div id="chart_bars_vertical" class="chart" style="padding: 0px; position: relative;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+    var numArr =  <?php echo json_encode($numArr); ?>;
+    var moneyArr =  <?php echo json_encode($moneyArr); ?>;
+    function showTooltip(x, y, contents) {//浮动块信息
+        $('<div id="tooltip">' + contents + '</div>').css({
+            position: 'absolute',
+            display: 'none',
+            top: y + 5,
+            left: x + 5,
+            border: '1px solid #fdd',
+            padding: '2px',
+            'background-color': '#fee',
+            opacity: 0.80
+        }).appendTo("body").fadeIn(200);
+    }
+    $(document).ready(function () {
+        // Sample Data
+        var xDataArr = [];
+        var d1 = [];//数量数组
+        var d2 = [];//金额数组
+        var i = 0;
+        for (var key in numArr) {
+            d1.push([key, numArr[key]]);
+            d2.push([key, moneyArr[key]]);
+            var d = new Date(key * 1000);
+            xDataArr.push([key, i%5 == 0 ? (d.getUTCMonth() + 1) + "/" + d.getUTCDate() : '']);
+            i++;
+        }
+        // Initialize Chart
+        $.plot("#chart_bars_vertical", [{
+            label: "日订单数",
+            data: d1,
+            color: App.getLayoutColorCode('blue'),
+            lines: {
+                fill: true
+            },
+            points: {
+                show: false
+            },
+            order: 1
+        }, {
+            label: "日订单总金额(元)",
+            data: d2,
+            color: App.getLayoutColorCode('red'),
+            yaxis: 2,
+            order: 2
+        }], $.extend(true, {}, Plugins.getFlotDefaults(), {
+            xaxis: {
+                ticks: xDataArr
+            },
+            yaxes: [{min: 0}, {
+                // align if we are to the right
+                position: 'right',
+                tickFormatter: function (v, axis) {
+                    return v.toFixed(axis.tickDecimals) + "元";
+                }
+            }],
+            series: {
+                lines: {show: true},
+                points: {show: true},
+                grow: {active: true}
+            },
+            grid: {
+                hoverable: true,
+                clickable: true
+            },
+            shadowSize: 5,  //阴影效果
+            legend: {
+                show: true,
+                noColumns: 0, // number of colums in legend table
+                labelFormatter: null, // fn: string -> string
+                labelBoxBorderColor: "#ccc", // border color for the little label boxes
+                container: null, // container (as jQuery object) to put legend in, null means default on top of graph
+                position: "nw", // position of default legend container within plot
+                margin: 5, // distance from grid edge to default legend container within plot
+                backgroundColor: null, // null means auto-detect
+                backgroundOpacity: 0.15, // set to 0 to avoid background
+                sorted: null    // default to no legend sorting
+            },
+        }));
+        function showTooltip(x, y, contents) {//浮动块信息
+            $('<div id="tooltip">' + contents + '</div>').css({
+                position: 'absolute',
+                display: 'none',
+                top: y,
+                left: x + 8,
+                border: '1px solid #fdd',
+                padding: '2px',
+                'background-color': '#fee',
+                opacity: 0.80,
+                'z-index': 10000,
+            }).appendTo("body").fadeIn(200);
+        }
+
+        var previousPoint = null;
+        $("#chart_bars_vertical").bind("plothover", function (event, pos, item) {
+            if (item) {
+                if (previousPoint == item) {
+                    return;
+                }
+                $("#tooltip").remove();
+                var data = item.datapoint[1];
+                var contents = item.series.label + "：" + data;
+                showTooltip(pos.pageX, pos.pageY, contents);
+                previousPoint = item;
+            }
+            else {
+                $("#tooltip").remove();
+                previousPoint = null;
+            }
+        }).bind('mousemove', function (e) {
+            if (previousPoint) {
+                $("#tooltip").css({
+                    top: e.pageY - 8,
+                    left: e.pageX + 8,
+                });
+            }
+        });
+    });
+</script>
+

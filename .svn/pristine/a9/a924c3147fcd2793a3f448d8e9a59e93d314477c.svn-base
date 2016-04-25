@@ -1,0 +1,21 @@
+<?php
+namespace Modules\App\Controllers;
+
+class CCityController extends CAppController
+{
+
+	//返回对应城市的活动
+	public function activitylistAction()
+	{
+		$where = 'is_del = 0';
+		$activity = $this->getModel('Activity')->find(array($where,"order"=>"sort DESC","limit"=>3));
+		foreach($activity as $k=>$v) {
+			$activitylist[$k]['id'] = $v->id;
+			$activitylist[$k]['name'] = $v->name;
+			$activitylist[$k]['url'] = $v->url;
+			$activitylist[$k]['pic_url'] = $this->img->getUrl($v->pic_url);
+		}
+		$this->renderJson($activitylist);
+		
+	}
+}

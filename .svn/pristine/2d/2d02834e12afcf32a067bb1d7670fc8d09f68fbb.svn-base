@@ -1,0 +1,36 @@
+<?php
+/**
+ * Created by Sublime.
+ * User: zhangrg
+ * Date: 15-8-4
+ * Time: 下午3:39
+ */
+
+namespace Libs;
+
+class CopyDatabase extends \Phalcon\Mvc\Controller {
+
+    static public function copyTo($new) {
+        try {
+
+            $config = @include __DIR__ . "/../config/config.php";
+
+            $db = new \Phalcon\Db\Adapter\Pdo\Mysql($config->tpl_db->toArray());
+
+            //链接模板数据库
+            $db->query("use " . $config->tpl_db->name);
+            $res = $db->fetchAll("show tables");
+            foreach ($res as $key => $table) {
+                $tables[] = $table['Tables_in_fl_tpl'] ;
+            }
+
+            //$db->query("CREATE DATABASE IF NOT EXISTS " . $new . "");
+            $db->query("use " . $new);
+            for ($i = 0; $i < count($tables); $i++) {
+                $db->query("CREATE TABLE IF NOT EXISTS `" . $tables[$i] . "` SELECT * FROM `{$config->tpl_db->name}`.`" . $tables[$i].'`');
+            }
+        } catch (Exception $e) {
+            echo 'Error: ' . $e->getMessage();
+        }
+    }
+}

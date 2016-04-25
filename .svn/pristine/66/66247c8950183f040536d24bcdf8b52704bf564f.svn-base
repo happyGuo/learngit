@@ -1,0 +1,131 @@
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 争议列表</h4>
+				<div class="toolbar no-padding">
+					<div class="btn-group">
+						<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+					</div>
+				</div>
+			</div>
+		<div class="widget-content">
+					<table class="table table-hover table-striped table-bordered table-highlight-head">
+						<thead>
+							<tr>
+								<th>ID</th>
+								<th>分组号</th>
+								<th>客户名</th>
+								<th>争议金额</th>
+								<th>争议内容</th>
+								<th>争议结果</th>
+								<th>争议时间</th>
+								<th>操作</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach($troversy as $k=>$v) { ?>
+							<tr>
+								<td><?php echo $v['id']; ?></td>
+								<td><?php echo $v['subcontract']; ?></td>
+
+								<td><?php foreach($v['username'] as $key=>$val){
+										echo $val['real_name'];
+									}?></td>
+								<td><?php echo $v['dispute_amount']; ?></td>
+								<td><?php echo $v['message']; ?></td>
+								<td><?php 
+										switch($v['result']){
+									      case 0:
+									       echo "待处理";
+									       break;
+									      case 1:
+									       echo "同意";
+									       break;
+									      case 2:
+									       echo "拒绝";
+									       break;
+									   }
+								 ?></td>
+								<td><?php echo date("Y-m-d h:i:s",$v['ctime'])?></td>
+								<td>
+								<?php if($v['result'] == 0){?>
+											<a id ='agree' href="javascript:void(0)" onclick="change_status(id='<?=$v['id']?>')">同意</a>
+											<a href="javascript:void(0)" onclick="reply(id=<?php echo $v['id'];?>)">拒绝</a>
+									<?php	}?>								   
+								    <a href="order/zydetail?id=<?php echo $v['id']?>&userid=<?php echo $v['username'][0]['id'];?>&subcontract=<?php echo $v['subcontract'];?>" class="btn btn-xs bs-tooltip" title="详情">详情</a>
+								</td>								
+							</tr>
+							<?php } ?>
+						</tbody>
+					</table>
+				<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+					<div class="col-md-12">
+							<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="col-md-12">
+	<div id="contentid" style="display:none"> 
+		<form method="post" action="order/reply">
+			<input type="hidden" name="id" id="id" value="">
+			<table align="center">
+				<tr>
+					<td>争议金额：</td>
+					<td><input type="text" name="dispute_amount"></td>
+				</tr>
+				<tr>
+					<td>争议内容：</td>
+					<td><input type="text" name="message"></td>
+				</tr>
+				<tr>
+					<td></td>
+					<td><input type="submit" value="回复">
+					<input type="button" value="取消" onclick="cancel()"></td>				
+				</tr>
+			</table>
+		</form>
+	</div>
+</div>
+<!-- /Table with Footer -->
+
+<!-- /Page Content -->
+<script type="text/javascript">
+	//同意争议
+	var change_status = function(id){
+		var data = 'id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"order/agree",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+            	if(result == 1){
+            		alert('争议处理成功');
+            		location.href = 'order/troversy';
+            	}
+            	if(result == 2){
+            		alert('争议处理失败');
+            		location.href = 'order/troversy';
+            	}
+            }
+        });		
+	}
+	//拒绝争议
+	function reply(id){
+		$("#id").val(id);
+ 		$("#contentid").show();
+ 		$("#agree").hide();
+	}
+	//取消
+	function cancel(){
+		location.href = 'order/troversy';
+	}
+</script>

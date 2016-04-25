@@ -1,0 +1,11 @@
+<?php
+namespace Modules\App\Controllers;
+
+class WapController extends AppController
+{
+    public function aboutAction()
+    {
+    	
+    }
+}
+

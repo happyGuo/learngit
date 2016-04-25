@@ -1,0 +1,22 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+class ErrorController extends AppController
+{
+    public function indexAction(){
+        exit('333');
+    }
+
+    public function show404Action()
+    {
+        $this->renderJson([],'该接口不存在');
+    }
+
+    public function show500Action()
+    {
+        $this->renderJson([],'500错误');
+    }
+
+}
+

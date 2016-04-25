@@ -1,0 +1,183 @@
+<div class="col-md-12">
+<div class="widget box">
+<div class="widget-header">
+<h4><i class="icon-reorder"></i> 配销商提现列表</h4>
+<div class="toolbar no-padding">
+<div class="btn-group">
+	<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+</div>
+</div>
+</div>
+<div class="widget-content">
+	<form class="form-horizontal row-border" method="get" action="">
+        <div class="form-group">
+            <div class="col-md-12">
+                <div class="row">
+                    <div style="margin-right: 10px;" class="col-md-2">
+                        <input type="text" readonly="readonly" placeholder="开始时间" class="form-control datepicker" value="" name="start_time">
+                    </div>
+
+                    <div class="col-md-2">
+                        <input type="text" readonly="readonly" placeholder="结束时间" class="form-control datepicker" value="" name="end_time" >
+                    </div>
+                    <div class="col-md-2">
+                        <select name="status" class="form-control">
+                            <option value="0" <?php if($status == 0){ echo "selected='selected'";}?>>待确认</option>
+                            <option value="1" <?php if($status == 1){ echo "selected='selected'";}?>>提现成功</option>
+                            <option value="2" <?php if($status == 2){ echo "selected='selected'";}?>>提现驳回</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="submit" class="btn btn-info btn-block" value="搜索">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+<table class="table table-hover table-striped table-bordered table-highlight-head">
+<thead>
+	<tr>
+		<th>配销商</th>
+		<th>提现总额</th>
+		<th>状态</th>
+        <?php if($status == 1){?>
+		<th>支付流水</th>
+        <?php } ?> 
+        <?php if($status == 2){?>
+		<th>备注</th>
+        <?php } ?>
+		<th>申请时间</th>
+        <?php if($status == 0){?>
+		<th>操作</th>
+        <?php } ?>
+	</tr>
+</thead>
+<tbody>
+	<?php foreach ($list as $key => $value): ?>
+	</tr>
+		<tr>
+		<td><?=$value['partner_name']?></td>
+		<td><?=$value['amount']?></td>
+		<td><?=$value['status_key']?></td>
+        <?php if($status == 1){?>
+		<td><?=$value['pay_sn']?></td>
+        <?php } ?>
+        <?php if($status == 2){?>
+		<td><?=$value['remark']?></td>
+        <?php } ?>
+		<td><?=$value['ctime']?></td>
+        <?php if($status == 0){?>
+		<td>
+			<a title="" class="btn btn-xs bs-tooltip" onclick="confirm(<?=$value['id']?>)" href="javascript:void(0)" data-original-title="确认">确认</a>
+			<a title="" class="btn btn-xs bs-tooltip" href="javascript:void(0)" onclick="rejected(<?=$value['id']?>)" data-original-title="驳回">驳回</a>
+		</td>
+        <?php } ?>
+	</tr>
+<?php endforeach;?>
+	</tbody>
+</table>
+<div class="row">
+    <div class="table-footer">
+        <div class="col-md-12">
+            <?php echo $page; ?>
+        </div>
+    </div>
+</div>
+		</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+	var confirm = function(id)
+	{
+		var html = "<input type='text' id='pay_sn' class='from-control'  placeholder='转账流水号'>";
+        bootbox.dialog({
+            message:html,
+            title: "确认",
+            onEscape: function() {},
+            show: true,
+            backdrop: true,
+            size: 'large',
+            animate: true,
+            className: "my-modal",
+            buttons: {
+            success: {
+              label: "确认",
+              className: "btn-success",
+              callback: function() {
+                var pay_sn=$("#pay_sn").val();
+//                var preg_pay_sn = new RegExp('^[0-9]+$');
+//                if(preg_pay_sn.exec(pay_sn) == null){
+//                    alert('流水号填写有误');
+//                    return false;
+//                }
+                $.ajaxSetup({async: false});
+                $.post('partner/confirmwithdraw',{pay_sn:pay_sn,id:id},
+                    function(data){
+                        if(data.data != 0){
+                            alert(data.errmsg);
+                            window.location.href=window.location.href;
+                        }else if(data.data == 0){
+                            alert(data.errmsg);
+                            return false;
+                        }else{
+                            alert('操作失败');
+                            return false;
+                        }
+
+                    },'json');
+              }
+            },
+            "取消": {
+              className: "btn-danger",
+            }
+            }
+        });
+	}
+
+	var rejected = function(id)
+	{
+		var html = "<input type='text' id='remark' class='from-control'  placeholder='请填写备注'>";
+        bootbox.dialog({
+            message:html,
+            title: "驳回",
+            onEscape: function() {},
+            show: true,
+            backdrop: true,
+            size: 'large',
+            animate: true,
+            className: "my-modal",
+            buttons: {
+            success: {
+              label: "确认",
+              className: "btn-success",
+              callback: function() {
+                var remark=$("#remark").val();
+                if(remark == ''){
+                	alert('请填写备注');
+                    return false;
+                }
+                $.ajaxSetup({async: false});
+                $.post('partner/rejectedwithdraw',{remark:remark,id:id},
+                    function(data){
+                        if(data.data != 0){
+                            alert(data.errmsg);
+                            window.location.href=window.location.href;
+                        }else if(data.data == 0){
+                            alert(data.errmsg);
+                            return false;
+                        }else{
+                            alert('提现失败');
+                            return false;
+                        }
+
+                    },'json');
+              }
+            },
+            "取消": {
+              className: "btn-danger",
+            }
+            }
+        });
+	}
+</script>

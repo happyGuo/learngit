@@ -1,0 +1,182 @@
+<?php
+namespace Modules\App\Controllers;
+
+class CShopController extends CAppController
+{
+    /*
+		function：显示商铺
+		author: CMZ
+		date:2015/7/24
+	*/
+	public function listAction(){
+		$userId = $this->userId;
+		$status = $this->request->getQuery('status');
+			$where = ' 1 ';
+			if($status!=NULL){
+				$where = 'status = '.$status;
+			}
+			$where .=' and user_id = '.$userId.' and is_del = 0';
+			   	$shop = $this->getModel('shop')->find(array($where,"order"=>"id desc"));
+			$shoplist = [];
+				foreach($shop as $k=>$v) {
+					$shoplist[$k]['id'] = $v->id;
+					$shoplist[$k]['status'] = $v->status;
+					$shoplist[$k]['name'] = $v->name;
+					$shoplist[$k]['user_id'] = $v->user_id;
+					$shoplist[$k]['area_id'] = $v->area_id;
+					$shoplist[$k]['address'] = $v->address;
+					$shoplist[$k]['shop_type'] = $v->shop_type;
+					$shoplist[$k]['contact_name'] = $v->contact_name;
+					$shoplist[$k]['contact_mobile'] = $v->contact_mobile;
+					$shoplist[$k]['best_time'] = $v->best_time;
+				}
+		return $this->renderJson($shoplist);		
+	}
+    /*
+		function：添加商铺
+		author: CMZ
+		date:2015/7/23
+	*/	
+    public function createAction(){
+		$userId = $this->userId;
+		$mobile = $this->request->getPost('contact_mobile');
+		$name = $this->request->getPost('name');
+		$new_shop = $this->getModel('shop')->findFirst('name ="'.$name.'"');
+		if(!empty($new_shop->name)){
+			echo  444;die;
+			$message = '店铺名称已被占用，请重新输入';
+	        $this->renderJson(array(),$message);
+		}
+		$city = $this->request->getPost('city');
+		$platform = \Libs\Util::getPlatform();
+		$shop = $this->getModel('shop')->findFirst('user_id ='.$userId);
+		if(!empty($shop)){
+			echo  333;die;
+				$message = '一个用户只能创建一个店铺';
+	            $this->renderJson(array(),$message);
+		}else{
+			$shop = $this->createModel('shop');
+			$data['address'] = $this->request->getPost('address');
+			$data['user_id'] = $userId;
+			$data['is_del'] = 0;
+			$data['area_id'] = $this->request->getPost('area_id',"int");
+			$data['contact_name'] = $this->request->getPost('contact_name');
+			$data['contact_mobile'] = $this->request->getPost('contact_mobile');
+			$data['name'] = $name;
+			$data['best_time'] = $this->request->getPost('best_time');
+			$data['type'] = 0;
+			$res = $this->getModel('shop')->createOne($data);
+				if($res){
+					return $this->renderJson(array());				
+				}else{
+					$messages = $shop->getError();
+					return $this->renderJson(array() ,$messages);
+				}
+		}
+						
+	}
+	/*
+		function：删除商铺
+		author: CMZ
+		date:2015/7/24
+		note:如果对方审核状态为待审核和审核未通过则可以删除
+	*/
+	public function deleteAction(){
+		$shop = $this->getModel('shop')->findFirst($this->request->getPost('shop_id',"int"));
+		$shop->is_del = 1;
+    	if($this->request->getPost('status') == 0 || $this->request->getPost('status') == 2){
+			if($shop->save()){
+				return $this->renderJson(array());
+			}else{
+				$this->renderJson(array(),$message);
+			}	
+    	}else{
+			$message = '店铺已通过审核，不可删除';
+            $this->renderJson(array(),$message);
+		}
+	}
+	/*
+		function：修改商铺基本信息
+		author: CMZ
+		date:2015/7/24
+		note:如果对方审核状态为待审核全部可以修改
+			 如果对方审核状态为待审核之后则只可以修改contact_name，contact_mobile，best_time(联系人,联系电话,最佳时间)
+	*/
+	public function updateAction(){
+
+		$shopId = $this->request->getPost('shop_id',"int");
+		$userId = $this->userId;
+    	if($this->request->isPost()){
+			
+			$shop = $this->getModel('shop')->findFirst($shopId);
+			$status = $shop->status;
+			if($status > 0){
+				//联系人
+				$shop->contact_name = $this->request->getPost('contact_name');
+				//联系电话
+				$shop->contact_mobile = $this->request->getPost('contact_mobile');
+				//最佳时间
+				$shop->best_time = $this->request->getPost('best_time');
+				if($shop->save()){
+					return $this->renderJson(array());
+				}
+			}else{
+				//print_r($_POST);die;
+				//联系人
+				$shop->contact_name = $this->request->getPost('contact_name');
+				//联系电话
+				$shop->contact_mobile = $this->request->getPost('contact_mobile');
+				//最佳时间
+				$shop->best_time = $this->request->getPost('best_time');
+				//收货地址
+				$shop->address = $this->request->getPost('address');
+				//地区
+				$shop->area_id = $this->request->getPost('area_id',"int");
+				//商铺名称
+				$shop->name = $this->request->getPost('name');
+					if($shop->save()){
+		
+						return $this->renderJson(array());
+					}else{
+
+						$messages = $shop->getError();					
+					}	
+			}			
+		}else{
+			$this->renderJson(array(),$message);
+		}
+	}
+      	/*
+		function：修改商铺默认状态
+		author: CMZ
+		date:2015/8/6
+		*/
+		public function updatedefaultAction(){
+
+			$shopId = $this->request->getPost('shop_id',"int");
+			$userId = $this->userId;
+
+		    	if($this->request->isPost()){
+		    		$shop = $this->getModel('shop')->findFirst($shopId);
+		    		$where = 'user_id = '.$userId.' and is_default = 1 and is_del = 0';		    		
+					$is_default = $this->getModel('shop')->findFirst($where);
+						if ($is_default) {
+							$is_default->is_default = 0;
+							$res = $is_default->save();
+								if($res == true){
+									$shop->is_default = 1;
+									if ($shop->save()) {
+										return $this->renderJson(array());
+									}
+								}
+						}else{
+							$shop->is_default = 1;
+							if ($shop->save()) {
+								return $this->renderJson(array());
+							}
+				}
+		}
+		$message = $shop->getError();
+		return $this->renderJson(array() ,$message);
+	}
+}	

@@ -1,0 +1,62 @@
+<?php
+namespace Plugins;
+/**
+ * 不允许修改
+ * Class ModelCache
+ * @package Plugins
+ */
+class ModelCache extends \Phalcon\Mvc\User\Plugin {
+	static $models=array();
+
+	public function getDict($id){
+		if(empty($id))
+			return array('name'=>'');
+		
+		return $this->getModel('dict')->findById($id);
+	}
+	
+	public function getSku($id){
+		return $this->getModel('sku')->findById($id);
+	}
+
+    public function getPartnerSku($id){
+        return $this->getModel('partnerSku')->findById($id);
+    }
+	
+	public function getPartner($id){
+		return $this->getModel('partner')->findById($id);
+	}
+	
+	public function getUser($id){
+		return $this->getModel('user')->findById($id);
+	}
+
+    public function getAdmin($id){
+		return $this->getModel('admin')->findById($id);
+	}
+
+	public function getCategory($id){
+		return $this->getModel('category')->findById($id);
+	}
+
+    public function getShop($id){
+        return $this->getModel('shop')->findById($id);
+    }
+	
+	public function getModel($name,$city=''){
+		if(!isset(self::$models[$name])){
+			$tmp = '\\Models\\'.ucfirst($name);
+            if($city)
+                $this->util->setCity($city);
+			self::$models[$name] = new $tmp();
+		}
+		return self::$models[$name];
+	}
+	
+	public function createModel($name){
+		$tmp = '\\Models\\'.ucfirst($name);
+		return new $tmp();
+	}
+
+	
+}

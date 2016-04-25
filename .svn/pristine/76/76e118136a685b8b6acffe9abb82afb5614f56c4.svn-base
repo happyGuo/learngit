@@ -1,0 +1,11 @@
+<h1>Congratulations! <?php echo !empty($user) ? $user -> real_name : 'guest';?></h1>
+
+<p>this is the index page.</p>
+
+<?php if(empty($user)):?>
+<?php echo $this -> tag -> linkTo(array('user/login', '登陆'));?>
+&nbsp;&nbsp;&nbsp;
+<?php echo $this -> tag -> linkTo(array('user/register', '注册'));?>
+<?php else:?>
+<?php echo $this -> tag -> linkTo(array('user/logout', '登出'));?>
+<?php endif;?>

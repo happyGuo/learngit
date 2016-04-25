@@ -1,0 +1,363 @@
+<?php
+namespace Models;
+class OrderSku extends CityModel
+{
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'order_id',
+            'message' => '订单ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'order_sn',
+            'message' => '订单号不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'sku_id',
+            'message' => '商品ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'buy_number',
+            'message' => '购买数量不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'unit_id',
+            'message' => '商品单位ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'unit_number',
+            'message' => '单位数量不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'buy_amount',
+            'message' => '订单金额不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'partner_id',
+            'message' => '配销商ID不能为空'
+        )));
+
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    public function afterCreate()
+    {
+        // 记录用户常买商品
+        $userSku = $this->getModel('userSku')->findFirst('user_id =' . $this->user_id . ' and sku_id =' . $this->sku_id.' and platform="'.$this->platform.'"');
+        if (!$userSku) {
+            $tmp = array('platform'=>$this->platform,'user_id' => $this->user_id, 'sku_id' => $this->sku_id);
+            $this->getModel("userSku")->createOne($tmp);
+            //$this->debug('新增用户常用' . print_r($tmp, true));
+        } else {
+            $userSku->save();
+        }
+    }
+
+    /*
+     * 变更数量
+     */
+    public function changNumber($id, $number, $price, $creator_id, $note='')
+    {
+        $order_sku = $this->getModel('OrderSku')->findFirst($id);
+        $order_subcontract = $this->getModel('orderSubcontract')->findFirst(array('is_del = 0 and subcontract="'.$order_sku->subcontract.'"'));
+        if($creator_id != $order_subcontract->partner_id){
+            return '非自己订单不可操作';
+        }
+        if($order_subcontract->pay_discount != '0.00'){
+            return '该订单已打折，不可修改数量';
+        }
+
+        $before_value = $order_sku->real_number;
+        $before_price = $order_sku->pay_amount;
+        if(!empty($price) && ($order_subcontract->platform = 'partner' || $order_subcontract->platform = 'app_partner')){
+           if($order_subcontract->status == 0){
+                $order_sku->pay_amount = $order_sku->buy_amount = $price * $number;
+           }else{
+                $order_sku->pay_amount = $price * $number;
+           }
+           $order_sku->unit_price = $price;
+        }else{
+           if($order_subcontract->status == 0){
+               $order_sku->pay_amount = $order_sku->buy_amount = $order_sku->unit_price * $number;        
+           }else{
+               $order_sku->pay_amount = $order_sku->unit_price * $number;
+           }
+
+        }
+        if($order_subcontract->status == 0){
+           $order_sku->buy_number = $order_sku->real_number = $number;
+        }else{
+           $order_sku->real_number = $number;
+        }
+        $change_price = $order_sku->pay_amount - $before_price;
+        $order_sku->save();
+
+        //更新订单分组价格
+        $update = array();
+        $update['pay_amount'] =  $order_subcontract->pay_amount + $change_price;
+        if($order_subcontract->status == 0){
+            $update['buy_amount'] =  $order_subcontract->pay_amount + $change_price;
+        }
+        $this->getModel('orderSubcontract')->updateOne('is_del = 0 and subcontract="' . $order_sku->subcontract . '"', $update);
+        //更新订单总金额
+        $order = $this->getModel('order')->findFirst($order_sku->order_id);
+        if($order_subcontract->status == 0){
+            $this->getModel('order')->updateOne($order_sku->order_id, array('pay_amount' => $order->pay_amount + $change_price, 'buy_amount'=>$order->pay_amount + $change_price));            
+        }else{
+            $this->getModel('order')->updateOne($order_sku->order_id, array('pay_amount'=>$order->pay_amount + $change_price));
+        }
+        if($order_subcontract->status=2){
+            $log = array('subcontract'=>$order_subcontract->subcontract, 'sku_id' => $id, 'order_sku_id'=>$order_sku->id,'before_value' => $before_value, 'after_value' => $number, 'reason' => $note, 'status' => $order_subcontract->status, 'op_type' => 0, 'creator_id' => $creator_id);
+        }
+        $this->getModel('orderSkuLog')->createOne($log);
+        return true;
+    }
+
+    /**
+     * 商品打折
+     * @param $subcontract
+     * @param $discount
+     * @param $creator_id
+     * @param string $note
+     * @return bool|string
+     */
+    public function changePrice($id, $discount, $creator_id, $note = '')
+    {
+        $orderSubcontract = $this->getModel('orderSubcontract')->findFirst(array('id="' . $id . '"'));
+        if($creator_id != $orderSubcontract->partner_id){
+            return '非自己订单不可操作';
+        }        
+        $discount = floatval($discount);
+        if($discount<=0 || $discount>=1){
+            return '打折额度输入有误，请输入0.50-0.99的数字';
+        }
+
+        if ($orderSubcontract->pay_discount != '0.00') {
+            return '该订单已打折，不可再次打折';
+        }
+        
+        if (empty($note)) {
+            return '备注不能为空';
+        }
+        if (!in_array($orderSubcontract->status, array(1, 2))) {
+            return '不是待发货或已发货状态';
+        }
+
+        //更新每个商品价格
+        $skus = $this->getModel('OrderSku')->find('subcontract="' . $subcontract . '"');
+        $totalChange = 0;
+        foreach ($skus as $sku) {
+            $beforeValue = $sku->pay_amount;
+            $sku->pay_amount = round($sku->pay_amount * $discount, 2);
+            $totalChange += $sku->pay_amount - $beforeValue;
+            $sku->save();
+        }
+        //分组打折
+
+        //变更日志
+        $log = array('subcontract' => $orderSubcontract->subcontract, 'before_value' => $orderSubcontract->pay_amount, 'after_value' => $orderSubcontract->pay_amount + $totalChange, 'reason' => $note, 'status' => $orderSubcontract->status, 'op_type' => 1, 'creator_id' => $creator_id);
+        $this->getModel('orderSkuLog')->createOne($log);
+
+        $orderSubcontract->pay_amount = $orderSubcontract->pay_amount + $totalChange;
+        $orderSubcontract->pay_discount = $discount;
+        $orderSubcontract->save();
+        //更新订单总金额
+        $order = $this->getModel('order')->findFirst($orderSubcontract->order_id);
+        $this->getModel('order')->updateOne($orderSubcontract->order_id, array('pay_amount' => $order->pay_amount + $totalChange));
+        return true;
+    }
+
+    /*
+     * user 常晓川
+     * 变更购买数量
+     */
+    public function changBuyNumber($id, $number, $creator_id, $note='')
+    {
+        $order_sku = $this->getModel('OrderSku')->findFirst($id);
+        $order_subcontract = $this->getModel('orderSubcontract')->findFirst(array('subcontract="'.$order_sku->subcontract.'"'));
+        if($order_subcontract->pay_discount != '0.00'){
+            return '该订单已打折，不可修改数量';
+        }
+        if ($order_subcontract->status == 2 && empty($note)) {
+            return '备注不能为空';
+        }
+        $before_value = $order_sku->buy_number;
+        $before_price = $order_sku->pay_amount;
+        $before_buy_price = $order_sku->buy_amount;
+        $order_sku->pay_amount = $order_sku->unit_price * $number;
+        $order_sku->buy_amount = $order_sku->unit_price * $number;
+
+        $order_sku->buy_number = $number;
+        $order_sku->real_number = $number;
+        $change_price = $order_sku->pay_amount - $before_price;
+        $change_buy_price = $order_sku->buy_amount - $before_buy_price;
+        //更新订单总金额
+        $order = $this->getModel('order')->findFirst($order_sku->order_id);
+        $order_sku->save();
+
+        //更新订单分组价格
+        $this->getModel('orderSubcontract')->updateOne('subcontract="'.$order_sku->subcontract.'"',
+            array(
+                'pay_amount'=>$order_subcontract->pay_amount + $change_price,
+                'buy_amount'=>$order_subcontract->buy_amount + $change_buy_price
+            )
+        );
+        $this->getModel('order')->updateOne($order_sku->order_id,
+            array(
+                'pay_amount'=>$order->pay_amount + $change_price,
+                'buy_amount'=>$order->buy_amount + $change_buy_price,
+            )
+        );
+        $log =array(
+            'subcontract'=>$order_subcontract->subcontract,
+            'order_sku_id'=>$id,
+            'before_value'=>$before_value,
+            'after_value'=>$number,
+            'reason'=>$note,
+            'status'=>$order_subcontract->status,
+            'op_type'=>2,
+            'creator_id'=>$creator_id
+        );
+        $this->getModel('orderSkuLog')->createOne($log);
+        return 'success';
+    }
+
+    public function add($userId, $shopId, $orderDetailArr, $payType, $remark = '', $orderId, $partnerId)
+    {
+        $message = '';
+        $userInfo = $this->getModel('user')->findById($userId);
+        $skuDb = 'partnerSku';
+        $skuType = 1;
+        if ($skuType) {
+            $partnerList = array_keys($this->getModel('shopSku')->getPartnerListByShop($shopId));
+        }
+
+        $this->debug('计算订单总金额及创建购买商品数组');
+        if (empty($message)) {
+            // 计算商品总额，以及每件商品所需金额
+            $buy_amount = 0;
+            $skuArr = array();
+            foreach ($orderDetailArr as $key => $val) {
+                if ($val['buy_number'] <= 0) {
+                    $message = '购买数量不能小于等于零';
+                    break;
+                }
+
+                $sku = $this->getModel($skuDb)->findById($val['sku_id']);
+
+                if (empty($sku) || $sku['is_del']) {
+                    $message = '存在无效商品' . $sku['name'] . '，请重新下单';
+                    break;
+                }
+                //判断下的订单商品是否是绑定的店铺提供的商品
+                if ($skuType) {
+                    if (!in_array($sku['partner_id'], $partnerList)) {
+                        $message = '购买的商品' . $sku['name'] . '不是您的配销商提供的，请重新下单';
+                        break;
+                    }
+                }
+
+                $skuArr[$key]['sku_id'] = $val['sku_id'];
+                if(isset($val['user_remark'])){
+                    $skuArr[$key]['user_remark'] = $val['user_remark'];
+                }
+                $skuArr[$key]['sku_name'] = $sku['name'];
+                $skuArr[$key]['unit_id'] = $sku['unit_id'];
+                $skuArr[$key]['measure_id'] = $sku['measure_id'];
+                if ($skuType) {
+                    //判断该用户是否有当前商品的ykyj
+                    $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId,$sku['partner_id']);
+                    if (!empty($ykyj) && array_key_exists($val['sku_id'], $ykyj)) {
+                        $skuArr[$key]['unit_price'] = $ykyj[$val['sku_id']];
+                    }
+                }
+
+
+                if(!isset($skuArr[$key]['unit_price']))
+                $skuArr[$key]['unit_price'] = ($sku['discount_price'] != 0.00) ? $sku['discount_price'] : $sku['unit_price'];
+
+                $skuArr[$key]['unit_number'] = $sku['unit_number'];
+                $skuArr[$key]['buy_number'] = $skuArr[$key]['real_number'] = $val['buy_number'];
+                $skuArr[$key]['buy_amount'] = $skuArr[$key]['pay_amount'] = round($val['buy_number'] * $skuArr[$key]['unit_price'], 2);
+                $skuArr[$key]['sku_type'] = $skuType;
+
+                $skuArr[$key]['category_id'] = $sku['category_id'];
+                $skuArr[$key]['spec'] = $sku['spec'];
+                $skuArr[$key]['remark'] = $sku['remark'];
+                $skuArr[$key]['parent_category_id'] = $sku['parent_category_id'];
+            }
+            
+            $orderSubcontract = $this->getModel('OrderSubcontract')->findFirst(array('conditions'=>"order_id=".$orderId." and partner_id=".$partnerId));
+            $buy_num = 0;
+            if($message){
+                $is_success['id'] = 0;
+                $is_success['message'] = $message;
+                return $is_success;                
+            }
+            foreach ($skuArr as $key => $val) {
+                $orderSku = $this->createModel('orderSku');
+                $orderSku->sku_id = $val['sku_id'];
+                if(isset($val['user_remark'])){
+                    $orderSku->user_remark = $val['user_remark'];
+                }
+                $orderSku->order_sn = $orderSubcontract->order_sn;
+                $orderSku->subcontract = $orderSubcontract->subcontract;
+                $orderSku->partner_id = $orderSubcontract->partner_id;
+                $orderSku->order_id = $orderId;
+                $orderSku->user_id = $userId;
+                $orderSku->sku_name = $val['sku_name'];
+                $orderSku->unit_id = $val['unit_id'];
+                $orderSku->measure_id = $val['measure_id'];
+                $orderSku->unit_price = $val['unit_price'];
+                $orderSku->shop_id = $shopId;
+                $orderSku->unit_number = $sku['unit_number'];
+                $orderSku->buy_number = $orderSku->real_number = $val['buy_number'];
+                $orderSku->buy_amount = $orderSku->pay_amount = $val['buy_amount'];
+                $orderSku->sku_type = $skuType;
+                $orderSku->platform = 'partner';
+                $orderSku->category_id = $val['category_id'];
+                $orderSku->spec = $val['spec'];
+                $orderSku->remark = $val['remark'];
+                $orderSku->parent_category_id = $val['parent_category_id'];
+                if($orderSku->save()){
+                    $buy_amount += $val['buy_amount'];
+                }else{
+                    break;
+                }
+            }
+            $orderSubcontract->buy_amount = $orderSubcontract->pay_amount = $buy_amount + $orderSubcontract->buy_amount;
+            if($orderSubcontract->save()){          
+                $order = $this->getModel('order')->findFirst($orderSubcontract->order_id);
+                $order->pay_amount = $order->buy_amount = $order->pay_amount + $buy_amount;
+                if($order->save()){
+                    $is_success['id'] = $order->id;
+                    $is_success['message'] = '添加成功';
+                    return $is_success;       
+                }else{
+                    $is_success['id'] = 0;
+                    $is_success['message'] = $this->orderSku->getError();
+                    return $is_success;                              
+                }
+            }else{
+                $is_success['id'] = 0;
+                $is_success['message'] = $this->orderSku->getError();
+                return $is_success;                   
+            }
+        }
+    }
+}

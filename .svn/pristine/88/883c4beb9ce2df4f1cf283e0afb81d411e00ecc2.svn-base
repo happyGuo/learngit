@@ -1,0 +1,46 @@
+<?php
+namespace Plugins;
+
+//TODO 脚本定期删除一个月之前的订单
+class Log extends \Phalcon\Mvc\User\Plugin {
+    const SYSTEM_ERROR ='system_error';
+    const MODEL_ERROR ='model_error';
+    const DEBUG ='debug';
+    const SQL_WARN ='sql_warn';
+
+
+    public function systemError($message,$trace=''){
+        return $this->save(self::SYSTEM_ERROR,array('message'=>$message,'trace'=>$trace));
+    }
+
+    public function modelError($message,$trace=''){
+        return $this->save(self::MODEL_ERROR,array('message'=>$message,'trace'=>$trace));
+    }
+
+    public function sqlWarn($message,$trace=''){
+        return $this->save(self::SQL_WARN,array('message'=>$message,'trace'=>$trace));
+    }
+
+    /**
+     * 本地追踪输出，及业务流程节点必须添加，相当于备注作用
+     * @param $data
+     * @return mixed
+     */
+    public function debug($message,$trace=''){
+        if(DEBUG)
+            return $this->save(self::DEBUG,array('message'=>$message,'trace'=>$trace));
+    }
+
+    private function save($type,$data){
+        if(defined('ENV')&& in_array(ENV,array('offline','fei')) && defined('STANDALONE') && !\Libs\Util::isAlone()){
+            if(!defined('CITY')){
+                $city='none';
+            }
+            else{
+                $city=CITY;
+            }
+            $data = array_merge($data,array('type'=>$type,'env'=>ENV,'platform'=>\Libs\Util::getPlatform(),'city'=>$city,'ctime'=>date("Y-m-d H:i:s",time())));
+            return $this->api->getApi('common')->errorlog($data);
+        }
+    }
+}

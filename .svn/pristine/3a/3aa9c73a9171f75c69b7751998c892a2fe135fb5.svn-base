@@ -1,0 +1,71 @@
+
+	<!--=== Table with Footer ===-->
+	<div class="col-md-12">
+		<div class="widget box">
+			<div class="widget-header">
+				<h4><i class="icon-reorder"></i> 添加配销商分类</h4>
+				<div class="toolbar no-padding">
+					<div class="btn-group">
+						<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+					</div>
+				</div>
+			</div>
+			<div class="widget-content">
+					<form action='' method="post">
+					<?php if(isset($messages)) {?>
+	                    <div class="alert alert-danger fade in">
+	                        <i class="icon-remove close" data-dismiss="alert"></i>
+	                        <?php echo $messages ;?>
+	                    </div>
+	                <?php
+	                }
+	                ?>
+					<table class="table table-hover table-striped table-bordered table-highlight-head">
+					<thead>
+						<tr>
+							<th>分类名称</th>
+						</tr>
+					</thead>
+						<div class="form-group">
+							<label class="col-md-2 control-label">全选: </label>
+
+							<div class="col-md-10 checkbox-column">
+								<label class="checkbox-inline" style="margin-right: 10px;margin-left: 0;">
+									<input type="checkbox" class="uniform check-all"/>
+								</label>
+							</div>
+						</div>
+					<tr>	
+							<td>
+								<?php foreach ($category as $key => $val) { ?>
+									<label class="checkbox-inline check" style="margin-right: 10px;margin-left: 0;">
+										<input type="checkbox" name="category[]" class="uniform"
+											   value="<?php echo $val->id; ?>" <?php if (in_array($val->id, $partner)) { ?> checked="checked"<?Php } ?>/> <?= $val->name ?>
+									</label>
+								<?php } ?>
+
+						</td>
+						</tr>
+					</table>
+					<input class="btn btn-info btn-block" value="保存" type="submit">
+				</form>
+			</div>
+		</div>
+	</div>
+	<!-- /Table with Footer -->
+</div>
+<script type="text/javascript">
+	$('.check-all').on('change', function () {
+		var checked = $(this).prop('checked');
+		console.log(checked);
+		$('.check').each(function (j, cb) {
+			// Only toggle it if checkbox is not disabled
+			var cb_self = $(':checkbox:not(:disabled)', $(cb)).prop("checked", checked).trigger('change');
+			if (cb_self.hasClass('uniform')) {
+				$.uniform.update(cb_self);
+			}
+		});
+	});
+
+</script>
+<!-- /Page Content -->

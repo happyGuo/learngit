@@ -1,0 +1,82 @@
+<!--=== Page Content ===-->
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 采购列表</h4>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+
+            <table class="table table-hover table-striped table-bordered table-highlight-head" id="print">
+                <thead>
+                    <tr>
+                        <th>商品分类</th>
+                        <th>商品名称</th>
+                        <th>采购数量</th>
+                        <th>单位</th>
+                        <th>售价</th>
+                        <th class="align-center">明细</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    if (empty($obj)) {
+                        echo '暂无数据';
+                        return;
+                    }
+
+                    foreach ($obj as $k => $v) {
+                        ?>
+                        <?php foreach ($v as $k1 => $v1) { ?>
+                            <tr>
+                                <?php if ($k1 == 0) { ?>
+                                    <td style="text-align:center;vertical-align:middle;" rowspan=<?php echo count($v); ?>><?php echo $this->mc->getCategory($k)['name']; ?></td>
+                                <?php } ?>
+                                <td><?php echo $v1['sku_name']; ?></td>
+                                <td><?php echo $v1['nums']; ?></td>
+                                <td><?php echo $this->mc->getDict($v1['unit_id'])['name']; ?></td>
+                                <td><?php echo $v1['unit_price']; ?>元</td>
+                                <td>
+                                    <?php
+                                    $buy_numbers = explode(',', $v1['buy_numbers']);
+                                    $user_remarks = explode(',', $v1['user_remarks']);
+                                    //$types=explode(',',$v1['types']);
+                                    $shopList = array();
+                                    ?>
+                                    <?php
+                                    foreach (explode(',', $v1['shop_ids']) as $k => $val) {
+                                        $shopList[$val]['name'] = $this->mc->getShop($val)['name'];
+                                        if ($k != '0')
+                                            echo ',';
+                                        echo '[' . $shopList[$val]['name'] . '' . $buy_numbers[$k] . '' . $this->mc->getDict($v1['unit_id'])['name'] . ']';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php } ?>
+
+<?php } ?>
+
+                </tbody>
+            </table>
+            <!--详细弹出层-->
+
+            <!--弹出层结束-->
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <!--分页显示位置-->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+<!-- /Page Content -->

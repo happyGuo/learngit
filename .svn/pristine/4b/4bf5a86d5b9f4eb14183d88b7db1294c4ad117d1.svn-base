@@ -1,0 +1,119 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class VerificationController extends BackendController
+{
+     public function initialize(){
+        parent::initialize();
+    }
+	/*
+	 * 确认核销列表
+	 * author:Suwei
+	 * date:2015/9/14
+	 */
+    public function confirmAction()
+    {
+        $id = $this->request->getQuery('id');
+        //查询充值的记录
+        $recharge = $this->getModel('balanceFlow')->findById($id);
+        $accountLogCount = $this->getModel('balanceFlow')->count("is_del=0 and status=0 and type=9 and relation_id=".$id);
+        if($accountLogCount > 0){
+            //跳转到对应的核销列表
+            return $this->response->redirect("verification/list?relation_id=".$id);
+        }
+        //查询用户的订单详情
+        $where = "user_id = {$recharge['user_id']} and is_del = 0 and confirm_status = 0 and status=3";
+        $orderList = $this->getModel('orderSubcontract')->find($where);
+        $res = $orderList->toArray();
+        if(!$res){
+            $this->getModel('balanceFlow')->updateOne($id,array('status'=>1));
+            return $this->response->redirect("recharge/list");
+        }
+        $this->view->orderList = $orderList;
+        $this->view->recharge_id = $recharge['id'];
+        $this->view->recharge = $recharge;
+
+        if($this->request->isPost()) {
+            $recharge_id = $this->request->getPost('recharge_id');
+            $recharge = $this->getModel('balanceFlow')->findById($recharge_id);
+            $check = $this->request->getPost('check');
+            $data = array();
+            $sum = 0;
+            if ($check) {
+                foreach ($check as $one) {
+                    $arr = array();
+                    $arr['id'] = $one;
+                    $arr['money'] = $this->request->getPost($one . '-hexiao');
+                    $sum += $arr['money'];
+                    $data[] = $arr;
+                }
+            }else{
+                $this->view->messages = '请选择核销订单';
+                return;
+            }
+            //todo 判断充值金额是否正确
+            if ($recharge['amount'] < $sum) {
+                $this->view->messages = '核销的金额大于充值的金额';
+                return;
+            }
+            $res = $this->getModel('balanceFlow')->manAccount($recharge_id,$data);
+
+            if(empty($res)){
+                return $this->response->redirect("verification/list?relation_id=".$recharge_id);
+            }
+        }
+    }
+    /*
+     * function：核销列表
+     * author：宿伟
+     * date：2015/9/14
+     */
+    public function listAction(){
+        if($this->request->isPost()) {
+            $relation_id = $this->request->getPost('relation_id');
+            $res = $this->getModel('balanceFlow')->confirmAccount($relation_id);
+            if ($res == "") {
+                return $this->response->redirect("user/list");
+            } else {
+                $message['type'] = 2;
+                $message['info'] = $res;
+            }
+        }
+        if( $this->request->getQuery('relation_id')){
+            $relation_id = $this->request->getQuery('relation_id');
+            $where = 'type in(8,9) and is_del = 0 and status=0 and relation_id='.$relation_id;
+        }else{
+            $where = 'type in(8,9) and is_del = 0 and status=0';
+        }
+        $orderList = $this->getModel('balanceFlow')->find(array('conditions'=>$where,'order'=>'ctime desc'));
+        //$this->getModel('orderSubcontract')->find('subcontract = '$orderList->subcontract)->toArray();
+        $this->view->orderList = $orderList;
+        $this->view->relation_id = $relation_id;
+    }
+
+    /*
+     * function：审核通过
+     * author：宿伟
+     * date：2015/9/14
+     */
+//    public function verifyAction(){
+//        $id = $this->request->getPost('relation_id');
+//        $res = $this->getModel('balanceFlow')->confirmAccount($id);
+//        if ($res == "") {
+//            $message['type'] = 0;
+//            $message['info'] = '审核成功';
+//        } else {
+//            $message['info'] = $res;
+//        }
+//    }
+
+    public function ajaxdeleteAction()
+    {
+        $balanceFlow = $this->getModel('balanceFlow')->deleteOne($this->request->getPost('id'));
+        if ($balanceFlow['error']) {
+            echo $balanceFlow['error'];die;
+        } else {
+            echo 1;die;
+        }
+    }
+}

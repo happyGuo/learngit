@@ -1,0 +1,268 @@
+<?php
+namespace Modules\App\Controllers;
+
+class YUserController extends YAppController
+{
+    public function sendsmsAction()
+    {
+        $mobile = $this->request->getPost('mobile');
+        $type = $this->request->getPost('send_type');
+        $user = \Models\User::findFirstByMobile($mobile);
+        if ($type == 1) {
+            if ($user) {
+                return $this->renderJson('', '您的手机号已注册');
+            }
+            $code = rand(100000, 999999);
+            $msg = "您的验证码为：" . $code . ' ，5分钟内有效';
+            $r = $this->util->sendSms($mobile,$msg);
+            if($r===false){
+                return $this->renderJson([],'短信发送失败，请稍后再试');
+            }
+            $this->cache->save($type . '_' . $mobile, $code, 60 * 5);
+        } else {
+            if (!$user) {
+                return $this->renderJson('', '您的手机号未注册');
+            }
+
+            $code = strval(rand(100000, 999999));
+            $msg = "您的密码已重置，新密码为：" . $code . '，请登入修改密码';
+            $r = $this->util->sendSms($mobile,$msg);
+            if($r===false){
+                return $this->renderJson([],'短信发送失败，请稍后再试');
+            }
+            $user->before_pwd = $code;
+            $r = $user->save();
+            if (!$r) {
+                return $this->renderJson('', $this->getError());
+            }
+        }
+        return $this->renderJson();
+    }
+
+
+    public function loginAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            $login = $this->request->getPost('mobile');
+            $password = $this->request->getPost('pwd');
+            $user = \Models\User::findFirstByMobile($login);
+            $message = '';
+            if ($user) {
+                if ($user->is_del == 1) {
+                    $message = '该用户已删除';
+                }
+                elseif(empty($user->city) || !in_array($user->city,explode(',',DB))){
+                    $message = '您未绑定城市或所在城市未开通';
+                }
+                elseif ($this->auth->onlyVerify($password, $user)) {
+                    $this->successLogin($user->toArray());
+                } else {
+                    $message = '密码错误';
+                }
+            } else {
+                $message = '用户名不存在';
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    /*
+    */
+    public function perfectAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+
+            $user = \Models\User::findFirst($this->userId);
+            //接收POST的值
+            $user->real_name = $this->request->getPost('real_name');
+            $user->sex = $this->request->getPost('sex');
+            if ($this->request->getPost('address')) {
+                $user->address = $this->request->getPost('address');
+            }
+            if ($this->request->getPost('position')) {
+                $user->position = $this->request->getPost('position');
+            }
+            if ($user->save()) {
+                return $this->renderJson(array('完善用户信息成功'));
+            } else {
+                return $this->renderJson(array(), $user->getError());
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    /*
+    function：获取用户信息
+    date：2015/05/05
+    */
+    public function getuserinfoAction()
+    {
+        $userInfo = $this->getModel('user')->findById($this->userId);
+        $shopInfo= $this->getModel('shop')->findFirst('user_id='.$userInfo['id'].' and is_del=0 and status =1');
+        if(!isset($shopInfo) || false==$shopInfo){
+            unset($userInfo['pwd']);
+            unset($userInfo['is_del']);
+            unset($userInfo['ctime']);
+            unset($userInfo['utime']);
+            return $this->renderJson(array('userInfo'=>$userInfo,'shopInfo'=>array(),'partnerInfo'=>array()));
+        }
+        $shopSku = $this->getModel('shopSku')->getYkyjPartnerListByShop($shopInfo->id);
+        $list = [];
+        foreach($shopSku as $key=>$val){
+            foreach ($val['category'] as $kk => $vv) {
+                $val['category'][$kk]['pic_url'] = $this->img->getUrl($val['category'][$kk]['pic_url']);
+            }
+            unset($shopSku[$key]['pwd']);
+            unset($shopSku[$key]['creator_id']);
+            unset($shopSku[$key]['last_login_time']);
+            unset($shopSku[$key]['role']);
+            unset($shopSku[$key]['balance']);
+            unset($shopSku[$key]['withdraw']);
+            unset($shopSku[$key]['bankcard']);
+            $list[] = $val;
+        }
+        unset($userInfo['pwd']);
+        unset($userInfo['is_del']);
+        unset($userInfo['ctime']);
+        unset($userInfo['utime']);
+        return $this->renderJson(array('userInfo'=>$userInfo,'shopInfo'=>$shopInfo,'partnerInfo'=>$list));
+    }
+
+    /*
+    Function:修改密码
+    author：宿伟
+    date：2015/07/24
+    */
+    public function editpwdAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            //接收POST请求的值          
+            $password = $this->request->getPost('pwd');
+            $new_pwd = $this->request->getPost('new_pwd');
+            $confirm_pwd = $this->request->getPost('confirm_pwd');
+
+            //通过id获取用户信息
+            $user = \Models\User::findFirst($this->userId);
+            //判断用户输入的旧密码是否与数据库中的值一致
+            if ($this->auth->onlyVerify($password, $user)) {
+                //判断用户新密码与确认密码是否一致
+                if ($new_pwd != $confirm_pwd) {
+                    $message = '新密码与确认密码不一致';
+                } else {
+                    $user->before_pwd = $new_pwd;
+                    if ($user->save()) {
+                        return $this->renderJson();
+                    } else {
+                        return $this->renderJson(array(), $user->getError());
+                    }
+                }
+            } else {
+                $message = '原密码错误';
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    /**
+     * @function 用户金额统计接口
+     * @get 参数t   type=0 返回全部  type = 1 返回充值 type=2 返回扣款
+     * @return jsonString
+     */
+    public function incomeAction()
+    {
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        $type = $this->request->getQuery('type');
+        if ($type == 1) {
+            //充值
+            $res = $this->getModel('BalanceFlow')->getIncomeList($this->userId, 0, $offset, $limit);
+        } else if ($type == 2) {
+            //扣款金额
+            $res = $this->getModel('BalanceFlow')->getIncomeList($this->userId, array(1, 2), $offset, $limit);
+        } else {
+            //全部
+            $res = $this->getModel('BalanceFlow')->getIncomeList($this->userId, -1, $offset, $limit);
+        }
+        return $this->renderJson($res);
+    }
+
+
+
+    /*
+    * 用户充值
+    *
+    * @param   $recharge_sn   流水号     非必填
+    * @param   $type          充值类型（0--支付宝充值，1--银行转账） 非必填  默认  1
+    * @param   $amount        充值金额   必填
+    * @param   $remark        备注       非必填
+    */
+
+
+    public function addRechargeAction(){
+        $message = "无效请求";
+        if ($this->request->isPost()) {
+            //流水号
+            $recharge_sn = $this->request->getPost('recharge_sn') ? $this->request->getPost('recharge_sn') : '';
+
+            //充值类型
+            $type = $this->request->getPost('type');
+            if(intval($type)<0){
+                $type = 1;
+            }
+            $amount = $this->request->getPost('amount');
+
+            $remark = $this->request->getPost('remark');
+            $this->getModel('recharge')->createOne(
+                array(
+                    'recharge_sn'=>$recharge_sn,
+                    'type'=>$type,
+                    'amount'=>$amount,
+                    'remark'=>$remark,
+                    'user_id'=>$this->userId,
+                    'ctime'=>time(),
+                    'utime'=>time(),
+                )
+            );
+            $message = '';
+
+        }
+        return $this->renderJson(['status'=>1],$message);
+    }
+
+
+
+    /*
+    * 获取用户充值记录
+    *
+    * @param   $status        状态     必填
+    * @param   $type          充值类型（0--支付宝充值，1--银行转账） 非必填  默认  1
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+
+
+    public function getrechargelistAction(){
+
+        $userId = $this->userId;
+        $type = $this->request->getQuery('type');
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        $condition = "is_del = 0 and user_id = ".$userId;
+        $order = "ctime desc";
+        if(intval($type)>0){
+            $condition .= " and type = ".$type;
+        }
+        $status = $this->request->getQuery('status');
+        if(intval($status)>0){
+            $condition .= " and status = ".$status;
+        }
+        $list = $this->getModel('recharge')->find([$condition,'order'=>$order,'limit'=>$limit,'offset'=>$offset]);
+        if($list->toArray()){
+            return $this->renderJson(['list'=>$list->toArray(),'num'=>count($list)]);
+        }
+        return $this->renderJson(['list'=>array(),'num'=>0]);
+    }
+}

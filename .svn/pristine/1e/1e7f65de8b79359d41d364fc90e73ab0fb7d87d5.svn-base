@@ -1,0 +1,25 @@
+<?php
+namespace Plugins;
+
+class Db extends \Phalcon\Mvc\User\Plugin {
+    public $config;
+    private static $list =array();
+    public function __construct($config){
+        $this->config = $config;
+    }
+
+    public function getServer($city){
+        $city = $city . '_db';
+        if(!isset(self::$list[$city])){
+            self::$list[$city]= new \Phalcon\Db\Adapter\Pdo\Mysql(array(
+                "host" => $this->config->$city->host,
+                "username" => $this->config->$city->username,
+                "password" => $this->config->$city->password,
+                "dbname" => $this->config->$city->name
+            ));
+        }
+        return self::$list[$city];
+    }
+
+
+}

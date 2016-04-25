@@ -1,0 +1,8 @@
+<?php
+if(strpos($_SERVER['HTTP_USER_AGENT'], 'iPhone')||strpos($_SERVER['HTTP_USER_AGENT'], 'iPad')){
+    echo 'systerm is IOS';
+}else if(strpos($_SERVER['HTTP_USER_AGENT'], 'Android')){
+    header("Location: http://p.farmlink.cn/download/farmlink.apk");
+}else{
+    echo 'systerm is other';
+}

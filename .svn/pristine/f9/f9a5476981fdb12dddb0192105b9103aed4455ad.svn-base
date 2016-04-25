@@ -1,0 +1,52 @@
+<?php
+
+return new \Phalcon\Config(
+    array(
+        'img_server'=>'img.offline.cn',
+        'memcache' => array(
+            'host'     => '192.168.0.230',
+            'port' => '11211',
+        ),
+        'model_memcache' => array(
+            'host'     => '192.168.0.230',
+            'port' => '22121',
+        ),
+
+        'mongo'=>array(
+            'host'=>'mongodb://192.168.0.230:27017'
+        ),
+        'common_db' => [
+            'adapter'  => 'Mysql',
+            'host'     => '192.168.0.230',
+            'username' => 'dw',
+            'password' => '123abc',
+            'name'     => 'fl_common',
+        ],
+        'tpl_db' => array(
+            'adapter'  => 'Mysql',
+            'host'     => '192.168.0.230',
+            'username' => 'dw',
+            'password' => '123abc',
+            'name'     => 'fl_tpl',
+        ),
+
+        'beijing_db' => array(
+            'adapter'  => 'Mysql',
+            'host'     => '192.168.0.230',
+            'username' => 'dw',
+            'password' => '123abc',
+            'name'     => 'fl_beijing',
+        ),
+        'shanghai_db' => array(
+            'adapter'  => 'Mysql',
+            'host'     => '192.168.0.230',
+            'username' => 'dw',
+            'password' => '123abc',
+            'name'     => 'fl_shanghai',
+        ),
+        'api'=>array(
+            'common'=>array('host'=>'127.0.0.1','port'=>'8848'),
+            'native'=>array('host'=>'127.0.0.1','port'=>'8848')
+        )
+
+    ));

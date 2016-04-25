@@ -1,0 +1,218 @@
+<?php
+namespace Modules\Partner\Controllers;
+
+class IndexController extends PartnerController
+{
+
+    public function indexAction()
+    {
+       $today = \Libs\Util::getStartUnixTime();//今日起始时间
+        $month = \Libs\Util::getStartUnixTime(3);//本月起始时间
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and ctime>={$today} and partner_id=".$this->userId);
+        //今日订单数量
+        $todayOrderNum = 0;
+        //今日总金额
+        $todayMoney = 0;
+        if($list){
+            $lastOrder = 0;
+            foreach($list as $one){
+                if($lastOrder != $one->order_id){
+                    $lastOrder = $one->order_id;
+                    $todayOrderNum ++;
+                }
+                $todayMoney += $one->buy_amount;
+            }
+        }
+
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and status in(3,5,7) and ctime>={$month} and partner_id=".$this->userId);
+        $monthOrderNum = 0;//本月完成订单数
+        $monthMoney = 0;//本月完成总金额
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $monthOrderNum++;
+                }
+                $monthMoney += $v->buy_amount;
+            }
+        }
+        //本月自助订单数
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and ctime>={$month} and platform='partner' and partner_id=".$this->userId);
+        $monthSelfOrderNum = 0;
+        //本月自助订单总金额
+        $monthSelfMoney = 0;
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $monthSelfOrderNum++;
+                }
+                $monthSelfMoney += $v->buy_amount;
+            }
+        }
+        //待审核订单数
+        $list =  $this->getModel('OrderSubcontract')->find("is_del=0 and partner_id={$this->userId} and status=0");
+        $toAllowOrderNum = 0;
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $toAllowOrderNum++;
+                }
+            }
+        }
+        //待发货订单数
+        $toSendOrderNum = 0;
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and partner_id={$this->userId} and status=1");
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $toSendOrderNum++;
+                }
+            }
+        }
+        //已发货订单数
+        $sendOrderNum = 0;
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and partner_id={$this->userId} and status=2");
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $sendOrderNum++;
+                }
+            }
+        }
+        //今日已收货订单数
+        $reciveOrderNum = 0;
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and receive_time>={$today} and status in(3,5,7) and partner_id=".$this->userId);
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $reciveOrderNum++;
+                }
+            }
+        }
+        //今日已拒收订单数
+        $rejectOrderNum = 0;
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and receive_time>={$today} and status=4 and partner_id=".$this->userId);
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $rejectOrderNum++;
+                }
+            }
+        }
+        //构造柱状图数据
+        $monthOrders = $this->getModel('OrderSubcontract')->find(array(
+            'conditions'=>"is_del=0 and ctime>={$month} and partner_id=".$this->userId,
+            'order'=>'ctime ASC'));
+        $numArr = array();
+        $moneyArr = array();
+        if ($monthOrders) {
+            $monthOrders = $monthOrders->toArray();
+            $pos = 0;
+            $start = $month;
+            for ($i = 0; $i < date("t"); $i++) {
+                $start += 86400;
+                $num = 0;//每日数量
+                $money = 0;//每日订单金额
+                if ($start <= $today + 86400) {
+                    for ($pos; $pos < count($monthOrders); $pos++) {
+                        if ($monthOrders[$pos]['ctime'] <= $start) {
+                            $num++;
+                            $money += $monthOrders[$pos]['pay_amount'];
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                $numArr[$start] = $num;
+                $moneyArr[$start] = $money;
+            }
+        } else {
+            $start = $month;
+            for ($i = 1; $i <= date("t"); $i++) {
+                $start += 86400;
+                $numArr[$start] = 0;
+                $moneyArr[$start] = 0;
+            }
+        }
+
+        $this->view->todayOrderNum = $todayOrderNum;
+        $this->view->todayMoney = $todayMoney;
+        $this->view->monthOrderNum = $monthOrderNum;
+        $this->view->monthMoney = $monthMoney;
+        $this->view->monthSelfOrderNum = $monthSelfOrderNum;
+        $this->view->monthSelfMoney = $monthSelfMoney;
+
+        $this->view->toAllowOrderNum = $toAllowOrderNum;
+        $this->view->toSendOrderNum = $toSendOrderNum;
+        $this->view->sendOrderNum = $sendOrderNum;
+        $this->view->reciveOrderNum = $reciveOrderNum;
+        $this->view->rejectOrderNum = $rejectOrderNum;
+
+        $this->view->monthOrders = $monthOrders;
+        $this->view->numArr = $numArr;
+        $this->view->moneyArr = $moneyArr;
+        $partner = $this->getModel('partner')->findFirst($this->userId);
+        if($partner){
+            $partner =  $partner->toArray();
+            //$this->view->balance = $partner['balance'];
+            $this->view->withdraw = $partner['withdraw'];
+        }
+    }
+
+    public function loginAction()
+    {
+        $u = $this->auth->getInfo();
+        if ($u = $this->auth->getInfo()) {
+            //return $this->response->redirect("index/index");
+        }
+
+        $message = '';
+        if ($this->request->isPost()) {
+            $p = $this->request->getPost();
+            if ($this->security->checkToken() || 1) {
+                $login = $this->request->getPost('login');
+
+                $password = $this->request->getPost('pwd');
+                $admin = $this->getModel('partner');
+                $user = $admin::findFirstByMobile($login);
+
+                if ($user) {
+                    if ($user->is_del == 1) {
+                        $message = '该用户已删除';
+                    } elseif ($this->auth->verify($password, $user)) {
+                        return $this->response->redirect("index/index");
+                    } else {
+                        $message = '密码错误';
+                    }
+                } else {
+                    $message = '用户名不存在';
+                }
+            } else {
+                $message = '无效提交，请重试';;
+            }
+        }
+        $this->view->message = $message;
+        $this->view->cleanTemplateAfter();
+    }
+
+    public function logoutAction()
+    {
+        $this->auth->clear();
+        return $this->response->redirect("index/login");
+    }
+
+}
+

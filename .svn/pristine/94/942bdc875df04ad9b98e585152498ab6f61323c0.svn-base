@@ -1,0 +1,367 @@
+<?php
+namespace Modules\App\Controllers;
+
+class BUserController extends BAppController
+{
+    public function sendsmsAction()
+    {
+        $mobile = $this->request->getPost('mobile');
+        $user = \Models\Partner::findFirstByMobile($mobile);
+        if (!$user) {
+            return $this->renderJson('', '您的手机号未注册');
+        }
+        $code = strval(rand(100000, 999999));
+        $msg = "您的密码已重置，新密码为：" . $code . '，请登入修改密码';
+        $r = $this->util->sendSms($mobile, $msg);
+        if ($r === false) {
+            return $this->renderJson([], '短信发送失败，请稍后再试');
+        }
+        $user->before_pwd = $code;
+        $r = $user->save();
+        if (!$r) {
+            return $this->renderJson('', $this->getError());
+        }
+        return $this->renderJson();
+    }
+
+    public function loginAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+
+            $login = $this->request->getPost('mobile');
+            $password = $this->request->getPost('pwd');
+            $city = $this->request->getPost('city');
+            $user = \Models\Partner::findFirstByMobile($login);
+            $message = '';
+            if ($user) {
+                if ($user->is_del == 1) {
+                    $message = '该用户已删除';
+                } elseif ($this->auth->onlyVerify($password, $user)) {
+                    $this->successLogin($user->toArray());
+                } else {
+                    $message = '密码错误';
+                }
+            } else {
+                $message = '用户名不存在';
+            }
+        }
+        return $this->renderJson(array(), $message);
+
+    }
+
+    public function logoutAction()
+    {
+        //token清除
+        if ($this->userId) {
+            $find = 'partner_id=' . $this->userId . ' and city="'.CITY.'" and device_token="' . $this->deviceToken . '"';
+            $r = $this->getModel('partnerDevice')->updateOne($find, array('access_token' => 0));
+            $message = $r['error'];
+        } else {
+            $message = '尚未登入';
+        }
+        return $this->renderJson([], $message);
+    }
+
+
+    public function successLogin($user)
+    {
+        //登入成功
+        $this->getToken();
+        $device = $this->getModel('PartnerDevice')->findFirst('device_token="' . $this->request->getPost('device_token') . '" and city="'.CITY.'" and partner_id=' . $user['id']);
+        $data = [];
+        if ($device == false) {
+            $data['access_token'] = $this->accessToken;
+            $data['partner_id'] = $user['id'];
+            $data['ver'] = $this->ver;
+            $data['city'] = CITY;
+            $data['device_token'] = $this->request->getPost('device_token');
+            $data['device_type'] = $this->request->getPost('device_type');
+            $res = $this->getModel('PartnerDevice')->createOne($data);
+            if ($res['error']) {
+                return $this->renderJson(array(), $res['error']);
+            }
+        } else {
+            $data['access_token'] = $this->accessToken;
+            $this->getModel('partnerDevice')->updateOne($device->id, $data);
+        }
+        $user =$this->getModel('partner')->findById($user['id']);
+        unset($user['pwd']);
+        return $this->renderJson(array('info' => $user, 'access_token' => $this->accessToken));
+    }
+
+
+    public function perfectAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+
+            $user = \Models\Partner::findFirst($this->userId);
+            //接收POST的值
+            $user->real_name = $this->request->getPost('real_name');
+            $user->sex = $this->request->getPost('sex');
+            if ($this->request->getPost('address')) {
+                $user->address = $this->request->getPost('address');
+            }
+            if ($this->request->getPost('position')) {
+                $user->position = $this->request->getPost('position');
+            }
+            if ($user->save()) {
+                return $this->renderJson(array('完善用户信息成功'));
+            } else {
+                return $this->renderJson(array(), $user->getError());
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    /*
+    function：获取用户信息
+    date：2015/05/05
+    */
+    public function getuserinfoAction()
+    {
+        $userInfo = $this->getModel('partner')->findById($this->userId);
+        unset($userInfo['pwd']);
+        unset($userInfo['is_del']);
+        unset($userInfo['ctime']);
+        unset($userInfo['utime']);
+        $pay_day_id = $this->mc->getDict($userInfo['pay_day_id'])['code'];
+        $userInfo['code'] = $pay_day_id;
+        $today = \Libs\Util::getStartUnixTime();//今日起始时间
+        $month = \Libs\Util::getStartUnixTime(3);//本月起始时间
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and ctime>='{$today}' and partner_id=".$this->userId);
+        $detail = [];
+        //今日订单数量
+        $todayOrderNum = 0;
+        //今日总金额
+        $todayMoney = 0;
+        if($list){
+            $lastOrder = 0;
+            foreach($list as $one){
+                if($lastOrder != $one->order_id){
+                    $lastOrder = $one->order_id;
+                    $todayOrderNum ++;
+                }
+                $todayMoney += $one->buy_amount;
+            }
+        }
+        $detail['todayOrderNum'] = $todayOrderNum;
+        $detail['todayMoney'] = $todayMoney;
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and status in(3,5,7) and ctime>={$today} and partner_id=".$this->userId);
+        $monthOrderNum = 0;//本月完成订单数
+        $monthMoney = 0;//本月完成总金额
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $one->order_id) {
+                    $lastOrder = $one->order_id;
+                    $monthOrderNum++;
+                }
+                $monthMoney += $v->pay_amount;
+            }
+        }
+        $detail['monthOrderNum'] = $monthOrderNum;
+        $detail['monthMoney'] = $monthMoney;
+        //本月自助订单数
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and ctime>={$month} and platform='partner' and partner_id=".$this->userId);
+        $monthSelfOrderNum = 0;
+        //本月自助订单总金额
+        $monthSelfMoney = 0;
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $monthSelfOrderNum++;
+                }
+                $monthSelfMoney += $v->buy_amount;
+            }
+        }
+        $detail['monthSelfOrderNum'] = $monthSelfOrderNum;
+        $detail['monthSelfMoney'] = $monthSelfMoney;
+        return $this->renderJson(array('userInfo'=>$userInfo,'orderDetail'=>$detail));
+    }
+
+    /*
+    Function:修改密码
+    author：宿伟
+    date：2015/07/24
+    */
+    public function editpwdAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            //接收POST请求的值          
+            $password = $this->request->getPost('pwd');
+            $new_pwd = $this->request->getPost('new_pwd');
+            $confirm_pwd = $this->request->getPost('confirm_pwd');
+
+            //通过id获取用户信息
+            $user = \Models\Partner::findFirst($this->userId);
+            //判断用户输入的旧密码是否与数据库中的值一致
+            if ($this->auth->onlyVerify($password, $user)) {
+                //判断用户新密码与确认密码是否一致
+                if ($new_pwd != $confirm_pwd) {
+                    $message = '新密码与确认密码不一致';
+                } else {
+                    $user->before_pwd = $new_pwd;
+                    if ($user->save()) {
+                        return $this->renderJson();
+                    } else {
+                        return $this->renderJson(array(), $user->getError());
+                    }
+                }
+            } else {
+                $message = '原密码错误';
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    /**
+     * @function 用户金额统计接口
+     * @get 参数t   type=0 返回全部  type = 1 本月订单 type=2 返回扣款  type=3  提现
+     * @return jsonString
+     */
+//    public function incomeAction()
+//    {
+//        $offset = $this->request->getQuery('offset');
+//        $limit = $this->request->getQuery('limit');
+//        $type = $this->request->getQuery('type');
+//
+//    }
+
+
+
+    /*
+    * 用户充值
+    *
+    * @param   $recharge_sn   流水号     非必填
+    * @param   $type          充值类型（0--支付宝充值，1--银行转账） 非必填  默认  1
+    * @param   $amount        充值金额   必填
+    * @param   $remark        备注       非必填
+    */
+
+
+    public function addRechargeAction(){
+        $message = "无效请求";
+        if ($this->request->isPost()) {
+            //流水号
+            $recharge_sn = $this->request->getPost('recharge_sn');
+            //充值类型
+            $type = $this->request->getPost('type');
+            if(intval($type)<0){
+                $type = 1;
+            }
+            $amount = $this->request->getPost('amount');
+
+            $remark = $this->request->getPost('remark');
+            $this->getModel('recharge')->createOne(
+                array(
+                    'recharge_sn'=>$recharge_sn,
+                    'type'=>$type,
+                    'amount'=>$amount,
+                    'remark'=>$remark,
+                    'user_id'=>$this->userId,
+                    'ctime'=>time(),
+                    'utime'=>time(),
+                )
+            );
+            $message = '';
+        }
+        return $this->renderJson(['status'=>1],$message);
+    }
+
+
+
+    /*
+    * 获取用户充值记录
+    *
+    * @param   $status        状态     必填
+    * @param   $type          充值类型（0--支付宝充值，1--银行转账） 非必填  默认  1
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+
+
+    public function getrechargelistAction(){
+
+        $userId = $this->userId;
+        $type = $this->request->getQuery('type');
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        $condition = "is_del = 0 and user_id = ".$userId;
+        $order = "ctime desc";
+        if(intval($type)>0){
+            $condition .= " and type = ".$type;
+        }
+        $status = $this->request->getQuery('status');
+        if(intval($status)>0){
+            $condition .= " and status = ".$status;
+        }
+        $list = $this->getModel('recharge')->find([$condition,'order'=>$order,'limit'=>$limit,'offset'=>$offset]);
+        if($list->toArray()){
+            return $this->renderJson(['list'=>$list->toArray(),'num'=>count($list)]);
+        }
+        return $this->renderJson(['list'=>array(),'num'=>0]);
+    }
+
+    /*
+     * 用户提现列表
+     *
+     * @param int $type              必选，类型（1--收入，2--提现）
+     * @param int $limit             必选，条数         默认：10
+     * @param int $offset            必选，开始         默认：0
+     * @param int
+     */
+
+    public function getMoneyListAction(){
+        $userId = $this->userId;
+        $type = $this->request->getQuery('type');
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $condition = "is_del = 0 and status = 1 and partner_id = $userId";
+        $month = \Libs\Util::getStartUnixTime(3);//本月起始时间
+        $ymonth = \Libs\Util::getStartUnixTime(4);//半年
+        if(intval($type) == 1){
+            $condition .= " and ctime >= '{$month}'";
+        }else if(intval($type) == 2){
+            $condition .= " and ctime >= '{$ymonth}'";
+        }
+        //select字段
+        $list = $this->getModel('PartnerWithdraw')->find(array($condition,'order'=>'ctime desc','group'=>'ctime','columns'=>'id,partner_id,amount,status,FROM_UNIXTIME(ctime,"%Y-%m-%d") as ctime,utime,amount','limit'=>$limit , 'offset' => $offset))->toArray();
+        if(is_array($list) && !empty($list)){
+            foreach($list as $key=>$val){
+                $list[$key]['utime'] = date('Y-m-d H:i:s', $val['utime']);
+            }
+        }
+        $max = $this->getModel('PartnerWithdraw')->findFirst(array($condition,'columns'=>'max(amount) as amount'));
+        return $this->renderJson(['list'=>$list,'num'=>$this->getModel('PartnerWithdraw')->count(array($condition)),'max'=>$max->amount,'withdraw'=>$this->mc->getPartner($userId)['withdraw']]);
+    }
+
+    /*
+     * 用户提现
+     * @param  $amount  必选，提现金额
+     */
+
+    public function withdrawAction(){
+        $message = "无效请求";
+        $userId = $this->userId;
+        if ($this->request->isPost())
+        {
+            $message = '';
+            $data['amount'] = $amount = abs(floatval($this->request->getPost('amount')));
+            $data['partner_id'] = $userId;
+            $data['status'] = 0;
+            $message = $this->getModel('partnerWithdraw')->doWithdraw($data);
+        }
+        return $this->renderJson([],$message);
+    }
+
+    public function getcitylistAction(){
+        $where = "is_del = 0 and p_region_id = 0 and status = 2";
+        $list = $this->getModel('region')->find([$where,'columns'=>'id,en_name,local_name'])->toArray();
+        return $this->renderJson(['list'=>$list]);
+    }
+}

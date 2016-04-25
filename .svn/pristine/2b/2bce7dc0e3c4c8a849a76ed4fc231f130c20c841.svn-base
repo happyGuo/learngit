@@ -1,0 +1,49 @@
+<!--=== Page Content ===-->
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 采购详情</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+
+			<table class="table table-hover table-striped table-bordered table-highlight-head" id="print">
+				<thead>
+					<tr>
+						<th>店铺名称</th>
+						<th>购买数量</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php 
+					if(empty($detail)){
+					echo '暂无数据';
+					return;
+					}
+					foreach($detail as $k=>$v) { 
+						?>
+					<tr>
+						<td><?php echo $k; ?></td>
+						<td><?php echo $v['buy_number']; ?></td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<!--分页显示位置-->
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /Table with Footer -->
+<!-- /Page Content -->

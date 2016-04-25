@@ -1,0 +1,500 @@
+<?php
+
+namespace Modules\Partner\Controllers;
+
+class OrderController extends PartnerController {
+
+    public $where;
+    public $source;
+
+    public function initialize() {
+        parent::initialize();
+        if ($this->request->getQuery('source')) {
+            $source = $this->request->getQuery('source');
+        } else if ($this->request->getPost('source')) {
+            $source = $this->request->getPost('source');
+        } else {
+            $source = 'all';
+        }
+        switch ($source) {
+            case 'all':
+                $this->where = '';
+                break;
+            case 'app':
+                $this->where = " and platform in ('app_liannong','app_ykyj','backend')";
+                break;
+            case 'self':
+                $this->where = " and platform = 'partner' ";
+                break;
+        }
+        $this->view->setVar('source', $source);
+        $this->source = $source;
+    }
+
+    public function listAction() {
+        $partnerId = $this->currentUser['id'];
+        $isDel = 0;
+        $model = $this->getModel('OrderSubcontract');
+        $conditions['conditions'] = 'is_del=0 and partner_id=' . $partnerId;
+        
+        $orderReadyCount = $model->getCount($conditions, 1);
+        $orderListCount = $model->getCount($conditions, 0);
+        $conditions['conditions'] .= $this->where;
+
+        $orderSn = $this->request->getQuery('order_sn');
+        if ($orderSn) {
+            $conditions['conditions'] .= " and subcontract='" . $orderSn . "'";
+        }
+
+        $conditions['order'] = 'id desc';
+        $orderList = $model->getList($conditions, 0);
+        $orderCount = $model->getCount($conditions, 0);
+        
+        $orderSum = $orderList['sum_price'];
+        unset($orderList['sum_price']);
+        $this->view->orderList = $orderList;
+        $this->view->setVar('order_count', $orderCount);
+        $this->view->setVar('order_ready_count', $orderReadyCount);
+        $this->view->setVar('order_list_count', $orderListCount);
+        $this->view->setVar('order_sum', $orderSum);
+    }
+
+    public function shopInfoAction() {
+        $shop_id = $this->request->getQuery('shop_id');
+        $order_type = $this->request->getQuery('order_type');
+        $this->view->shop = $this->getModel('shop')->findFirst($shop_id);
+
+    }
+
+    public function changeorderstatusAction() {
+        if ($this->request->isAjax()) {
+            $order_id = $this->request->getPost('order_id');
+            $status = $this->request->getPost('status');
+            $partner_id = $this->currentUser['id'];
+            $success = $this->getModel('OrderSubcontract')->changeStatus($order_id, $status, $partner_id);
+            $this->renderJson($success['order_id'], $success['message']);
+        } else {
+            $this->renderJson('0', 'Method does not allow');
+        }
+    }
+
+    public function changenumberaction() {
+        if ($this->request->isAjax()) {
+            $id = $this->request->getPost('id');
+            $number = $this->request->getPost('number');
+            $price = $this->request->getPost('unit_price') ? $this->request->getPost('unit_price') : NULL;
+            $note = $this->request->getPost('note') ? $this->request->getPost('note') : '';
+            $creator_id = $this->currentUser['id'];
+            $success = $this->getModel('orderSku')->changNumber($id, $number, $price, $creator_id, $note);
+            if ($success === TRUE) {
+                $this->renderJson(1, '操作成功');
+            } else {
+                $this->renderJson(0, $success);
+            }
+        } else {
+            $this->renderJson(0, 'Method does not allow');
+        }
+    }
+
+    public function readyAction() {
+        $partnerId = $this->currentUser['id'];
+        $isDel = 0;
+        $model = $this->getModel('OrderSubcontract');
+        $conditions['conditions'] = 'is_del=0 and  partner_id=' . $partnerId;
+        
+        $orderListCount = $model->getCount($conditions,0);
+        $orderReadyCount = $model->getCount($conditions,1);
+        $conditions['conditions'] .= $this->where;
+
+        $orderSn = $this->request->getQuery('order_sn');
+        if ($orderSn) {
+            $conditions['conditions'] .= " and subcontract='" . $orderSn . "'";
+        }
+        
+        $conditions['order'] = 'id desc';
+        $orderList = $model->getList($conditions, 1);
+        $orderCount = $model->getCount($conditions,1);
+
+        $orderSum = $orderList['sum_price'];
+        unset($orderList['sum_price']);
+        $this->view->orderList = $orderList;
+        $this->view->setVar('order_count', $orderCount);
+        $this->view->setVar('order_list_count', $orderListCount);
+        $this->view->setVar('order_ready_count', $orderReadyCount);
+        $this->view->setVar('order_sum', $orderSum);
+    }
+
+    public function sendAction() {
+        $partnerId = $this->currentUser['id'];
+        $isDel = 0;
+        $limit = 20;
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+        $model = $this->getModel('OrderSubcontract');
+
+        $conditions['conditions'] = 'is_del=0 and  partner_id=' . $partnerId;
+        
+        $orderReadyCount = $model->getCount($conditions, 1);
+        $orderListCount = $model->getCount($conditions, 0);
+        $conditions['conditions'] .= $this->where;
+        
+        $orderSn = $this->request->getQuery('order_sn');
+        if ($orderSn) {
+            $conditions['conditions'] .= " and subcontract='" . $orderSn . "'";
+        }
+        $conditions['order'] = 'id desc';
+        $url .= '&order_sn='.$orderSn.'&source='.$this->source;
+        
+        $page = $this->request->getQuery('page');
+        $page = intval($page)< 0 ?1:intval($page);
+        $status = array(2,3,4,5,6,7);
+        $orderCount = $model->getCount($conditions, $status);
+        $pagination = $this->pagination($orderCount, $limit, $page, $url);
+
+        $conditions['limit'] = $limit;
+        $conditions['offset'] = $pagination['offset'];
+        $orderList = $model->getList($conditions, $status);
+        $orderSum = $orderList['sum_price'];
+        unset($orderList['sum_price']);
+        $this->view->orderList = $orderList;
+        $this->view->setVar('order_count', $orderCount);
+        $this->view->setVar('order_ready_count', $orderReadyCount);
+        $this->view->setVar('order_list_count', $orderListCount);
+        $this->view->setVar('order_sum', $orderSum);
+        $this->view->page = $pagination['html'];
+    }
+
+    //订单打印
+    public function printAction() {
+
+        $this->view->cleanTemplateAfter();
+        $subcontract = $this->request->getQuery('subcontract');
+        $order_id = $this->request->getQuery('order_id', "int");
+        $order_type = $this->request->getQuery('order_type');
+        //判断是APP下单 还是 自助下单
+        if ($order_type == 'self'){
+            $ordersku = $this->getModel('OrderSku')->find(array('sku_type = 1 and is_del = 0 and subcontract="' . $subcontract . '"'))->toArray();           
+           
+            if(empty($ordersku)) {
+                $this->response->redirect("order/list");
+            }else{
+                $shop = $this->getModel('shop')->findFirst($ordersku[0]['shop_id'])->toArray();
+                //print_r($ordersku);die;
+                foreach ($ordersku as $key => $val) {
+                    $dict = $this->getModel('dict')->findFirst($val['unit_id']);
+                    $partner = $this->getModel('Partner')->findFirst($val['partner_id'])->toArray();
+                    $sku[] = $this->getModel('partnerSku')->findFirst($val['sku_id'])->toArray();
+                    $aa[] = $val['real_number'] * $val['unit_price'];
+                    $ordersku[$key]['username'] = $dict->name;
+                }
+                $ctime = $this->getModel('order')->findFirst($order_id)->toArray();
+                $user = $this->getModel('user')->findFirst($ctime['user_id'])->toArray();
+                $pay_day_id = $this->mc->getDict($user['pay_day_id'])['name'];
+                $sum = array_sum($aa);
+                $this->view->partner = $partner;
+                $this->view->shop = $shop;
+                $this->view->ordersku = $ordersku;
+                $this->view->ctime = $ctime;
+                $this->view->pay_day_id = $pay_day_id;
+                $this->view->sum = $sum;
+                $this->view->subcontract = $subcontract;
+                $this->view->username = $username;
+                $this->view->pick('bill/printdeliverynot');
+            }
+        } else {
+
+            $contract = $this->getModel('OrderSku')->findFirst('subcontract='.$subcontract)->toArray();
+            $sku_type = $contract['sku_type'];
+
+            if($sku_type == 0){
+                $ordersku = $this->getModel('OrderSku')->find(array('sku_type = 0 and is_del = 0 and subcontract="' . $subcontract . '"'))->toArray();
+            }else{
+                $ordersku = $this->getModel('OrderSku')->find(array('sku_type = 1 and is_del = 0 and subcontract="' . $subcontract . '"'))->toArray();
+            }
+            
+            
+            $shop = $this->getModel('shop')->findFirst($ordersku[0]['shop_id'])->toArray();
+           
+            foreach ($ordersku as $key => $val) {
+                $dict = $this->getModel('dict')->findById($val['unit_id']);
+                $partner = $this->getModel('Partner')->findFirst($val['partner_id'])->toArray();
+                if($sku_type == 0){
+                    $sku[] = $this->getModel('sku')->findFirst($val['sku_id'])->toArray();
+                }else{
+                    $sku[] = $this->getModel('PartnerSku')->findFirst($val['sku_id'])->toArray();
+                }
+                
+                $aa[] = $val['real_number'] * $val['unit_price'];
+                $ordersku[$key]['username'] = $dict['name'];
+            }
+            if($sku_type == 1){
+                $sku_type = 1;
+            }else{
+                $sku_type = 0;
+            }
+            foreach ($sku as $k => $v) {
+                $ordersku[$k]['skuname'] = $this->getModel('category')->find($v['category_id'])->toArray();
+            }//print_r($ordersku);die;
+            $ctime = $this->getModel('Order')->findFirst($order_id)->toArray();
+            $user = $this->getModel('user')->findFirst($ctime['user_id'])->toArray();
+            $pay_day_id = $this->mc->getDict($user['pay_day_id'])['name'];
+            $sum = array_sum($aa);
+            $this->view->partner = $partner;
+            $this->view->shop = $shop;
+            $this->view->sku_type = $sku_type;
+            $this->view->subcontract = $subcontract;
+            $this->view->ordersku = $ordersku;
+            $this->view->ctime = $ctime;
+            $this->view->pay_day_id = $pay_day_id;
+            $this->view->order = $order;
+            $this->view->sum = $sum;
+            $this->view->username = $username;
+            $this->view->pick('bill/printdeliverynote');
+        }
+    }
+
+    //全部订单打印
+    public function allprintAction() {
+        $this->view->cleanTemplateAfter();
+        $id = $this->request->getQuery('id');
+        $str = substr($id,0,strlen($id)-1); 
+        $newid = substr($id, 0, 18);
+        $from = $this->getModel('orderSku')->findFirst('order_sn ='.$newid);
+        $platform = $from->platform;
+        $snarr = explode(',', $str);
+        foreach ($snarr as $ka => $va) {
+            $sn_id[] = "'" . $va . "'";
+        }
+        $sn_id = implode(',', $sn_id);
+        if ($platform == 'partner') {
+            //自助下单
+            $where = 'is_del = 0 and partner_id=' . $this->currentUser['id'] . ' and subcontract in (' . $sn_id . ')';
+            $ordersku = $this->getModel('OrderSubcontract')->find($where)->toArray();
+            foreach ($ordersku as $k => $v) {
+                $orderList[$v["order_id"]][] = $v;
+            }
+            foreach ($orderList as $key => $val) {
+                $orderList[$key]['order'] = $this->getModel('Order')->find($key)->toArray();
+                $orderList[$key]['shopinfo'] = $this->getModel('shop')->findFirst($val[0]['shop_id'])->toArray();
+                $orderList[$key]['partner'] = $this->getModel('Partner')->findFirst($val[0]['partner_id'])->toArray();
+                $orderList[$key]['skulist'] = $this->getModel('OrderSku')->find(array('is_del = 0 and partner_id=' . $this->currentUser['id'] . ' and order_sn in ("' . $val[0]['order_sn'] . '")'))->toArray();
+                $aa[] = $val[$key]['real_number'] * $val[$key]['unit_price'];
+                $orderList[$key]['allprice'] = array_sum($aa);
+            }
+
+            $this->view->orderList = $orderList;
+            $this->view->pick('bill/aprint');
+
+        } else {
+            //app下单
+            $ordersku = $this->getModel('OrderSubcontract')->find(array('is_del = 0 and partner_id=' . $this->currentUser['id'] . '   and partner_id=' . $this->currentUser['id'] . ' and subcontract in (' . $sn_id . ')'))->toArray();
+            
+            foreach ($ordersku as $k => $v) {
+                $orderList[$v["order_id"]][] = $v;
+            }           
+            foreach ($orderList as $key => $val) {
+                $orderList[$key]['order'] = $this->getModel('Order')->find($key)->toArray();
+                $orderList[$key]['shopinfo'] = $this->getModel('shop')->findFirst($val[0]['shop_id'])->toArray();
+                $orderList[$key]['partner'] = $this->getModel('Partner')->findFirst($val[0]['partner_id'])->toArray();
+                $orderList[$key]['skulist'] = $this->getModel('OrderSku')->find(array('is_del = 0 and partner_id=' . $this->currentUser['id'] . '  and subcontract in (' . $val[0]['subcontract'] . ')'))->toArray();               
+            }
+            //print_r($orderList);die; 
+            $this->view->orderList = $orderList;
+            $this->view->pick('bill/allprint');
+        }
+    }
+
+    public function discountAction() {
+        if ($this->request->isAjax()) {
+            $lines = $this->request->getPost('lines');
+            $creator_id = $this->currentUser['id'];
+            $note = $this->request->getPost('note');
+            $id = $this->request->getPost('id');
+            $is_success = $this->getModel('OrderSku')->changePrice($id, $lines, $creator_id, $note);
+            if ($is_success === TRUE) {
+                $this->renderJson(1, '操作成功');
+            } else {
+                $this->renderJson(0, $is_success);
+            }
+        } else {
+            $this->readerJson(0, 'Method does not allow');
+        }
+    }
+
+    //订单争议列表
+    public function troversyAction() {
+        $conditions = 'partner_id=' . $this->currentUser['id'] . ' and is_del = 0';
+        $troversy = $this->getModel('OrderDispute')->find(array($conditions, "order" => "id desc"))->toArray();
+        $total = $this->getModel('OrderDispute')->count($conditions);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'order/troversy';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->username = $username;
+        $this->view->troversy = $troversy;
+    }
+
+    //同意订单争议
+    public function agreeAction() {
+        $userId = $this->currentUser;
+        $confirm_id = $userId['id'];
+        $id = $this->request->getPost('id');
+        //获取扣款金额 进行修改用户余额
+        $list = $this->getModel('OrderDispute')->findById($id);
+        $subcontract = $list['subcontract'];
+        $price = $list['dispute_amount'];
+        //获取分组号，匹配订单，添加扣款记录
+        $data['type'] = 6;
+        $data['subcontract'] = $subcontract;
+        $data['user_id'] = $list['user_id'];
+        $data['amount'] = $price;
+        $data['partner_id'] = $confirm_id;
+        $mess = $this->getModel('balanceFlow')->createFlow($data);
+        if ($this->request->isAjax()) {
+            $troversy = $this->getModel('OrderDispute')->findFirst($id);
+            $troversy->type = 1;
+            $troversy->result = 1;
+            if($troversy->save()){
+                echo 1;exit();
+            }else{
+                echo 2;exit();
+            }
+        }
+    }
+
+    //拒绝订单争议
+    public function replyAction() {
+        if ($this->request->isPost()) {
+            $id = $this->request->getPost('id', "int");
+            $list = $this->getModel('OrderDispute')->findFirst($id)->toArray();
+            $subcontract = $list['subcontract'];
+            $troversy = $this->getModel('OrderDispute');
+            $troversy->dispute_amount = $this->request->getPost('dispute_amount');
+            $troversy->message = $this->request->getPost('message');
+            $troversy->partner_id = $this->currentUser['id'];
+            $troversy->subcontract = $subcontract;
+            $troversy->user_id = $list['user_id'];
+            $troversy->type = 1;
+            $troversy->result = 2;
+            $troversy->is_del = 0;
+            if ($troversy->save()) {
+                return $this->response->redirect("order/troversy");
+            }
+        }
+    }
+
+    //争议详情
+    public function zydetailAction() {
+        $id = $this->request->getQuery('id', "int");
+        //print_r($id);die;
+        $userid = $this->request->getQuery('userid', "int");
+        $subcontract = $this->request->getQuery('subcontract');
+        $conditions = 'partner_id= ' . $this->currentUser['id'] . ' and is_del = 0 and subcontract =' . $subcontract;
+        $troversy = $this->getModel('OrderDispute')->find($conditions)->toArray();
+        $user = $this->getModel('user')->findById($userid);
+        $username = $user['real_name'];
+        $this->view->username = $username;
+        $this->view->troversy = $troversy;
+    }
+
+    public function listinfoAction() {
+
+        $id = $this->request->getQuery('id');
+        $partner_id = $this->currentUser['id'];
+        $info = $this->getModel('OrderSubcontract')->getInfo($id, $partner_id);
+        $this->view->order = $info['order'];
+        $this->view->sku_list = $info['sku_list'];
+    }
+
+    public function readyinfoAction() {
+        $id = $this->request->getQuery('id');
+        $partner_id = $this->currentUser['id'];
+        $info = $this->getModel('OrderSubcontract')->getInfo($id, $partner_id);
+        $this->view->order = $info['order'];
+        $this->view->sku_list = $info['sku_list'];
+    }
+
+    public function sendinfoAction() {
+        $id = $this->request->getQuery('id');
+        $partner_id = $this->currentUser['id'];
+        $info = $this->getModel('OrderSubcontract')->getInfo($id, $partner_id);
+        $this->view->order = $info['order'];
+        $this->view->sku_list = $info['sku_list'];
+    }
+
+    public function finishinfoAction() {
+        $id = $this->request->getQuery('id');
+        $partner_id = $this->currentUser['id'];
+        $info = $this->getModel($this->model)->getInfo($id, $partner_id);
+        $this->view->order = $info['order'];
+        $this->view->sku_list = $info['sku_list'];
+    }
+    //操作日志
+    public function logsAction()
+    {   
+        $partner_id = $this->currentUser['id'];
+        $sn = $this->request->getQuery('sn');//订单号
+        
+        $start_time = $this->request->getQuery('start_time');//创建开始时间
+        $end_time = $this->request->getQuery('end_time');//创建结束时间
+        $op_type= $this->request->getQuery('op_type');//类型
+	//条件判断
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?';
+        $condition ='is_del=0 and creator_id = '.$partner_id;
+        $flag=1;
+        if(is_numeric($sn)){
+            $this->view->setVar('sn', $sn);
+            $condition.=" and subcontract like '%".$sn."%' ";
+            $url.="&sn=".$sn;
+        }
+        
+        if($start_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $start_time)){
+            $this->view->setVar('start_time', $start_time);
+            $url.="&start_time=".$start_time;
+            $start_time=  strtotime($start_time);
+            $condition.=" and ctime>=$start_time ";
+            
+            
+        }
+        if($end_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $end_time)){
+            $this->view->setVar('end_time', $end_time);
+            $url.="&end_time=".$end_time;
+            $end_time=  strtotime($end_time);
+            $condition.=" and ctime<=$end_time ";  
+            
+        }
+        if(is_numeric($op_type)){
+            $condition.=" and op_type=".($op_type-1);
+            $url.="&op_type=".$op_type;
+            $this->view->setVar('op_type', $op_type);
+        }
+        
+        if($flag){
+           $total = $this->getModel('OrderSkuLog')->count($condition);//总数量 
+           $pageary = $this->pagination($total, $limit, $page, $url);
+        
+           $logs=$this->getModel('OrderSkuLog')->find(array(
+                "conditions" => $condition,
+                "limit" => $limit,
+                "offset" => $pageary['offset'],
+                "order"=>'id desc',
+            ))->toArray();
+           $this->view->setVar('page', $pageary['html']);
+           
+        }else{
+           $logs=array();
+        }
+        $this->view->logs = $logs;
+    }
+
+    public function pscAction()
+    {
+        $id = $this->request->getQuery('id');
+        $imageNames = $this->getModel('orderSubcontract')->getImgUrl(NULL, $id);
+        $this->view->imageNames = $imageNames;
+    }
+
+}

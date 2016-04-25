@@ -1,0 +1,98 @@
+<!--=== Page Content ===-->
+
+<script type="text/javascript">
+$(document).ready(function(){
+	$("#col").change(function(){
+		col = $(this).children('option:selected').val();
+		$("#keyword").attr("name",col);
+	});
+
+});
+</script>
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 活动列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+
+			<form class="form-horizontal row-border" action="" method="get">
+				<div class="form-group">
+					<div class="col-md-10">
+						<div class="row">
+							<div class="col-md-2">
+								<label class="control-label">搜索：</label>
+							</div>
+							<div class="col-md-2">
+								<select class="form-control" id="col">
+									<option value="">请选择</option>
+									<option value="id" <?php if($id){echo 'selected';}?>>id</option>
+									<option value="name" <?php if($name){echo 'selected';}?>>名称</option>
+								</select>
+							</div>
+							<div class="col-md-3">
+								<input name="<?php echo $col; ?>" class="form-control" id="keyword" placeholder="" type="text" value="<?php echo $kw; ?>">
+							</div>
+							<div class="col-md-1">
+                                    <input type="submit" value="搜索" class="btn btn-primary">
+                            </div>
+						</div>
+					</div>
+				</div>
+			</form>
+
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>活动名称</th>
+						<th>活动图片</th>
+						<th>URL</th>
+						<th>排序</th>
+						<th class="hidden-xs">修改时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($activity as $k=>$v) { ?>
+					<tr>
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->name; ?></td>
+						<td><?php 
+						$pic = $this->img->getUrl($v->pic_url);
+						if(strlen($pic)>29){
+							echo '<img src="'.$pic.'" width="120" height="80">';
+						}
+						 ?></td>
+						<td><a href="<?php echo $v->url; ?>"><?php echo $v->url; ?></a></td>
+						<td><?php echo $v->sort; ?></td>
+						<td class="hidden-xs"><?php echo date("Y-m-d H:i:s", $v->utime); ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href="<?php echo $this->url->get('activity/update',array('activityid'=>$v->id)); ?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+								<a href="javascript:;" onclick="deleteByID('<?php echo $this->url->get($this->dispatcher->getControllerName().'/delete') ?>','<?php echo $v->id ?>');" class="btn btn-xs bs-tooltip" title="删除" >删除</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /Table with Footer -->
+<!-- /Page Content -->

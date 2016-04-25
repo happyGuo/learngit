@@ -1,0 +1,38 @@
+<?php
+namespace Modules\Partner\Controllers;
+/* 
+author:宿伟
+ */
+class SetController extends PartnerController
+{
+    public function updatepwdAction()
+    {
+        $this->id = $this->currentUser['id'];
+        if($this->request->isPost()){
+            $password = $this->request->getPost('old_pwd');
+            $new_pwd = $this->request->getPost('new_pwd');
+            $confirm_pwd = $this->request->getPost('confirm_pwd');
+            $partner = $this->getModel('partner')->findFirst($this->id);
+            //判断用户输入的旧密码是否与数据库中的值一致
+            if ($this->auth->onlyVerify($password, $partner)) {
+                //判断用户新密码与确认密码是否一致
+                if ($new_pwd != $confirm_pwd) {
+                    $message = '新密码与确认密码不一致';
+                } else {
+                    $partner->before_pwd = $new_pwd;
+                    if ($partner->save()) {
+                        echo "<script>alert('修改成功');history.go(-1);</script>";
+                    } else {
+                    	$message = $partner->getError();
+                    }
+                }
+            } else {
+                $message = '原密码错误';
+            }
+
+        }
+        $this->view->messages = $message;
+    }
+
+}
+

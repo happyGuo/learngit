@@ -1,0 +1,51 @@
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 活动列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>订单编号</th>
+						<th>商品名称</th>
+						<th>订单总额</th>
+						<th>购买数量</th>
+						<th>审核</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ($order as $key => $value):?>
+					<tr>
+						<td><?=$value['id']?></td>
+						<td><?=$value['order_sn']?></td>
+						<td><?=$value['sku_name']?></td>
+						<td><?=$value['buy_amount']?></td>
+						<td><?=$value['buy_number']?></td>
+
+						<td class="align-center">
+							<span class="btn-group">
+								<a title="" class="btn btn-xs bs-tooltip" onclick="deleteByID('/activity/delete','19');" href="javascript:;" data-original-title="通过审核">通过审核</a>
+								<a title="" class="btn btn-xs bs-tooltip" href="order/shopInfo?shop_id=<?=$value['shop_id']?>" data-original-title="商家详情">商家详情</a>
+							</span>
+						</td>
+					</tr>
+				<?php endforeach;?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php 	echo $page;?>			
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

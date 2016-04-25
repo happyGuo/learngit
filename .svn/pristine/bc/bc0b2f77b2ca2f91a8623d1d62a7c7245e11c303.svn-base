@@ -1,0 +1,144 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body>
+	<style>
+		.bdn td{ border: none!important;}
+		table{  empty-cells:show; }
+		table th,
+		table td{ white-space:nowrap;}
+		table tr td:nth-child(1){ white-space:normal;}
+	</style>
+		<?php foreach($orderList as $key=>$order): 
+		?>
+			<table style="border-style:none">
+			<tbody>
+				<?php
+				if($order['skulist'][0]['sku_type'] == 0) {
+				
+				
+					//if($this->mc->getUser($order['order'][0]['user_id'])['type'] == 0){
+
+						?>
+						<tr>
+							<td><img style="width:180px;" src="./assets/img/new_logo.png"></td>
+						</tr>
+				<?php	}//}
+				?>
+				
+   				<tr>
+					<th>订单日期： </th>
+        			<td><?php echo date('Y-m-d H:i:s',$order['order'][0]['ctime']);?>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+        			<th>订单号： </th>
+        			<td><?php echo $order[0]['subcontract']?></td>
+    			</tr>
+    			<tr>
+					<th>店铺名称：</th>
+        			<td><?php echo $order['shopinfo']['name']?></td>
+        			<th>最佳送货时间：</th>
+        			<td><?php echo $order['shopinfo']['best_time']?></td>
+    			</tr>
+    			<tr>
+					<th>用户账期：</th>
+        			<td><?php 
+        					  if($this->mc->getDict($this->mc->getUser($order[0]['user_id'])['pay_day_id'])['name'] == '') {
+        					  	 echo "无账期";
+        					  }else{
+        					  	 echo $this->mc->getDict($this->mc->getUser($order[0]['user_id'])['pay_day_id'])['name'];
+        					  }
+        			?>
+        			</td>
+    			</tr>
+    			<tr>
+					<th>配送姓名：</th>
+        			<td><?php echo $order['partner']['contact_name']?></td>
+        			<th>配送电话：</th>
+        			<td><?php echo $order['partner']['mobile']?></td>
+    			</tr>
+    			<tr>
+					<th>联系人：</th>
+        			<td><?php echo $order['shopinfo']['contact_name']?></td>
+        			<th>联系电话：</th>
+        			<td><?php echo $order['shopinfo']['contact_mobile']?></td>
+    			</tr>
+    			<tr>
+					<th>配送地址：</th>
+        			<td><?php echo $order['shopinfo']['address']?></td>
+        			<th>备注：</th>
+        			<td><?php echo $order['order'][0]['remark']?></td>
+    			</tr>
+    			<tr>
+					<th>支付方式：</th>
+        			<td><?php 
+				 if ($order['order'][0]['pay_type'] == 1) {
+				 	echo "货到付款";
+				 }
+				 if($order['order'][0]['pay_type'] == 2) {
+				 	echo "余额支付";
+				 }
+				?></td>
+    			</tr>
+    		</tbody>
+		</table>
+			<table border="1" cellspacing="0" cellpadding="0">
+				<tbody>
+					<tr>
+					<th>序号</th>
+					<th>类别</th>	
+					<th>名称及规格</th>	
+					<th>单价</th>
+					<th>单位</th>
+					<th>订购数</th>	
+					<th>配送数</th>				
+					<th>金额</th>
+					<th>实收数量</th>		
+					<th>备注</th>					
+					</tr>
+			<?php 
+				$i = 0;
+				foreach($order['skulist'] as $k=>$sku): 
+					$i++;
+				?>
+					<tr>
+						<td height="20px" width="30px"><?php echo $i;?></td>
+						<td width="60px" align="center"><?php 
+						if($sku['sku_type'] == 1){
+							echo $this->mc->getCategory($this->mc->getPartnerSku($sku['sku_id'])['category_id'])['name'];
+						}else{
+							echo $this->mc->getCategory($this->mc->getSku($sku['sku_id'])['category_id'])['name'];
+						}
+						?> 
+						</td>
+						<td width="100px"><?php echo $sku['sku_name']?></td>
+						<td width="60px" align="center"><?php echo $sku['unit_price']?></td>
+						<td width="60px" align="center"><?php 
+						echo $this->mc->getDict($sku['unit_id'])['name'];?></td>
+						<td width="60px" align="center"><?php echo $sku['buy_number']?></td>					
+						<td width="60px" align="center"><?php echo floatval($sku['real_number'])?></td>					
+						<td width="60px" align="center"><?php echo round($sku['real_number']*$sku['unit_price'],2)?></td>
+						<td width="60px"></td>
+						<td width="120px"><?php echo $sku['user_remark']?></td>						
+					</tr><?php endforeach; ?>
+					<tr>
+			
+						<td height="20px" width="60px">合计</td>
+						<td colspan="9"><?php echo  round($order['order'][0]['pay_amount'],2);?>元</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+		</br>	
+		<p >&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+			收款确认： <label><input type="checkbox" name="" id="">未收</label> <label><input type="checkbox" name="" id="">已收</label>　　　　 修改后金额________元　　修改原因:____________________
+			</p>
+			
+			<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+			配送：__________　　客户签章：__________　　客服：__________</p>
+			
+			  <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+			 链农——专业餐馆供应商
+			 </p>
+		<?php endforeach; ?>
+		<div style="page-break-before:auto; page-break-after:always; "></div>
+			
+		<script style="text/javascript">window.print();</script>
+	</body>
+</html>

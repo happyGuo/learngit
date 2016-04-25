@@ -1,0 +1,115 @@
+.about-header {
+	width: 100%;
+	padding:5%;
+	background: #ff6633;
+	color:#fff;
+}
+.about-icon {
+    float: left;
+}
+.about-icon img{
+	width: 40%;
+}
+.about-txt {
+	width: 60%;
+	float: left;
+	font-size: 16px;
+	margin-top:-1%;
+}
+.cont-img {
+	width: 100%;
+}
+.cont-img img {
+	width: 100%;
+}
+.about-text {
+	width:92%;
+	margin:0 auto;
+	padding:5% 0;
+	text-indent: 24px;
+	line-height:24px;
+}
+.history {
+	width: 92%;
+	margin: 0 auto;
+	text-align: center;
+}
+.history-china {
+	display:block;
+	font-size:24px;
+	color: #ff6633;
+}
+.history-num {
+	font-size: 12px;
+	color: #888;
+}
+.about-img {
+	width: 98%;
+	margin:0 auto;
+	padding-bottom:10%;
+}
+.about-img img {
+	width: 100%;
+}
+.about-partent {
+	width: 100%;
+	padding-bottom: 3%;
+}
+.about-partent img {
+	width: 100%;
+}
+@media (min-width:414px)and (max-width:424px){
+.about-icon img {
+    width: 60%;
+}
+.about-txt {
+    width: 60%;
+    float: left;
+    font-size: 22px;
+    margin-top: -1%;
+}
+.about-text {
+    width: 92%;
+    margin: 0 auto;
+    padding: 5% 0;
+    text-indent: 24px;
+    line-height: 32px;
+    font-size: 18px;
+}
+}
+
+@media (min-width:600px)and (max-width:800px){
+.about-icon img {
+    width: 80%;
+}
+.about-txt {
+    width: 60%;
+    float: left;
+    font-size: 32px;
+    margin-top: -1%;
+    margin-left: 3%;
+}
+.about-text {
+    width: 92%;
+    margin: 0 auto;
+    padding: 5% 0;
+    text-indent: 24px;
+    line-height: 44px;
+    font-size: 26px;
+}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

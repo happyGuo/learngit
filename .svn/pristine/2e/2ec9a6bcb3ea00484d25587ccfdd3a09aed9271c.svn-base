@@ -1,0 +1,89 @@
+<?php
+/*
+ * author: 柯茂
+ * description: 城市管理
+ * 
+*/
+namespace Modules\Backend\Controllers;
+
+class RegionController extends BackendController
+{
+    //城市列表
+    public function listAction()
+    {
+        //检索不同状态的城市
+        $status = $this->request->getQuery('status');
+        $status = (isset($status)) ? intval($status) : null ;
+        $res = $this->getModel('region')->getCityListByStatus($status);
+        $total = count($res['city']);
+        if (is_null($status)) {
+            $url = 'region/list';
+        } else {
+            $url = 'region/list?status='.$status;
+        }
+
+        $page = intval($this->request->getQuery('page'));
+        $limit = 10;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+
+        $citylist = $this->getModel('region')->find(array($res['where'], "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"sort desc"));
+        $this->view->citylist = $citylist;
+        $this->view->setVar('status', $status);
+        $this->view->setVar('page', $pageary['html']);
+    }
+
+    //修改城市信息
+    public function updateAction()
+    {
+        if($this->request->isPost()) {
+            $city = $this->getModel('region')->findFirst($this->request->getPost('id'));
+            $city->id = $this->request->getPost('id');
+            $city->local_name = $this->request->getPost('local_name');
+            $city->en_name = $this->request->getPost('en_name');
+            $city->zip = $this->request->getPost('zip');
+            $city->status = $this->request->getPost('status');
+            $city->sort = $this->request->getPost('sort');
+            $city->google_map_x = $this->request->getPost('google_map_x');
+            $city->google_map_y = $this->request->getPost('google_map_y');
+            $city->baidu_map_x = $this->request->getPost('baidu_map_x');
+            $city->baidu_map_y = $this->request->getPost('baidu_map_y');
+            if($city->save()) {
+                return $this->response->redirect("region/list");
+            }
+        } else {
+            $cityid = intval($this->request->getQuery('cityid'));
+            $city = $this->getModel('region')->findById($cityid, false);
+            $this->view->city = $city;
+        }
+    }
+
+    //删除城市
+    public function deleteAction()
+    {
+        $city = $this->getModel('region')->findFirst($this->request->getPost('id'));
+        $city->is_del = 1;
+        if ($city->save()) {
+            $this->renderJson($city);
+        } else {
+            $this->renderJson('', $city->getMessages());
+        }
+    }
+
+    //城市下属地区列表
+    public function sublistAction()
+    {
+        $cityid = $this->request->getQuery('cityid');
+        $city = $this->getModel('region')->findById($cityid, false);
+        //$where = 'p_region_id='.$cityid.' and region_grade=3 and is_del = 0';
+        //$regionlist = $this->getModel('region')->find(array($where, "order"=>"sort desc"));
+        $res = $this->getModel('region')->getRegionListByCity($cityid);
+        $this->view->page = '';
+        $this->view->city = $city;
+        $this->view->regionlist = $res['region'];
+    }
+
+    public function switchAction(){
+
+    }
+}
+

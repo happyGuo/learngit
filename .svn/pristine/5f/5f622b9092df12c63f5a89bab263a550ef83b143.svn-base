@@ -1,0 +1,11 @@
+<?php
+
+namespace Modules\Frontend\Controllers;
+
+class FrontendController extends \Libs\ControllerBase
+{
+    public function initialize()
+    {
+
+    }
+}

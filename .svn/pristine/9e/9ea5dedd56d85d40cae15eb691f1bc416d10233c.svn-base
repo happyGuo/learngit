@@ -1,0 +1,14 @@
+<?php
+namespace Modules\Complex\Controllers;
+//TODO 设置缓存系统
+class ApiController extends ComplexController
+{
+    public function initialize()
+    {
+        parent::initialize();
+        set_time_limit(0);
+        ini_set('memory_limit', '512M');
+    }
+
+}
+

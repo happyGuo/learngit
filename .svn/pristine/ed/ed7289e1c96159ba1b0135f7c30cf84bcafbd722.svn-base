@@ -1,0 +1,155 @@
+<?php
+
+namespace Models;
+
+class PartnerWithdraw extends CityModel
+{
+
+    public function getCount($condition, $status, $partnerId=NULL){
+    	if($status !== 'all'){
+    		$condition['conditions'] .= ' and status = '.$status;
+    	}
+        if(!empty($partnerId)){
+            $condition['conditions'] .= ' and partner_id = '.$partnerId;
+        }
+    	return $this->count($condition);
+    }
+
+    public function getList($condition ,$status, $partnerId=NULL)
+    {
+    	if($status !== 'all'){
+    		$condition['conditions'] .= ' and status = '.$status;
+    	}
+        if(!empty($partnerId)){
+            $condition['conditions'] .= ' and partner_id = '.$partnerId;
+        }
+		$list = $this->find($condition);
+		if($list){
+			$list = $list->toArray();
+			foreach ($list as $key => $value) {
+                if(empty($partnerId)){
+                    $list[$key]['partner_name'] =  $this->mc->getPartner($value['partner_id'])['contact_name'];
+                }
+                $list[$key]['ctime'] = date('Y-m-d H:i:s', $value['ctime']);
+                $list[$key]['utime'] = date('Y-m-d H:i:s', $value['utime']);
+				switch ($value['status']) {
+					case 0:
+						$list[$key]['status_key'] = '待确认';
+						break;
+					case 1:
+						$list[$key]['status_key'] = '提现成功';
+						break;
+					case 2:
+						$list[$key]['status_key'] = '提现驳回';
+						break;
+				}
+			}
+			return $list;
+		}else{
+			return NULL;
+		}
+    }
+
+    public function doWithdraw($data)
+    {
+        $partner = $this->getModel('partner')->findFirst($data['partner_id']);
+        if(!$partner->pay_day_id){
+            return '配销商没有账期';
+        }
+
+        $pay_day_id = $this->mc->getDict($partner->pay_day_id)['code'];
+        $db_time = $partner->payment_start;
+        $time =time();
+        switch ($pay_day_id) {
+            case 7:
+                $after_time = strtotime("+1 week",$db_time);
+                break;
+            case 15:
+                $after_time = strtotime("+15 day",$db_time);
+                break;
+            case 31:
+                $after_time = strtotime("+1 month",$db_time);
+                break;
+        }
+
+        if($time >$db_time && $time <$after_time){
+            return '提现次数已达上限';
+        }
+        //验证金额是否为空
+        if ($data['amount'] == 0) {
+           return '提现金额为零';
+        } elseif (!(preg_match('/^[0-9]+(.[0-9]{1,2})?$/', $data['amount']))) {
+           return '请保留小数点后两位';
+        } elseif ($data['amount'] < 0) {
+           return '提现金额小于零';
+        }
+        if ($partner->withdraw_balance < $data['amount']) {
+           return '提现金额大于余额';
+        }
+        $res = $this->createOne($data);
+        if($res['error']){
+            return $res['error'];
+        }
+        $data1['payment_start'] = time();
+        $this->getModel('partner')->updateOne($data['partner_id'],$data1);
+        return '';
+    }
+
+    public function confirm($wId, $paySn, $opId)
+    {
+        $partnerWithdraw = $this->findFirst($wId);
+        if($partnerWithdraw->status != 0){
+            return array('id'=>0, 'message'=>'状态有误');
+        }
+//        $partner_id = $partnerWithdraw->partner_id;
+//        $partner = $this->getModel('partner')->findFirst($partner_id);
+//        $partner->withdraw_balance = $partner->withdraw_balance - $partnerWithdraw->amount;
+//        $partner->withdraw +=  $partnerWithdraw->amount;
+//       // echo $partner->withdraw;die;
+//        if($partner->save()){
+            $partnerWithdraw->status = 1;
+            $partnerWithdraw->pay_sn = $paySn;
+            $partnerWithdraw->op_id = $opId;
+            $partnerWithdraw->utime = time();
+            if($partnerWithdraw->save()){
+                $data['type'] = 3;
+                $data['amount'] = $partnerWithdraw->amount;
+                $data['pay_sn'] = $partnerWithdraw->pay_sn;
+                $data['partner_id'] = $partnerWithdraw->partner_id;
+                $data['creator_id'] = $opId;
+                $data['user_id'] = 0;
+                $this->getModel('balanceFlow')->createFlow($data);
+                $id = $partnerWithdraw->id;
+
+                $message = '操作成功';
+            }else{
+                $id = 0;
+                $message = $partnerWithdraw->getError();
+            }
+//        }else{
+//            $id = 0;
+//            $message = $partner->getError();
+//        }
+        return array('id'=>$id, 'message'=>$message);
+    }
+
+    public function rejected($wId, $remark, $opId)
+    {
+        $partnerWithdraw = $this->findFirst($wId);
+        if($partnerWithdraw->status == 1){
+            return array('id'=>0, 'message'=>'状态有误');            
+        }
+        $partnerWithdraw->remark = $remark;
+        $partnerWithdraw->opId = $opId;
+        $partnerWithdraw->status = 2;
+        $partnerWithdraw->utime = time();
+        if($partnerWithdraw->save()){
+            $id = $partnerWithdraw->id;
+            $message = '操作成功';
+        }else{
+            $id = 0;
+            $message = $this->partnerWithdraw->getError();
+        }
+        return array('id'=>$id, 'message'=>$message);
+    }
+}

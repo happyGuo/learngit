@@ -1,0 +1,12 @@
+<?php
+
+$di->set('config', $config);
+
+/**
+ * Setting up the view component
+ */
+$di->set('view', function() {
+    $view = new \Phalcon\Mvc\View();
+    $view->setViewsDir(__DIR__ . '/../views/');
+    return $view;
+});

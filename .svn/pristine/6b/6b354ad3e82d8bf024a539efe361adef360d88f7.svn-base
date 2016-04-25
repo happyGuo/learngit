@@ -1,0 +1,152 @@
+<div class="row row-bg">
+   <!-- <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">待核销金额</div>
+                <div class="value"><?/*=$partner['balance']*/?>元</div>
+            </div>
+        </div>
+    </div>-->
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">可提现金额</div>
+                <div class="value"><?=$partner['withdraw_balance']?>元</div>
+            </div>
+        </div>
+        <!-- /.smallstat -->
+    </div>
+    <!-- /.col-md-3 -->
+</div>
+<div>
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 提现记录列表</h4>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form action="" method="get" class="form-horizontal row-border">
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <div class="row">
+                            <div class="col-md-2" style="margin-right: 10px;">
+                                <input type="text" name="start_time" value="<?php echo isset($start_time) ? $start_time :'';?>" class="form-control datepicker" placeholder="开始时间" readonly="readonly">
+                            </div>
+
+                            <div class="col-md-2">
+                                <input type="text" name="end_time" value="<?php echo isset($end_time) ? $end_time :'';?>" class="form-control datepicker" placeholder="结束时间" readonly="readonly">
+                            </div>
+                            <div class="col-md-2">
+                                <select name="status" class="form-control">
+                                    <option value="0" <?php if($status == 0){ echo "selected='selected'";}?>>待确认</option>
+                                    <option value="1" <?php if($status == 1){ echo "selected='selected'";}?>>提现成功</option>
+                                    <option value="2" <?php if($status == 2){ echo "selected='selected'";}?>>提现驳回</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="submit" value="搜索" class="btn btn-info btn-block"/>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="button" value="提现申请" onclick="withdrawal()" class="btn btn-info btn-block"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>金额</th>
+                    <?php if($status == 1){?>
+                    <th>支付流水</th>
+                    <?php } ?> 
+                    <?php if($status == 2){?>
+                    <th>备注</th>
+                    <?php } ?>
+                    <th>状态</th>
+                    <th>申请时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($list as $k => $v) {?>
+                    <tr>
+                        <td><?=$v['amount']?></td>
+                        <?php if($status == 1){?>
+                        <td><?=$v['pay_sn']?></td>
+                        <?php } ?>
+                        <?php if($status == 2){?>
+                        <td><?=$v['remark']?></td>
+                        <?php } ?>
+                        <td><?=$v['status_key']?></td>
+                        <td><?=$v['ctime']?></td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<script type="text/javascript">
+    var withdrawal = function()
+    {
+        var html ="<input class='form-control' id='with_amount' placeholder='输入提现金额'>";
+        bootbox.dialog({
+            message:html,
+            title: "提现申请",
+            onEscape: function() {},
+            show: true,
+            backdrop: true,
+            size: 'large',
+            animate: true,
+            className: "my-modal",
+            buttons: {
+            success: {
+              label: "确认",
+              className: "btn-success",
+              callback: function() {
+                var amount=$("#with_amount").val();
+                var preg_amount = new RegExp('^(?!(0{1,4}(((\\.0{2})?))$))([1-9]{1,2}[0-9]{0,9}|0)(\\.[0-9]{1,2})?$');
+                if(preg_amount.exec(amount) == null){
+                    alert('金额填写有误');
+                    return false;
+                }
+                $.ajaxSetup({async: false});
+                $.post('/amount/applywithdraw',{amount:amount},
+                    function(data){
+                        if(data ==1){
+                            alert('提交成功');
+                            window.location.href=window.location.href;
+                        }else{
+                            alert(data);
+                            return false;
+                        }
+
+                    });
+              }
+            },
+            "取消": {
+              className: "btn-danger",
+            }
+            }
+        });
+    }
+</script>

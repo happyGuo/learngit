@@ -1,0 +1,128 @@
+<?php
+/**
+ *  后台管理工具
+ *
+ *  开通城市,执行全库脚本  
+ *
+ * @author      zhangrg
+ * @version     20150804
+*/
+namespace Modules\Backend\Controllers;
+
+class ToolsController extends BackendController
+{
+
+    public function initialize(){
+        parent::initialize();
+
+    }
+
+    /*  开通城市 */
+    public function openAction(){
+
+        //如果提交 
+        if($this->request->isPost()) {
+            //ID
+            $id = $this->request->getPost('id');
+
+            //查询城市
+            $region = $this->getModel('region')->findFirst($id);
+
+            if(strlen($region->en_name)<1){
+                exit('城市没设置对应拼音');
+            }else{
+                $city=$this->createModel('region')->findFirst($id);
+
+                //复制数据库
+                \Libs\CopyDatabase::copyTo("fl_".$city->en_name);
+
+                //复制图片
+                $skuList = $this->getModel('sku')->find(['is_del=0']);
+                foreach ($skuList as $key => $val) {
+                    $this->img->copyImageToCity($val->id,$city->en_name);
+                }
+
+                //更新数据 后台开通 
+                $city->status = 1;
+                if($city->save()){
+                    //保存成功
+                    //添加管理员
+                    return $this->response->redirect("admin/create");
+                }else{
+                    exit('城市数据保存失败');
+                }
+            }
+
+            //
+        }
+
+        //检索不同状态的城市
+        $status = $this->request->getQuery('status');
+        $status = (isset($status)) ? intval($status) : 3 ;
+        switch ($status) {
+            case 0:
+                $where = 'region_grade = 2 and status = 0 and is_del = 0';
+                $url = 'tools/open?status=0';
+                break;
+            case 1:
+                $where = 'region_grade = 2 and status = 1 and is_del = 0';
+                $url = 'tools/open?status=1';
+                break;
+            case 2:
+                $where = 'region_grade = 2 and status = 2 and is_del = 0';
+                $url = 'tools/open?status=2';
+                break;
+            
+            default:
+                $where = 'region_grade = 2 and is_del = 0';
+                $url = 'tools/open';
+                break;
+        }
+        $city = $this->getModel('region')->find(array($where,"order"=>"sort desc,id asc"));
+        $total = count($city);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 10;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        //$pageary = $this->pagination($total, $limit, '', $url); 
+        $citylist = $this->getModel('region')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"sort desc"));
+        $this->view->citylist = $citylist;
+        $this->view->setVar('status', $status);
+        $this->view->setVar('page', $pageary['html']);
+
+    }
+
+    public function sqlAction(){
+        //如果提交
+        if($this->request->isPost()){
+
+            //获取数据库
+            $databases = $this->request->getPost('database');
+
+            //返回信息
+            $messages = [];
+
+            //初始化数据库
+
+            $sql = $this->request->getPost('sql');
+            if($sql == ''){
+                $this->view->messages[] = 'SQL语句不能为空';
+            }else{
+                foreach ($databases as $key => $database) {
+                    $database = $this->getDI()->get('fl_db',array($database));
+                    try{
+
+                        $query = $database->execute($sql);
+                        $messages[$database]= $query ? '执行成功' :'执行失败';
+
+                    }catch(Exception $exception){
+                    }
+                }
+                $this->view->messages = $messages;
+            }
+
+            $this->view->sql = "";
+        }
+    }
+
+}
+

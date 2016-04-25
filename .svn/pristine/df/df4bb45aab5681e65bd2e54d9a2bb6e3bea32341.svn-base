@@ -1,0 +1,70 @@
+<?php
+/*
+ * author: 姜卓然
+ * description: 商品分类
+ * date: 2015-08-27
+*/
+namespace Modules\App\Controllers;
+
+class YCategoryController extends YAppController
+{
+
+    /**
+    * topAction
+    * 一级分类
+    *
+    * @param null
+    */
+    public function topAction(){
+
+        //一级分类
+        $condition = 'is_del = 0 and parent_id = 0';
+        $columns = ['id','name','parent_id','code','usetag','pic_url','sort'];
+        $list = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns))->toArray();
+
+        foreach ($list as $key => $val) {
+
+            $list[$key]['pic_url'] = $this->img->getUrl($val['pic_url']);
+            $list[$key]['usetag'] = intval($val['usetag']);
+        }
+        $list = array_values($list);
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('category')->count($condition)]);
+    }
+    
+    /**
+    * subAction
+    * 二级分类
+    *
+    * @param int $parent_id
+    */
+    public function subAction(){
+		$condition = 'is_del = 0';
+
+        //根据父级ID查询结果
+        $parent_id = $this->request->getQuery('parent_id');
+        if(intval($parent_id)>0){
+            $condition .= ' and parent_id='.$parent_id;
+        }
+
+        $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+        $list = $this->getModel('category')->find(array($condition,'columns'=>$columns,'order'=>'sort asc'))->toArray();
+
+        foreach ($list as $key => $val) {
+            $list[$key]['pic_url'] = $this->img->getUrl($val['pic_url']);
+        }
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('category')->count($condition)]);
+    }
+
+    public function categoryInfo(){
+        $condition = 'is_del = 0 and parent_id = 0';
+        $categoryId = $this->request->getQuery('category_id');
+        if(intval($categoryId)>0){
+            $condition .= ' and id = '.$categoryId;
+        }
+        $columns = ['id','name','pic_url'];
+        $categoryInfo = $this->getModel('category')->findFirst(array($condition,'order'=>'sort desc','columns'=>$columns));
+        $categoryInfo->pic_url = $this->img->getUrl($categoryInfo->pic_url);
+        return $this->renderJson(array('category'=>$categoryInfo));
+    }
+}

@@ -1,0 +1,504 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: Administrator
+ * Date: 15-3-31
+ * Time: 下午2:39
+ */
+
+namespace Libs;
+
+
+class Util
+{
+    static public function isAlone()
+    {
+        if (defined('STANDALONE') && !STANDALONE) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    static public function sendSms($mobile, $msg)
+    {
+        $post_data = array();
+        $post_data['account'] = iconv('GB2312', 'GB2312', "Liannhd");
+        $post_data['pswd'] = iconv('GB2312', 'GB2312', "Txb123456");
+        //$post_data['ContentType'] = iconv('GB2312', 'GB2312',"15");
+        $post_data['mobile'] = $mobile; //iconv('GB2312', 'UTF-8',"15821162098");
+        $post_data['msg'] = $msg; //iconv('GB2312', 'UTF-8',"123456");
+        //$post_data['dtime'] = date("Y-m-d H:i:s");
+        //$post_data['submit'] = iconv('GB2312', 'UTF-8',"submit");
+        $url = 'http://222.73.117.158/msg/HttpBatchSendSM?';
+        //$url='http://222.73.117.158/msg/index.jsp';
+        $o = "";
+        foreach ($post_data as $k => $v) {
+            $o .= "$k=" . urlencode($v) . "&";
+        }
+        $post_data = substr($o, 0, -1);
+        //echo($post_data);
+        //echo "****";
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+        $result = curl_exec($ch);
+        curl_close($ch);
+        $r = explode(',', $result);
+        if ($r[1]) {
+            return '发送短信报错，错误码为' . $r[1];
+        } else {
+            return '';
+        }
+
+
+    }
+
+    static public function sendEmail($to, $subject, $content, $type = 0)
+    {
+        $mailtype = 'HTML';
+
+        $smtpserver = "smtp.exmail.qq.com";
+        $smtpserverport = 25;
+        $smtpuser = 'webmaster@farmlink.cn';
+        $smtppass = "mail951357fl";
+        $sender = 'webmaster@farmlink.cn';
+
+
+        $mailsubject = $subject;
+        $mailbody = $content;
+
+        $mail = new \Libs\PHPMailer(true); // the true param means it will throw exceptions on errors, which we need to catch
+
+        $mail->IsSMTP(); // telling the class to use SMTP
+
+        try {
+            $mail->Host = $smtpserver; // SMTP server
+            $mail->SMTPDebug = false; // enables SMTP debug information (for testing)
+            $mail->SMTPAuth = true; // enable SMTP authentication
+            $mail->CharSet = "UTF-8";
+            $mail->Port = $smtpserverport; // set the SMTP port for the GMAIL server
+            $mail->Username = $smtpuser; // SMTP account username
+            $mail->Password = $smtppass; // SMTP account password
+            $mail->AddAddress($to);
+            $mail->SetFrom($smtpuser, $sender);
+            $mail->AddReplyTo($smtpuser, $sender);
+            $mail->Subject = $mailsubject;
+            $mail->AltBody = $mailsubject; // optional - MsgHTML will create an alternate automatically
+            $mail->MsgHTML($mailbody);
+
+
+            //       $mail->AddAttachment('images/phpmailer.gif');      // attachment
+            //       $mail->AddAttachment('images/phpmailer_mini.gif'); // attachment
+            $mail->Send();
+            //echo "Message Sent OK</p>\n";
+            return true;
+        } catch (phpmailerException $e) {
+            return $e->errorMessage(); //Pretty error messages from PHPMailer
+        } catch (\Exception $e) {
+
+            return $e->getMessage(); //Boring error messages from anything else!
+
+        }
+    }
+
+    /*
+    @ function：激光推送
+    @ author：宿伟
+    @ param string $deviceToken 设备Token
+    @ param string $contentType 消息内容
+    @ param array $text  通知内容体。($arr = array('title'=>'标题','content'=>'内容'))
+    @ param string $deviceType 设备类型（Android，ios）
+    @ param string $n_content 提示信息
+    @ date：2015/08/05
+    */
+    static public function sendJpush($deviceToken, $contentType, $text, $deviceType, $n_content,$masterSecret,$appkeys)
+    {
+        $obj = new \Libs\Jpush($masterSecret,$appkeys);
+        if ($deviceToken) {
+            $type = 3;
+            $receiver_value = $deviceToken;
+        } else {
+            $type = 4;
+            $receiver_value = '';
+        }
+
+        $msg_content = json_encode(array('n_builder_id' => 0, 'n_title' => '', 'n_content' => $n_content, 'n_extras' => $text, 'type' => $contentType));
+        return $obj->send(substr(time(), -9), $type, $receiver_value, 1, $msg_content, $deviceType);
+    }
+
+    /** Json数据格式化在html显示
+     * @param  Mixed $data 数据
+     * @param  String $indent 缩进字符，默认4个&nbsp;&nbsp;&nbsp;&nbsp; 换行是<br/>
+     * @param int $html 是否html 1是 0 文本  设置为0时 intent  缩进字符，默认4个空格 换行时\n
+     * @return JSON
+     */
+    static public function jsonFormat($data, $indent = null, $html = 1)
+    {
+        if (is_array($data)) {
+            // 对数组中每个元素递归进行urlencode操作，保护中文字符
+            array_walk_recursive($data, 'jsonFormatProtect');
+            // json encode
+            $data = json_encode($data);
+        }
+        // 将urlencode的内容进行urldecode
+        $data = urldecode($data);
+        // 缩进处理
+        $ret = '';
+        $pos = 0;
+        $length = strlen($data);
+        $indent = isset($indent) ? $indent : ($html == 1 ? '&nbsp;&nbsp;&nbsp;&nbsp;' : '    ');
+        $newline = $html == 1 ? "<br/>" : "\n";
+        $prevchar = '';
+        $outofquotes = true;
+
+        for ($i = 0; $i <= $length; $i++) {
+            $char = substr($data, $i, 1);
+            if ($char == '"' and $prevchar != '\\') {
+                $outofquotes = !$outofquotes;
+            } elseif (($char == '}' || $char == ']') && $outofquotes) {
+                $ret .= $newline;
+                $pos--;
+                for ($j = 0; $j < $pos; $j++) {
+                    $ret .= $indent;
+                }
+            }
+            $ret .= $char;
+            if (($char == ',' || $char == '{' || $char == '[') && $outofquotes) {
+                $ret .= $newline;
+                if ($char == '{' || $char == '[') {
+                    $pos++;
+                }
+                for ($j = 0; $j < $pos; $j++) {
+                    $ret .= $indent;
+                }
+            }
+            $prevchar = $char;
+        }
+        return $ret;
+    }
+
+    /**
+     * 获取今日，昨日，本周，本月起始时间的函数
+     * @param $type 0=>今日，1=>昨日,2=>本周，3=>本月
+     * @return int
+     */
+    static public function getStartUnixTime($type = 0)
+    {
+        $d = date("d");
+        $m = date("m");
+        $y = date('Y');
+        switch ($type) {
+            case 1: //昨日
+                $d = $d - 1;
+                break;
+            case 2: //本周
+                $d = $d - date("w") + 1;
+                break;
+            case 3: //本月
+                $d = 1;
+                break;
+            case 4://半年
+                $m = $m - 6;
+        }
+        return mktime(0, 0, 0, $m, $d, $y);
+    }
+
+    static public function getIp()
+    {
+        $realip = '';
+        $unknown = 'unknown';
+        if (isset($_SERVER)) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !empty($_SERVER['HTTP_X_FORWARDED_FOR']) && strcasecmp($_SERVER['HTTP_X_FORWARDED_FOR'], $unknown)) {
+                $arr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                foreach ($arr as $ip) {
+                    $ip = trim($ip);
+                    if ($ip != 'unknown') {
+                        $realip = $ip;
+                        break;
+                    }
+                }
+            } else if (isset($_SERVER['HTTP_CLIENT_IP']) && !empty($_SERVER['HTTP_CLIENT_IP']) && strcasecmp($_SERVER['HTTP_CLIENT_IP'], $unknown)) {
+                $realip = $_SERVER['HTTP_CLIENT_IP'];
+            } else if (isset($_SERVER['REMOTE_ADDR']) && !empty($_SERVER['REMOTE_ADDR']) && strcasecmp($_SERVER['REMOTE_ADDR'], $unknown)) {
+                $realip = $_SERVER['REMOTE_ADDR'];
+            } else {
+                $realip = $unknown;
+            }
+        } else {
+            if (getenv('HTTP_X_FORWARDED_FOR') && strcasecmp(getenv('HTTP_X_FORWARDED_FOR'), $unknown)) {
+                $realip = getenv("HTTP_X_FORWARDED_FOR");
+            } else if (getenv('HTTP_CLIENT_IP') && strcasecmp(getenv('HTTP_CLIENT_IP'), $unknown)) {
+                $realip = getenv("HTTP_CLIENT_IP");
+            } else if (getenv('REMOTE_ADDR') && strcasecmp(getenv('REMOTE_ADDR'), $unknown)) {
+                $realip = getenv("REMOTE_ADDR");
+            } else {
+                $realip = $unknown;
+            }
+        }
+        $realip = preg_match("/[\d\.]{7,15}/", $realip, $matches) ? $matches[0] : $unknown;
+        return $realip;
+    }
+
+    /**
+     * 获取当前平台
+     * @param $type
+     * @return string
+     */
+    static public function getPlatform()
+    {
+        if(!defined('APP_NAME')){
+            define('APP_NAME','none');
+        }
+
+        if (MODULE == 'app') {
+            return MODULE . '_' . APP_NAME;
+        }
+        return MODULE;
+    }
+
+    static public function getPlatformList()
+    {
+        $arr = ['app' => 'APP', 'app_liannong' => '统一定价APP', 'app_ykyj' => '一客一价APP', 'app_partner' => '配销商APP', 'backend' => '运营后台', 'partner' => '桃园系统'];
+        return $arr;
+    }
+
+    /**
+     * 订单来源
+     * @param $type 1:APP 2:运营后台 3:桃园系统
+     * @return string 下单方式
+     */
+    static public function getPlatformName($type)
+    {
+        $arr = self::getPlatformList();
+        return array_key_exists($type, $arr) ? $arr[$type] : '';
+    }
+
+    /**
+     * 区域列表
+     * @param none
+     * @return array 区域列表
+     */
+    static public function getAreaList()
+    {
+        $arr = [
+            'beijing'=>['1' => '大洋路', '2' => '岳各庄', '3' => '新发地', '4' => '八里桥', '5' => '锦绣大地', '6' => '东郊', '7' => '回龙观', '8' => '来广营']
+        ];
+
+        return array_key_exists(CITY, $arr)?$arr[CITY]:['00'=>'全市'];
+    }
+
+    /**
+     * 区域名称
+     * @param $area int 区域ID
+     * @return string 区域名称
+     */
+    static public function getAreaName($area)
+    {
+        $arr = self::getAreaList();
+        return array_key_exists($area, $arr) ? $arr[$area] : '';
+    }
+
+    /**
+     * 性别列表
+     * @param none
+     * @return array 性别列表
+     */
+    static public function getSexList($required = false)
+    {
+        $arr = ['0' => '未设置', '1' => '男', '2' => '女'];
+        if($required)unset($arr);
+        return $arr;
+    }
+
+    /**
+     * 性别名称
+     * @param $sex int 性别ID
+     * @return string 性别名称
+     */
+    static public function getSexName($sex)
+    {
+        $arr = self::getSexList();
+        return array_key_exists($sex, $arr) ? $arr[$sex] : '';
+    }
+
+    /**
+     * 冻结列表
+     * @param none
+     * @return array 冻结列表
+     */
+    static public function getFreezeList()
+    {
+        $arr = ['0' => '正常', '1' => '冻结'];
+        return $arr;
+    }
+
+    /**
+     * 冻结名称
+     * @param $freeze int 冻结ID
+     * @return string 冻结名称
+     */
+    static public function getFreezeName($freeze)
+    {
+        $arr = self::getFreezeList();
+        return array_key_exists($freeze, $arr) ? $arr[$freeze] : '';
+    }
+
+    static public function getRoleList()
+    {
+        if (MODULE == 'backend') {
+            $opArr = array(
+                'order' => '订单',
+                'partner' => '配销商',
+                'sku' => '商品',
+                'shop' => '店铺',
+                'user' => '用户',
+                'city' => '城市运营',
+                'admin' => '全国运营',
+                'finance' => '财务',
+                'static' => '统计数据',
+                'system' => '系统'
+            );
+            $arr = array();
+            foreach ($opArr as $key => $val) {
+                $arr[$val . '模块'] = array(
+                    $key => '查看' . $val,
+                    $key . ':op' => '操作' . $val,
+                    $key . ':admin' => '管理' . $val
+                );
+            }
+            return $arr;
+        }
+        if (MODULE == 'partner') {
+            return array('admin' => '管理员');
+        }
+    }
+
+    /*
+     * excel导出
+     * @fname 文件名称
+     * @title 表头字段
+     * @data  数据
+     */
+    static public function getPhpExcel($fname = '', $title = array(), $data = array())
+    {
+
+        // require_once(dirname(__FILE__) . '/PHPExcel/PHPExcel.php');
+        require_once(dirname(__FILE__) . '/PHPExcel.php');
+        $head = array('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
+        $objPHPExcel = new \PHPExcel();
+        $objPHPExcel->getProperties()->setCreator($_SERVER['SERVER_NAME'])
+            ->setLastModifiedBy($_SERVER['SERVER_NAME'])
+            ->setTitle('Office 2007 XLSX Document')
+            ->setSubject('Office 2007 XLSX Document')
+            ->setDescription('Document for Office 2007 XLSX, generated using PHP classes.')
+            ->setKeywords('office 2007 openxml php')
+            ->setCategory('Result file');
+        //设置头部信息
+        if (!empty($title)) {
+            $obj_one = $objPHPExcel->setActiveSheetIndex(0);
+            $obj = array();
+            for ($i = 0; $i < count($title); $i++) {
+                if ($i == 0) {
+                    $obj[$i] = $obj_one->setCellValue($head[$i] . '1', $title[$i]);
+                } else {
+                    $obj[$i] = $obj[($i - 1)]->setCellValue($head[$i] . '1', $title[$i]);
+                }
+            }
+        }
+        if (!empty($data)) {
+            $objc = array();
+            $i = 2;
+            foreach ($data as $k => $v) {
+                $key = array_keys($v);
+                $obj_two = $objPHPExcel->setActiveSheetIndex(0);
+                for ($j = 0; $j < count($key); $j++) {
+                    if ($j == 0) {
+                        $objc[0] = $obj_two->setCellValueExplicit($head[$j] . $i, $v[$key[$j]],\PHPExcel_Cell_DataType::TYPE_STRING);
+                    } else {
+                        $objc[$j] = $objc[($j - 1)]->setCellValueExplicit($head[$j] . $i, $v[$key[$j]],\PHPExcel_Cell_DataType::TYPE_STRING);
+                    }
+
+                }
+
+                $i++;
+            }
+        }
+        $objPHPExcel->getActiveSheet()->setTitle($fname);
+        $objPHPExcel->setActiveSheetIndex(0);
+        $filename = $fname . '_' . date('Y-m-dHis');
+
+        /* 生成xlsx文件*/
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+        $objWriter->save('php://output');
+    }
+
+    /**
+     * 加
+     * @param $left_num
+     * @param $right_num
+     * @param int $scale
+     * @return string
+     */
+    public static function bcAdd($left_num, $right_num, $scale = 2)
+    {
+        return bcadd($left_num, $right_num, $scale);
+    }
+
+    /**
+     * 减
+     * @param $left_num
+     * @param $right_num
+     * @param int $scale
+     * @return string
+     */
+    public static function bcSub($left_num, $right_num, $scale = 2)
+    {
+        return bcsub($left_num, $right_num, $scale);
+    }
+
+    /**
+     * 乘
+     * @param $left_num
+     * @param $right_num
+     * @param int $scale
+     * @return string
+     */
+    public static function bcMul($left_num, $right_num, $scale = 2)
+    {
+        return bcmul($left_num, $right_num, $scale);
+    }
+
+    /**
+     * 除
+     * @param $left_num
+     * @param $right_num
+     * @param int $scale
+     * @return string
+     */
+    public static function bcDiv($left_num, $right_num, $scale = 2)
+    {
+        return bcdiv($left_num, $right_num, $scale);
+    }
+
+    public static function getMicrotime()
+    {
+        list($usec, $sec) = explode(" ", microtime());
+        return ((float)$usec + (float)$sec);
+    }
+
+    /**
+     * 将金钱转换成千分号
+     * @param $price
+     * @return string
+     */
+    public static function moenyConversion($price){
+        return number_format($price,2);
+    }
+}

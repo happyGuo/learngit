@@ -1,0 +1,437 @@
+<?php
+
+/**
+ * 财务管理控制器
+ * User: xiaochuan
+ * Date: 2015/8/13
+ * Time: 16:08
+ */
+
+namespace Modules\Partner\Controllers;
+
+class AmountController extends PartnerController {
+
+    /**
+     * 订单预期收入
+     * User: xiaochuan
+     *
+     */
+    public function expectedAction() {
+        /* //查询冻结资金记录
+          $page = $this->request->getQuery('page');
+          $page = intval($page) < 0 ? 1 : intval($page);
+          $condition = 'is_del = 0 and type=1 and partner_id = ' . $this->currentUser['id'];
+          $pageary = $this->pagination($this->getModel('BalanceFlow')->count(array($condition)), 20, $page, $this->currentAction);
+          $moneyObj = $this->getModel('BalanceFlow')->findFirst(array($condition, "columns" => "sum(amount) amount"));
+          $this->view->money = $moneyObj->amount ? $moneyObj->amount : 0;
+          $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime DESC', 'limit' => 20, 'offset' => $pageary['offset']));
+          if ($list) {
+          $list = $list->toArray();
+          foreach ($list as $k => $v) {
+          //查询用户
+          if ($v['user_id']) {
+          $user = $this->getModel('user')->findFirst($v['user_id']);
+          if ($user) {
+          $list[$k]['user'] = $user;
+          }
+          }
+          //查询商铺
+          if ($v['shop_id']) {
+          $shop = $this->getModel('shop')->findFirst($v['shop_id']);
+          if ($shop) {
+          $list[$k]['shop'] = $shop;
+          }
+          }
+          }
+          }
+          $this->view->list = $list;
+          $this->view->setVar("page", $pageary['html']); */
+    }
+
+    /**
+     * 已完成订单收入
+     * User: xiaochuan
+     *
+     */
+    public function finishAction() {
+        $page = $this->request->getQuery('page');
+        $page = intval($page) < 0 ? 1 : intval($page);
+        if ($this->request->getQuery('source')) {
+            $source = $this->request->getQuery('source');
+        }
+        $startTime = $this->request->getQuery('start_time');
+        $endTime = $this->request->getQuery('end_time');
+        $order_by = 'ctime desc';
+        $url = $this->url->get($this->currentAction, array("source" => $source, "start_time" => $startTime ? $startTime : "", "end_time" => $endTime ? $endTime : ""));
+        $where = "is_del=0 and partner_id={$this->userId} and status in(3,5,7) " . ($startTime ? "and ctime >=" . strtotime($startTime) : '') . ($endTime ? " and ctime <= " . (strtotime($endTime) + 86400) : '') . ($source ? " and platform ='{$source}'" : '');
+        $count = $this->getModel('OrderSubcontract')->count($where);
+        $pageary = $this->pagination($count, 20, $page, $url);
+        $list = $this->getModel('OrderSubcontract')->find(array('conditions' => $where, 'limit' => array("number" => 20, "offset" => $pageary['offset']), 'order' => $order_by));
+
+        if ($list) {
+            $list = $list->toArray();
+            foreach ($list as $k => $v) {
+                //查询用户
+                if ($v['user_id']) {
+                    $user = $this->getModel('user')->findFirst($v['user_id']);
+                    if ($user) {
+                        $list[$k]['user'] = $user;
+                    }
+                    $shop = $this->getModel('shop')->findFirst($v['shop_id']);
+                    if ($user) {
+                        $list[$k]['shop_name'] = $shop->name;
+                    }
+                }
+            }
+        }
+        $this->view->source = $source;
+        $this->view->start_time = $startTime;
+        $this->view->end_time = $endTime;
+        $this->view->list = $list;
+        $this->view->page = $pageary['html'];
+        $this->view->money = $this->getModel("OrderSubcontract")->getSumAmount("is_del=0 and partner_id={$this->userId} and status in(3,5,7) and platform!='partner'");
+        $this->view->partner_money = $this->getModel("OrderSubcontract")->getSumAmount("is_del=0 and partner_id={$this->userId} and status in(3,5,7) and platform='partner'");
+    }
+
+    /**
+     * 已到账收入
+     * User: xiaochuan
+     *
+     */
+    public function withdrawAction() {
+        $partnerId = $this->currentUser['id'];
+        $partner = $this->getModel('partner')->findFirst($partnerId)->toArray();
+        //可以提现的日期$after_time
+        $pay_day_id = $this->mc->getDict($partner['pay_day_id'])['code'];
+       
+        $db_time = $partner['payment_start'];
+        switch ($pay_day_id) {
+            case 7:
+                $after_time = strtotime("+1 week",$db_time);
+                break;
+            case 15:
+                $after_time = strtotime("+15 day",$db_time);
+                break;
+            case 31:
+                $after_time = strtotime("+1 month",$db_time);
+                break;
+        }
+        $page = $this->request->getQuery('page');
+        $page = intval($page) ? intval($page) : 1;
+        $startTime = $this->request->getQuery('start_time');
+        $endTime = $this->request->getQuery('end_time');
+        $status = $this->request->getQuery('status') ? $this->request->getQuery('status') : 0;
+        $condition['conditions'] = '';
+        if ($endTime) {
+            $endTime = strtotime($endTime . " 23:59:59");
+        } else {
+            $endTime = strtotime(date('Y-m-d', time()) . ' 23:59:59');
+        }
+
+        $condition['conditions'] .= "ctime <='" . $endTime . "'";
+
+        if ($startTime) {
+            $startTime = strtotime($startTime . " 00:00:00");
+            $condition['conditions'] .= " and ctime >='" . $startTime . "'";
+        } else {
+            $startTime = NULL;
+        }
+        $condition['order'] = 'id desc';
+
+        $partnerWithdraw = $this->getModel('partnerWithdraw');
+        $url = $this->url->get($this->currentAction, array("start_time" => date('Y-m-d', $startTime), "end_time" => date('Y-m-d', $endTime), "status" => $status));
+        $count = $partnerWithdraw->getCount($condition, $status, $partnerId);
+        $limit = 20;
+        $pageary = $this->pagination($count, $limit, $page, $url);
+        $condition['limit'] = $limit;
+        $condition['offset'] = $pageary['offset'] ? $pageary['offset'] : 0;
+        $list = $partnerWithdraw->getList($condition, $status, $partnerId);
+        $this->view->afterTime = $after_time;
+        $this->view->list = $list;
+        $this->view->partner = $partner;
+        $this->view->startTime = date('Y-m-d', $startTime);
+        $this->view->endTime = date('Y-m-d', $endTime);
+        $this->view->status = $status;
+        $this->view->page = $pageary['html'];
+    }
+
+    /**
+     * 配销商客户已完成订单列表和统计
+     * User: xiaochuan
+     *
+     */
+    public function userorderlistAction() {
+        $page = $this->request->getQuery('page');
+        $page = intval($page) < 0 ? 1 : intval($page);
+        $userId = $this->request->getQuery('userid');
+        $startTime = $this->request->getQuery('start_time');
+        $endTime = $this->request->getQuery('end_time');
+        $condition = "is_del = 0 and status in(3,5,7) and shop_id={$userId} ";
+        $condition .= ' and partner_id = ' . $this->currentUser['id'];
+        $cTime = null;
+        if ($startTime) {
+            $condition .= " and ctime >= " . strtotime($startTime);
+        }
+        if ($endTime) {
+            $condition .= " and ctime < " . strtotime($endTime) + 86400;
+        }
+        $order_by = 'ctime desc';
+        $url = $this->url->get($this->currentAction, array("start_time" => $startTime ? $startTime : "", "end_time" => $endTime ? $endTime : ""));
+        $shop = $this->getModel("shop")->findFirst($userId);
+        $count = $this->getModel("OrderSubcontract")->count($condition);
+        $pageary = $this->pagination($count, 20, $page, $url);
+        $list = $this->getModel("OrderSubcontract")->find(array('conditions' => $condition, 'limit' => array("number" => 20, "offset" => $pageary['offset']), 'order' => $order_by));
+        if ($list) {
+            if (is_object($list)) {
+                $list = $list->toArray();
+            }
+            foreach ($list as $k => $v) {
+                //查询用户
+                if ($v['user_id']) {
+                    $user = $this->getModel('user')->findFirst($v['user_id']);
+                    if ($user) {
+                        $list[$k]['user'] = $user;
+                    }
+                }
+            }
+        }
+        $this->view->money = $this->getModel("OrderSubcontract")->getSumAmount($condition);
+        $this->view->start_time = $startTime;
+        $this->view->end_time = $endTime;
+        $this->view->list = $list;
+        $this->view->shop = $shop;
+        $this->view->page = $pageary['html'];
+        $this->view->setVar('userId', $userId);
+    }
+
+    public function applywithdrawAction() {
+        if ($this->request->isPost()) {
+            $amount = $this->request->getPost('amount');
+            $partnerId = $this->currentUser['id'];
+            $partner = $this->getModel('Partner')->findById($partnerId);
+            if ($amount > $partner['withdraw_balance']) {
+                echo '余额不足';
+                die;
+            }
+            $data['partner_id'] = $partnerId;
+            $data['amount'] = $amount;
+            $success = $this->getModel('PartnerWithdraw')->doWithdraw($data);
+            if ($success) {
+                echo $success;
+                die;
+            } else {
+                echo 1;
+                die;
+            }
+        }
+    }
+
+    public function detailAction() {
+        $partnerId = $this->currentUser['id'];
+        $ntype = $this->request->getQuery('ntype');
+        $type = $this->request->getQuery('type');
+        $print = $this->request->getQuery('print');
+        $start_time = $this->request->getQuery('start_time');
+        $end_time = $this->request->getQuery('end_time');
+        $condition = ' is_del=0 and partner_id=' . $partnerId;
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?';
+        if ($start_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $start_time)) {
+            $url.='&start_time=' . $start_time;
+            $condition.=" and ctime>= " . strtotime($start_time);
+            $this->view->setVar('start_time', $start_time);
+        }
+        if ($end_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $end_time)) {
+            $url.='&end_time=' . $end_time;
+            $condition.=" and ctime<= " . strtotime($end_time);
+            $this->view->setVar('end_time', $end_time);
+        }
+        if (is_numeric($type)) {
+            //$type = join(',', $type);
+            //$condition.=" and type in($type) ";
+            $url.='&type=' . $type;
+            $condition.=" and type = $type ";
+        } else {
+            $condition.=" and type in (2,3,7,8,9) ";
+        }
+        if ($ntype) {
+            $url.='&ntype=' . $ntype;
+            if ($ntype == '1') {
+                $condition.=" and FROM_UNIXTIME( ctime, '%Y-%m-%d' ) = date_format(now(),'%Y-%m-%d') ";
+            } elseif ($ntype == '2') {
+                $condition.=" and  yearweek(FROM_UNIXTIME( ctime-24*3600, '%Y-%m-%d' )) =yearweek(FROM_UNIXTIME(unix_timestamp(now())-24*3600),'%Y-%m-%d') ";
+                //$condition.=" and yearweek(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=yearweek(now())";
+            } elseif ($ntype == '3') {
+                $condition.=" and  FROM_UNIXTIME( ctime, '%Y-%m' ) =date_format(now(),'%Y-%m')";
+            } elseif ($ntype == '4') {
+                $condition.=" and  YEAR(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=YEAR(now())";
+            }
+        }
+
+        $total = $this->getModel('BalanceFlow')->count($condition); //总数量
+        //$sum1=$this->getModel('BalanceFlow')->sum(array('column'=>'amount',$condition.' and type!=2'));
+        //$sum2=$this->getModel('BalanceFlow')->sum(array('column'=>'amount',$condition.' and type=2'));
+
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageary['offset'] = isset($pageary['offset']) ? $pageary['offset'] : 0;
+        if ($print) {
+            $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc'))->toArray();
+        } else {
+            $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc', 'limit' => $limit, 'offset' => $pageary['offset']))->toArray();
+        }
+        //$list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc', 'limit' => $limit, 'offset' => $pageary['offset']))->toArray();
+        if ($print) {
+            $head = array('ID', '流水号', '批次', '类型', '状态', '已核销金额', '未核销金额', '时间', '备注');
+            $lists = array();
+            foreach ($list as $k => $v) {
+                if ($v['type'] == 0) {
+                    $lx = '充值';
+                } elseif ($v['type'] == 1) {
+                    $lx = '冻结资金';
+                } elseif ($v['type'] == 2) {
+                    $lx = '余额支付确认收货';
+                } elseif ($v['type'] == 3) {
+                    $lx = '提现';
+                } elseif ($v['type'] == 4) {
+                    $lx = '拒收解冻资金';
+                } elseif ($v['type'] == 5) {
+                    $lx = '订单取消解冻资金';
+                } elseif ($v['type'] == 6) {
+                    $lx = '争议退款';
+                } elseif ($v['type'] == 7) {
+                    $lx = '货到付款已到账';
+                } elseif ($v['type'] == 8) {
+                    $lx = '系统自动核销';
+                } elseif ($v['type'] == 9) {
+                    $lx = '人工审核核销';
+                }
+                $status = ($v['status'] == 0) ? '待审核' : '已审核';
+                $lists[$k]['k'] = $k + 1;
+                $lists[$k]['sn'] = $v['sn'];
+                $lists[$k]['subcontract'] = $v['subcontract'];
+                $lists[$k]['type'] = $lx;
+                $lists[$k]['status'] = $status;
+                $lists[$k]['amount1'] = ($v['type'] != 2) ? '+' . $v['amount'] : '';
+                $lists[$k]['amount2'] = ($v['type'] == 2) ? '-' . $v['amount'] : '';
+                $lists[$k]['ctime'] = isset($v['ctime']) ? date('Y-m-d H:i:s', $v['ctime']) : '';
+                $lists[$k]['remark'] = $v['remark'];
+            }
+            $fname = '收入明细';
+            \Libs\Util::getPhpExcel($fname, $head, $lists);
+            exit;
+        }
+        $ntype = isset($ntype) ? $ntype : '';
+        $type = isset($type) ? $type : '';
+        $this->view->setVar('type', $type);
+        // $this->view->setVar('sum1',$sum1);
+        //$this->view->setVar('sum2',$sum2);
+        $this->view->setVar('page', $pageary['html']);
+        $this->view->setVar('ntype', $ntype);
+        $this->view->list = $list;
+    }
+
+    /* 销售统计 */
+
+    public function staticAction() {
+        $type = $this->request->getQuery('type'); //客户类型
+        $shop_name = $this->request->getQuery('shop_name'); //店铺名称
+        $print = $this->request->getQuery('print'); //导出
+        $partner_id = $this->currentUser['id']; //配货商id
+        $flag = 1;
+        $condition = 'partner_id=' . $partner_id . ' and is_del=0 and user_type=0 and status in(3,5,7) ';
+        if (is_numeric($type)) {
+            $where = "pay_day_id=" . $type;
+            $users = $this->getModel('User')->find(array($where, 'columns' => 'id'))->toArray();
+
+            if (!empty($users)) {
+                $uid = '';
+                foreach ($users as $v) {
+                    $uid.=',' . $v['id'];
+                }
+                $uid = substr($uid, 1);
+                $condition.=" and user_id in (" . $uid . ") ";
+            } else {
+                $flag = 0;
+            }
+        }
+        if ($shop_name) {
+            $where = "name like '%" . $shop_name . "%'";
+            $shops = $this->getModel('Shop')->find(array($where, 'columns' => 'id'))->toArray();
+            if (!empty($shops)) {
+                $shop_id = '';
+                foreach ($shops as $v) {
+                    $shop_id.=',' . $v['id'];
+                }
+                $shop_id = substr($shop_id, 1);
+                $condition.=" and shop_id in (" . $shop_id . ") ";
+            } else {
+                $flag = 0;
+            }
+        }
+        $sum1 = 0;
+        $sum2 = 0;
+        if ($flag) {
+            $list = $this->getModel('orderSubcontract')->find(array($condition, 'columns' => 'sum(pay_amount) as umount,sum(confirm_amount) as amount,count(id) as con,user_id,shop_id,confirm_status ', 'group' => 'user_id,confirm_status'))->toArray();
+            $lists = array();
+            
+            if (!empty($list)) {
+                foreach ($list as $k => $v) {
+
+                    $lists[$v['user_id']]['name'] = $this->mc->getShop($v['shop_id'])['name'];
+                    $lists[$v['user_id']]['pay_day_id'] = $this->mc->getUser($v['user_id'])['pay_day_id'];
+                    if ($v['confirm_status'] == 1) {
+                        $lists[$v['user_id']]['con'] = $v['con'];
+                        $lists[$v['user_id']]['amount'] = $v['amount'];
+                        $sum1+=$lists[$v['user_id']]['amount'];
+                    } else {
+                        $lists[$v['user_id']]['ucon'] = $v['con'];
+                        $lists[$v['user_id']]['umount'] = $v['umount'];
+                        $sum2+=$lists[$v['user_id']]['umount'];
+                    }
+                }
+            }
+        }else{
+            $lists=array();
+        }
+
+
+        if ($print == 1) {
+            $head = array('店铺名称', '客户类型', '已核算订单', '已核算金额', '未核算订单', '未核算金额');
+            $fname = '销售统计';
+            $plist = array();
+            $pay = '';
+            foreach ($lists as $k => $v) {
+
+                if ($v['pay_day_id'] == 162) {
+                    $pay = '周结';
+                } elseif ($v['pay_day_id'] == 163) {
+                    $pay = '半月结';
+                } elseif ($v['pay_day_id'] == 164) {
+                    $pay = '月结';
+                } else {
+                    $pay = '现结';
+                }
+
+
+                $plist[$k]['name'] = $v['name'];
+                $plist[$k]['pay_day_id'] = $pay;
+                $plist[$k]['con'] = isset($v['con']) ? $v['con'] : '';
+                $plist[$k]['amount'] = isset($v['amount']) ? $v['amount'] : '';
+                $plist[$k]['ucon'] = isset($v['ucon']) ? $v['ucon'] : '';
+                $plist[$k]['umount'] = isset($v['umount']) ? $v['umount'] : '';
+            }
+            \Libs\Util::getPhpExcel($fname, $head, $plist);
+            exit;
+        }
+
+
+        $this->view->sum1 = $sum1;
+        $this->view->sum2 = $sum2;
+        $this->view->shop_name=$shop_name;
+        $this->view->type=$type;
+        $this->view->list = $lists;
+    }
+
+}

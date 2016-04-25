@@ -1,0 +1,57 @@
+<?php
+
+use Phalcon\DI;
+use Phalcon\DI\FactoryDefault;
+
+ini_set('display_errors',1);
+error_reporting(E_ALL);
+
+define('ROOT_PATH', __DIR__);
+define('PATH_LIBRARY', __DIR__ . '/../app/library/');
+define('PATH_SERVICES', __DIR__ . '/../app/services/');
+define('PATH_RESOURCES', __DIR__ . '/../app/resources/');
+
+set_include_path(
+    ROOT_PATH . PATH_SEPARATOR . get_include_path()
+);
+ini_set('date.timezone','Asia/Shanghai');
+
+define('MODULE','backend');
+define('CITY','beijing');
+define('DEBUG','true');
+define('LOG',TRUE);
+define('STANDALONE',false);
+define('XH',false);
+
+define('CL','www.my.com');
+define('ADMIN','cadmin.my.com');
+define('APP','app.my.com');
+define('PARTNER','partner.my.com');
+define('COMPLEX','complex.my.com');
+//配置本地标示，可以是自己的全拼
+define('ENV','fei');
+
+// Required for phalcon/incubator
+include __DIR__ . "/../vendor/autoload.php";
+
+// Use the application autoloader to autoload the classes
+// Autoload the dependencies found in composer
+$loader = new \Phalcon\Loader();
+
+$loader->registerDirs(
+    array(
+        ROOT_PATH
+    )
+);
+
+$loader->register();
+
+$di = new FactoryDefault();
+DI::reset();
+// Add any needed services to the DI here
+$config = include __DIR__ . "/../apps/config/config.php";
+
+require  __DIR__ ."/../apps/config/services.php";
+DI::setDefault($di);
+
+

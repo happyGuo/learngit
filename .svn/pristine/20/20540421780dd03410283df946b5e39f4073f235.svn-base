@@ -1,0 +1,126 @@
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 后台操作日志列表</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+
+            <form class="form-horizontal row-border" action="" method="get"
+                  style="border-bottom:1px solid #ccc; margin-bottom: 10px;">
+                <div class="form-group">
+                    <div class="col-md-10">
+                        <div class="row">
+                            <div class="col-md-2">
+                                操作人： <input type="text" name="name" placeholder="操作人" class="form-control"
+                                            value="<?php echo isset($s_name) ? $s_name : '' ?>">
+                            </div>
+                            <div class="col-md-2">
+                                城市： <input type="text" name="s_city" placeholder="城市" class="form-control"
+                                           value="<?php echo isset($s_city) ? $s_city : '' ?>">
+                            </div>
+                            <div class="col-md-2">
+                                模块：
+                                <select class="form-control" name="s_module" id="s_module" style="display:inline;">
+                                    <option value="">全部</option>
+                                    <option
+                                        value="partner" <?php if (isset($s_module)) echo $s_module == 'partner' ? 'selected' : ''; ?>>
+                                        配销商管理
+                                    </option>
+                                    <option
+                                        value="backend" <?php if (isset($s_module)) echo $s_module == 'backend' ? 'selected' : ''; ?>>
+                                        后台管理
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                操作的表： <input type="text" name="table" placeholder="操作的表" class="form-control"
+                                             value="<?php echo isset($s_table) ? $s_table : '' ?>">
+                            </div>
+                            <div class="col-md-1">
+                                <input type="submit" value="搜索" class="btn btn-primary" style="margin-top:18px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>操作人ID</th>
+                    <th>操作人</th>
+                    <th>城市</th>
+                    <th>模块</th>
+                    <th>操作的表</th>
+                    <th>操作的功能</th>
+                    <th>操作的数据</th>
+                    <th>创建时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php if ($logs) {
+                    foreach ($logs as $k => $v) { ?>
+                        <tr>
+                            <td><?php echo isset($v->id) ? $v->id : ''; ?></td>
+                            <td><?php echo isset($v->op_info) ? (isset($v->op_info['id']) ? $v->op_info['id'] : '') : ''; ?></td>
+                            <td><?php echo isset($v->op_info) ? (isset($v->op_info['real_name']) ? $v->op_info['real_name'] : (isset($v->op_info['contact_name']) ? $v->op_info['contact_name'] : '')) : ''; ?></td>
+                            <td><?php echo isset($v->city) ? $v->city : ''; ?></td>
+                            <td><?php echo isset($v->module) ? $v->module : ''; ?></td>
+                            <td><?php echo isset($v->table) ? $v->table : ''; ?></td>
+                            <td><?php echo isset($v->action) ? $v->action : ''; ?></td>
+                            <td>
+                                <span class="btn-group">
+                                     <a href="javascript:void(0);" class="toggle-data btn btn-xs bs-tooltip">查看数据</a>
+                                    <?php if (!isset($id)) { ?><a href="javascript:;" class="btn btn-xs basic-alert"
+                                                                  data="<?php echo isset($v->table) ? $v->table : ''; ?>"
+                                                                  city="<?php echo isset($v->city) ? $v->city : ''; ?>">
+                                            查看历史记录</a><?php
+                                    } ?>
+                                </span>
+
+                                <div class="modify-data"
+                                     style="word-break: break-all;word-wrap: break-word;max-width: 300px;border:0;display:none;background:#DEDEDE;padding:5px;margin-top:5px;">
+                                    <?php echo isset($v->data) ? $v->data : ''; ?>
+                                </div>
+                            </td>
+                            <td><?php echo isset($v->ctime) ? date('Y-m-d H:i', $v->ctime) : ''; ?></td>
+                        </tr>
+                    <?php }
+                } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+
+<script type="text/javascript">
+    $(".toggle-data").click(function () {
+        var obj = $(this).parent().next('div');
+        obj.toggle();
+
+    });
+    $("a.basic-alert").click(function (e) {
+        e.preventDefault();
+        var data = eval("(" + $(this).parent().parent().find('.modify-data').text() + ")");
+        if (data.id) {
+            window.location.href = "/log/list?table=" + $(this).attr('data') + "&id=" + data.id + "&s_city=" + $(this).attr('city');
+        }
+    });
+</script>

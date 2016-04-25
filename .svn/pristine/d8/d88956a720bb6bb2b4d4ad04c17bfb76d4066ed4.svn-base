@@ -1,0 +1,414 @@
+<?php
+/*
+ * author: 姜卓然
+ * description: 商品分类
+ * date: 2015-08-27
+*/
+namespace Modules\App\Controllers;
+
+class YSkuController extends YAppController
+{
+
+    var $tagArr = [];
+
+    public function initialize(){
+        parent::initialize();
+
+        $this->tagArr = [1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼'];
+    }
+
+    /**
+    * listAction
+    * 商品列表
+    * @param int $shop_id           必选，店铺         店铺ID
+    * @param int $category_id       可选，分类         分类ID
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function listAction()
+    {
+        //搜索条件初始化
+        $condition = 'is_del = 0';
+        $order = 'sort asc';
+        //分类
+        $category_id = $this->request->getQuery('category_id');
+        if(intval($category_id)>0){
+            $condition .= ' and category_id='.$category_id;
+        }
+        $pcategory_id = $this->request->getQuery('parent_category_id');
+        if(intval($pcategory_id)>0){
+            $condition .= " and parent_category_id = ".$pcategory_id;
+        }
+        //参数
+        $shopId = $this->request->getQuery('shop_id');
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        //根据店铺id获取配销商信息
+        $shopSku = $this->getModel('shopSku')->getPartnerListByShop($shopId);
+        $partner = array_keys($shopSku);
+        $partnerStr = implode(',',$partner);
+        if(!empty($partnerStr)){
+            $condition .= " and partner_id in (".$partnerStr.")";
+        }
+        //select字段
+        $columns = ['id','name','remark','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id'];
+        //获取配销商商品
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>$limit , 'offset' => $offset))->toArray();
+        //获取店铺一客一价
+        $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId);
+        $return = [];
+        if(is_array($list) && !empty($list)) {
+            foreach ($list as $val) {
+                //计数单位
+                $unit = $this->dict($val['unit_id']);
+                $val['unit_price'] = (isset($ykyj[$val['id']])&&!empty($ykyj[$val['id']])) ? $ykyj[$val['id']] : $val['unit_price'];
+                $val['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+                unset($val['unit_id']);
+                //计量单位
+                $measure = $this->dict($val['measure_id']);
+                $val['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+                unset($val['measure_id']);
+                //图片
+                $val['pic_url'] = $this->img->getUrlById('partner_sku', $val['id']);
+                //是否收藏
+                $val['is_favored'] = $this->userId > 0 ? $this->getModel('userFavor')->count(['is_del=0 and user_id=' . $this->userId . ' and sku_id=' . $val['id']]) : 0;
+                $return[] = $val;
+            }
+        }
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('partnerSku')->count(array($condition))]);
+    }
+
+    /**
+    * searchAction
+    * 商品搜索
+    *@param int $shopId           必选，店铺id
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function searchAction(){
+        //搜索条件初始化
+        $condition = 'is_del = 0';
+        $order = 'sort asc';
+        $userId = $this->userId;
+        $platform = 'app_ykyj';
+        $name = $this->request->getQuery('name');
+        if($name){
+            $condition .= ' and search_name like \'%'.$name.'%\'';
+        }
+        $message = $this->getModel('userSearch')->updateuserSearch($name,$userId,$platform);
+        if($message != ''){
+            return $this->renderJson(['list'=>array(),'num'=>0]);
+        }
+        //分类
+        $category_id = $this->request->getQuery('category_id');
+        if(intval($category_id)>0){
+            $condition .= " and category_id = ".$category_id;
+        }
+        $pcategory_id = $this->request->getQuery('parent_category_id');
+        if(intval($pcategory_id)>0){
+            $condition .= " and parent_category_id = ".$pcategory_id;
+        }
+        $offset = $this->request->getQuery('offset');
+        $shopId = $this->request->getQuery('shop_id');
+        $limit = $this->request->getQuery('limit');
+        $shopSku = $this->getModel('shopSku')->getPartnerListByShop($shopId);
+        $partner = array_keys($shopSku);
+        $partnerStr = implode(',',$partner);
+        if($partnerStr){
+            $condition .= " and partner_id in (".$partnerStr.") ";
+        }
+        $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId);
+        //select字段
+        $columns = ['id','name','remark','unit_id','unit_price','unit_number','measure_id','discount_price','tag','category_id','parent_category_id'];
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>$limit , 'offset' => $offset))->toArray();
+        if(empty($list) || !$list){
+            return $this->renderJson(['list'=>array(),'num'=>0]);
+        }
+        if(is_array($list) && !empty($list)) {
+            foreach ($list as $key => $val) {
+                //计数单位
+                $unit = $this->dict($val['unit_id']);
+                $list[$key]['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+                $list[$key]['unit_price'] = (isset($ykyj[$list[$key]['id']])&&!empty($ykyj[$list[$key]['id']])) ? $ykyj[$val['id']] : $list[$key]['unit_price'];
+                unset($list[$key]['unit_id']);
+                //计量单位
+                $measure = $this->dict($val['measure_id']);
+                $list[$key]['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+                unset($list[$key]['measure_id']);
+                //图片
+                $list[$key]['pic_url'] = $this->img->getUrlById('partner_sku', $val['id']);
+            }
+        }
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('partnerSku')->count(array($condition))]);
+    }
+
+    /**
+    * hotsearchAction
+    * 热搜商品   返回6个热搜商品名称
+    *
+    * @param null
+    */
+    public function hotsearchAction(){
+        //搜索条件初始化
+        $condition = 'is_del = 0 and search > 0';
+        $order = 'search asc';
+
+        $shopId = $this->request->getQuery('shop_id');
+        $shopSku = $this->getModel('shopSku')->getPartnerListByShop($shopId);
+        $partner = array_keys($shopSku);
+        $partnerStr = implode(',',$partner);
+        if(!empty($partnerStr)){
+            $condition .= " and partner_id in ('".$partnerStr."')";
+        }
+        //select字段
+        $columns = ['id','name'];
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>6))->toArray();
+        $this->renderJson(['list'=>$list,'num'=>count($list)]);
+    }
+
+    /**
+    * hotsearchAction
+    * 热搜商品
+    *
+    * @param int $id             必选，商品ID         
+    */
+    public function detailAction(){
+        //初始化
+        $condition = 'is_del = 0';
+        //ID
+        $id = $this->request->getQuery('id');
+        if(intval($id)>0){
+            $condition .= ' and id='.$id;
+        }
+        $userId = $this->userId;
+        $userInfo = $this->getModel('user')->findById($userId);
+        $shopId = $this->request->getQuery('shop_id');
+        if ($shopId) {
+            $shop = $this->getModel('shop')->findFirst($shopId);
+            if ($shop->user_id != $userInfo['id']) {
+                $message = '您没有该店铺权限';
+                return $this->renderJson(array(), $message);
+            }
+        }else{
+            $shopId = 0;
+        }
+        //字段
+        $columns = ['id','name','remark','content','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id','tag','discount_price','origin','spec','partner_id'];
+        //查询，关联字段
+        $oneSku = $this->getModel('partnerSku')->findFirst(array($condition,'order'=>'sort desc','columns'=>$columns));
+        $ykyj = $this->getModel('partnerSkuYkyj')->getYkyj($shopId,$oneSku['partner_id'],$id);
+        //商品已下架
+        if(!isset($oneSku->id)){
+            $this->renderJson([''],'商品已下架');
+        }
+		$oneSku->unit_name = $this->dict($oneSku->unit_id)['name'];
+        $oneSku->measure_name = $this->dict($oneSku->measure_id)['name'] ? $this->dict($oneSku->measure_id)['name'] : '';
+        $oneSku->unit_price = $ykyj ? $ykyj : $oneSku->unit_price;
+        //图片
+        $oneSku->pic_url=$this->img->getUrlById('partner_sku',$oneSku->id);
+        //是否收藏
+        $oneSku->is_favored = $this->userId>0?$this->getModel('userFavor')->count(['is_del=0 and user_id='.$this->userId.' and sku_id='.$oneSku->id]):0;
+        $this->renderJson($oneSku);
+    }
+
+    /**
+    * listfavor
+    * 收藏商品列表 (需登录)
+    * @param int $shopId
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function listfavorAction()
+    {
+        //初始化
+        $condition = 'is_del = 0 and user_id='.$this->userId.' and platform = "app_ykyj"';
+        //获取记录条数
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        $shopId = $this->request->getQuery('shop_id');
+        $shopSku = $this->getModel('shopSku')->getPartnerListByShop($shopId);
+        $partner = array_keys($shopSku);
+        $partnerStr = implode(',',$partner);
+        //列表
+        $list = $this->getModel('userFavor')->find([$condition,'order'=>'ctime desc','offset'=>$offset,'limit'=>$limit])->toArray();
+        //返回SKU字段
+        $columns = ['id','name','category_id','remark','content','unit_id','unit_number','unit_price','unit_price','measure_id','tag','discount_price','origin','spec','partner_id'];
+        //返回值
+        $return = [];
+        foreach ($list as $key => $val) {
+            $oneSku = $this->getModel('partnerSku')->findFirst(array("id=".$val['sku_id'],'columns'=>$columns))->toArray();
+            $ykyj = $this->getModel('partnerSkuYkyj')->getYkyj($shopId,$oneSku['partner_id'],$val['sku_id']);
+            //计数单位
+            $unit = $this->dict($oneSku['unit_id']);
+            $oneSku['unit_name'] = isset($unit['name'])?$unit['name']:'';
+            $oneSku['unit_price'] = (isset($ykyj)&&!empty($ykyj)) ? $ykyj : $oneSku['unit_price'];
+            unset($oneSku['unit_id']);
+            //计量单位
+            $measure = $this->dict($oneSku['measure_id']);
+            $oneSku['measure_name'] = isset($measure['name'])?$measure['name']:'';
+            unset($oneSku['measure_id']);
+            //图片
+            $oneSku['pic_url']=$this->img->getUrlById('partner_sku',$val['sku_id']);
+            $return[] = $oneSku;
+        }
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('userFavor')->count([$condition])]);
+    }
+
+    /**
+    * addfavorAction
+    * 收藏商品 (需登录)
+    *
+    * @param int $sku_id             必选，商品ID
+    */
+    public function addfavorAction(){
+        //检查是否登录
+        if($this->userId<1){
+            $this->renderJson([],'未登录');
+        }
+        //检查ID
+        $sku_id = $this->request->getPost('sku_id');
+        if(intval($sku_id)<1){
+            $this->renderJson([],'商品ID不正确');
+        }
+        //商品是否存在
+        if($this->getModel('partnerSku')->findFirst($sku_id)==false){
+            $this->renderJson([],'商品不存在');
+        }
+        $platform = \Libs\Util::getPlatform();
+        //是否已收藏
+        $isHave = $this->getModel('userFavor')->findFirst('is_del=0 and user_id='.$this->userId.' and sku_id='.$sku_id.' and platform="'.$platform.'"');
+        if(isset($isHave->id)){
+            $this->renderJson([],'已收藏');
+        }
+        //添加收藏
+        $userFavor = $this->createModel('userFavor');
+        $userFavor->user_id = $this->userId;
+        $userFavor->platform = $platform;
+        $userFavor->sku_id = $sku_id;
+        if($userFavor->save()){
+            $this->renderJson(['status'=>'1']);
+        }else{
+            $this->renderJson([],$userFavor->getError());
+        }
+    }
+
+    /**
+    * common
+    * 常用商品列表
+    * 登录状态获取user_id=当前用户的记录
+    * 未登录状态获取user_id=0的记录
+    *
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function commonAction(){
+
+
+        //查询条件初始化
+        $condition = 'is_del = 0 and platform = "app_ykyj"';
+        $order = 'id desc';
+
+        if(intval($this->userId) > 0){
+            $condition .= ' and user_id = '.$this->userId;
+        }else{
+            $condition .= ' and user_id = 0';
+        }
+
+        //开始条数 获取条数
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        $shopId = $this->request->getQuery('shop_id');
+        $list = $this->getModel('userSku')->find([$condition,'order'=>$order,'offset'=>$offset,'limit'=>$limit])->toArray();
+        //字段
+        $columns = ['id','name','remark','content','unit_id','unit_price','unit_number','measure_id','tag','discount_price','origin','spec','partner_id','parent_category_id','category_id'];
+        //查询详细
+        $return = [];
+        foreach ($list as $key => $val) {
+                $oneSku = $this->getModel('partnerSku')->findById($val['sku_id']);
+            if($oneSku) {
+                $ykyj = $this->getModel('partnerSkuYkyj')->getYkyj($shopId, $oneSku['partner_id'], $val['sku_id']);
+                //计数单位
+                $unit = $this->dict($oneSku['unit_id']);
+                $oneSku['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+                unset($oneSku['unit_id']);
+                $oneSku['unit_price'] = (isset($ykyj) && !empty($ykyj)) ? $ykyj : $oneSku['unit_price'];
+                //计量单位
+                $measure = $this->dict($oneSku['measure_id']);
+                $oneSku['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+                unset($oneSku['measure_id']);
+                //图片
+                //var_dump($val);
+                $oneSku['pic_url'] = $this->img->getUrlById('partner_sku', $oneSku['id']);
+                $return[] = $oneSku;
+            }
+        }
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('userSku')->count(array($condition))]);
+
+    }
+
+    /**
+    * delfavor
+    * 收藏商品 (需登录)
+    *
+    * @param int $id             必选，ID
+    */
+    public function delfavorAction(){
+
+        //检查ID
+        $id = $this->request->getPost('id');
+        if(intval($id)<1){
+            $this->renderJson([],'ID错误');
+        }
+
+        //是否已收藏
+        $isHave = $this->getModel('userFavor')->findFirst('sku_id = '.$id.' and is_del=0 and user_id='.$this->userId);
+        if(isset($isHave->id)==false){
+            $this->renderJson([],'未收藏');
+        }
+
+        //取消收藏
+        $isHave->is_del = 1 ;
+
+        //保存
+        if($isHave->save()){
+            $this->renderJson(['status'=>'1']);
+        }else{
+            $this->renderJson([],$isHave->getError());
+        }
+    }
+
+
+
+    /*
+     * 刷新商品列表
+     * @param  $ids  商品id
+     *
+     */
+
+    public function refreshSku(){
+        $ids = $this->request->getQuery('ids');
+        $shopId = $this->request->getQuery('shop_id');
+        $userId = $this->userId;
+        $list = $this->getModel('partnerSku')->refreshSku($ids,$shopId,$userId);
+        $this->renderJson(['list'=>$list,'num'=>count($list)]);
+    }
+
+    //历史搜索记录
+    public function hissearchAction(){
+        $userId = $this->userId;
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $condition = "is_del = 0 and user_id = ".$userId." and platform = 'app_ykyj'";
+        $list = $this->getModel('userSearch')->find([$condition,'order'=>'utime desc','offset'=>$offset,'limit'=>$limit]);
+        if($list){
+            $list = $list->toArray();
+            foreach($list as $key=>$val){
+                $list[$key]['utime'] = date('Y-m-d H:i:s',$list[$key]['utime']);
+                unset($list[$key]['ctime']);
+            }
+            $num = $this->getModel('userSearch')->count($condition);
+            return $this->renderJson(['list'=>$list,'num'=>$num]);
+        }
+    }
+    
+}

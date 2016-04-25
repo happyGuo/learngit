@@ -1,0 +1,214 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class IndexController extends BackendController
+{
+    public function indexAction()
+    {
+        $today = \Libs\Util::getStartUnixTime();//今日起始时间
+        $month = \Libs\Util::getStartUnixTime(3);//本月起始时间
+        //今日订单数量
+        $todayList = $this->getModel('order')->find("is_del=0 and ctime>= {$today}");
+        $todayOrderNum =0;
+        if($todayList) {
+            $todayList = $todayList->toArray();
+            $todayOrderNum = count($todayList);
+            //今日总金额
+            $todayMoney = 0;
+            foreach ($todayList as $v) {
+                $todayMoney += $v['buy_amount'];
+            }
+        }
+        //本月完成订单数
+        $list = $this->getModel('OrderSubcontract')->find("is_del=0 and status in(3,5,7) and ctime>={$month}");
+        $monthOrderNum = 0;//本月完成订单数
+        $monthMoney = 0;//本月完成总金额
+        if($list){
+            $lastOrder = 0;
+            foreach ($list as $v) {
+                if($lastOrder != $v->order_id) {
+                    $lastOrder = $v->order_id;
+                    $monthOrderNum++;
+                }
+                $monthMoney += $v->buy_amount;
+            }
+        }
+        //待确认订单数
+        $toAllowOrderNum = 0;
+        $list = $this->getModel('order')->count(array("is_del"=>0,'status'=>0));
+        //处理中订单数
+        $handleOrderNum = $this->getModel('order')->count(array("is_del"=>0,'status'=>1));
+        //处理完毕
+        $overOrderNum = $this->getModel('order')->count(array("is_del"=>0,'status'=>2));
+        //已取消
+        $cancelOrderNum = $this->getModel('order')->count("is_del=0 and status in(3,4)");
+
+        //构造柱状图数据
+        $monthOrders = $this->getModel('order')->find("is_del=0 and ctime>={$month}");
+        $numArr = array();
+        $moneyArr = array();
+        if ($monthOrders) {
+            $monthOrders = $monthOrders->toArray();
+            $pos = 0;
+            $start = $month;
+            for ($i = 1; $i <= date("t"); $i++) {
+                $start += 86400;
+                $num = 0;//每日数量
+                $money = 0;//每日订单金额
+                if ($start <= $today + 86400) {
+                    $orderArr = array();
+                    for ($pos; $pos < count($monthOrders); $pos++) {
+                        if ($monthOrders[$pos]['ctime'] <= $start) {
+                            if (!in_array($monthOrders[$pos]['id'], $orderArr)) {
+                                $orderArr[] = $monthOrders[$pos]['id'];
+                                $num++;
+                            }
+                            $money = \Libs\Util::bcAdd($money,$monthOrders[$pos]['pay_amount']);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                $numArr[$start] = $num;
+                $moneyArr[$start] = $money;
+            }
+        } else {
+            $start = $month;
+            for ($i = 1; $i <= date("t"); $i++) {
+                $start += 86400;
+                $numArr[$start] = 0;
+                $moneyArr[$start] = 0;
+            }
+        }
+
+        //查询店铺数量
+        $shopNum = $this->getModel('shop')->count("is_del = 0 and status in(0,1) and type = 0");
+        //查询配销商数量
+        $partnerNum = $this->getModel('partner')->count("is_del = 0");
+        //查询商品数量
+        $skuNum = $this->getModel('sku')->count();
+        //查询用户数量
+        $userNum = $this->getModel('user')->count("is_del = 0 and city='".CITY."'");
+        //用户常用商品
+        $userSkuNum = $this->getModel('userSku')->count("is_del=0");
+        //用户收藏商品
+        $favorNum = $this->getModel('userFavor')->count("is_del=0");
+        //活动
+        $activityNum = $this->getModel('activity')->count("is_del=0");
+
+        $this->view->todayOrderNum = $todayOrderNum;
+        $this->view->todayMoney = $todayMoney;
+        $this->view->monthOrderNum = $monthOrderNum;
+        $this->view->monthMoney = $monthMoney;
+
+        $this->view->toAllowOrderNum = $toAllowOrderNum;
+        $this->view->handleOrderNum = $handleOrderNum;
+        $this->view->overOrderNum = $overOrderNum;
+        $this->view->cancelOrderNum = $cancelOrderNum;
+
+        $this->view->monthOrders = $monthOrders;
+        $this->view->numArr = $numArr;
+        $this->view->moneyArr = $moneyArr;
+
+        $this->view->shopNum = $shopNum;
+        $this->view->partnerNum = $partnerNum;
+        $this->view->skuNum = $skuNum;
+        $this->view->userNum = $userNum;
+        $this->view->userSkuNum = $userSkuNum;
+        $this->view->favorNum = $favorNum;
+        $this->view->activityNum = $activityNum;
+    }
+
+
+    public function registerAction()
+    {
+        if ($this->request->isPost()) {
+            $message = '';
+            if (!$this->security->checkToken('csrf')) {
+                $message = 'csrf无效';
+            } elseif ($this->request->getPost('cert') != $this->config->params->back_license) {
+                $message = '授权码无效';
+            } else {
+                $user = new \Models\Admin();
+                $user->login = $this->request->getPost('login');
+                $user->real_name = $this->request->getPost('real_name');
+                $user->pwd = $this->request->getPost('pwd');
+                $user->role = $this->request->getPost("role");
+                if ($user->pwd != $this->request->getPost('comfirm_pwd')) {
+                    $message = '两次输入的密码不一致';
+                } else {
+
+                    if ($user->save() == false) {
+                        //                    foreach ($user->getError() as $message) {
+                        //                        echo "错误信息: ", $message;
+                        //                       // echo "Field: ", $message->getField();
+                        //                       // echo "Type: ", $message->getType();
+                        //                    }
+
+                        foreach ($user->getMessages() as $msg) {
+                            $message = $msg->getMessage();
+                            break;
+                            //                        echo "Field: ", $message->getField();
+                            //                        echo "Type: ", $message->getType();
+                        }
+                    } else {
+                        // echo '注册成功';
+                        // return $this->response->redirect("user/login");
+                    }
+                }
+            }
+            $this->renderJson(array('message' => $message));
+        }
+        //        $form = new \Modules\Backend\Forms\RegisterForm();
+        //
+        //        $this->view->form = $form;
+        $this->view->cleanTemplateAfter();
+    }
+
+    public function loginAction()
+    {
+        if ($u = $this->auth->getInfo()) {
+            return $this->response->redirect("index/index");
+        }
+        $message = '';
+        if ($this->request->isPost()) {
+            if ($this->security->checkToken() || 1) {
+                $login = $this->request->getPost('login');
+
+                $password = $this->request->getPost('pwd');
+                $admin = $this->getModel('admin');
+                $user = $admin::findFirstByLogin($login);
+                //print_r($user->toArray());exit;
+                if ($user) {
+                    if ($user->is_del == 1) {
+                        $message = '该用户已删除';
+                    } elseif ($this->auth->verify($password, $user)) {
+                        if ($user->city) {
+                            $this->cookies->set(MODULE.'_city', $user->city,time()+3600*24*30);
+                        }
+                        else {
+                            $this->cookies->set(MODULE.'_city', 'beijing',time()+3600*24*30);
+                        }
+                        return $this->response->redirect("index/index");
+                    } else {
+                        $message = '密码错误';
+                    }
+                } else {
+                    $message = '用户名不存在';
+                }
+            } else {
+                $message = '无效提交，请重试';;
+            }
+        }
+        $this->view->message = $message;
+        $this->view->cleanTemplateAfter();
+    }
+
+    public function logoutAction()
+    {
+        $this->auth->clear();
+        return $this->response->redirect("index/login");
+    }
+
+}
+

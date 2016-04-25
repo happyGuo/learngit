@@ -1,0 +1,19 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class ModelController extends AsynController
+{
+    public function indexAction(){
+        $value = $this->getParam();
+        print_r($value);
+    }
+
+    public function arouseAction(){
+        $request = $this->getParam();
+        call_user_func_array(array($this->getModel($request['model']), $request['method']),json_decode($request['params'],true));
+        $this->renderJson();
+    }
+
+
+}
+

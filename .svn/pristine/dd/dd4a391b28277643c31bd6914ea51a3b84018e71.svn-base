@@ -1,0 +1,40 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: xiaochuan
+ * Date: 2015/8/31
+ * Time: 15:49
+ */
+
+namespace Modules\Backend\Controllers;
+
+
+class ConsoleController extends BackendController
+{
+    public function listAction(){
+        $condition = array();
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 10;
+        $url = $this->currentAction."?";
+        /* 搜索条件[模块] */
+        $type = $this->request->getQuery('s_type');
+        if (trim($type)) {
+            $this->view->s_type = $type;
+            $url .= '&s_type=' . $type;
+            $condition['type'] = $type;
+        }
+        //查询日志列表
+        $total = $this->getModel('ConsoleLog')->count(array('conditions' => $condition));
+        $pageary = $this->pagination($total, $limit, $page,$url );
+        $logs = $this->getModel('ConsoleLog')->find(array(
+                'conditions' => $condition,
+                'sort' => array('ctime' => -1),
+                "limit" => $limit,
+                "skip" => $pageary['offset'],
+            )
+        );
+        $this->view->setVar('page', $pageary['html']);
+        $this->view->logs = $logs;
+    }
+}

@@ -1,0 +1,326 @@
+<?php
+
+namespace Libs;
+
+class ControllerBase extends \Phalcon\Mvc\Controller
+{
+    public $currentAction;
+
+    public $startTime;
+
+    public static $firstAction;
+
+    public function initialize()
+    {
+        $this->startTime = \Libs\Util::getMicrotime();
+        $this->currentAction = $this->dispatcher->getControllerName() . '/' . $this->dispatcher->getActionName();
+        if(empty( self::$firstAction )){
+           self::$firstAction  = $this->currentAction;
+        }
+
+        $this->util->startXh();
+        //当有用户操作，刷新他存活期
+        $this->auth->refresh();
+    }
+
+    protected function forward($uri)
+    {
+        $uriParts = explode('/', $uri);
+        return $this->dispatcher->forward(
+            array(
+                'controller' => $uriParts[0],
+                'action' => $uriParts[1]
+            )
+        );
+    }
+
+    public function renderJson($data = array(), $errMsg = '', $err = 0)
+    {
+        //   print_r($data);
+        if ($err == 0 && $errMsg) {
+            $err = 1;
+        }
+        echo json_encode(array('data' => $data, 'errno' => $err, 'errmsg' => $errMsg));
+        $this->view->setRenderLevel(\Phalcon\Mvc\View::LEVEL_NO_RENDER);
+        exit;
+    }
+
+    public function getApi($name)
+    {
+        return $this->api->getApi($name);
+    }
+
+    public function getModel($name)
+    {
+        return $this->mc->getModel($name);
+    }
+
+    public function createModel($name)
+    {
+        return $this->mc->createModel($name);
+    }
+
+    public function dict($id)
+    {
+        return $this->mc->getDict($id);
+    }
+
+    public function hasRole($role)
+    {
+        if ($role == 'base')
+            return true;
+        return in_array($role, explode(',', $this->currentUser['role']));
+    }
+
+    public function beforeExecuteRoute($dispatcher)
+    {
+        // This is executed before every found action
+//        if ($dispatcher->getActionName() == 'save') {
+//            $this->flash->error("You don't have permission to save posts");
+//            return false;
+//        }
+    }
+
+    public function afterExecuteRoute($dispatcher)
+    {
+        // Executed after every found action
+    }
+
+    //面包屑
+    public function getCrumb($parent_id)
+    {
+        $return = '';
+        if ($parent_id) {
+            $dict = $this->dict($parent_id);
+            if ($dict['parent_id'] == 0) {
+                $url = '';
+            } else {
+                $url = $dict['code'];
+            }
+            $class='';
+            if($dict['parent_id']==0){
+                $class= 'icon-home';
+            }
+
+            $return = $this->getCrumb($dict['parent_id']) . '<li><i class="'.$class.'"></i><a href="' . $url . '">' . $dict['name'] . '</a></li>';
+        }
+        return $return;
+
+    }
+
+    //导航
+    public function getNav($parent)
+    {
+        $child = $this->getModel('dict')->findByCache(array('is_del=0 and role!="hide" and module=' . $parent, 'order' => 'sort asc'));
+        $r = '';
+        if (!empty($child)) {
+            foreach ($child as $ch) {
+                if ($ch['parent_id'] != $parent) {
+                    continue;
+                }
+
+                $style = $class = '';
+                if (!$this->hasRole($ch['role'])) {
+                    continue;
+                }
+                $tmp = $this->getSubNav($ch['id'], $child);
+
+                if ($ch['code']) {
+                    $r .= '<li><a href="' . $this->url->get($ch['code']) . '"><i ></i>' . $ch['name'] . '</a></li>';
+                } else {
+                    if ($this->open) {
+                        $class = $this->open;
+                        $style = 'style="display: block;"';
+                    }
+                    $this->open = '';
+                    $r .= '<li class="' . $class . '"><a href="javascript:void(0);"><i ></i>' . $ch['name'] . '</a><ul class="sub-menu" ' . $style . ' >' . $tmp . '</ul></li>';
+                }
+            }
+        }
+        return $r;
+    }
+
+    public function getSubNav($parent, $child, $isShow = 1)
+    {
+        $r = '';
+
+        if (!empty($child)) {
+            foreach ($child as $ch) {
+                if ($ch['parent_id'] != $parent) {
+                    continue;
+                }
+                if (empty($ch['role'])) {
+                    continue;
+                }
+                if (!$this->hasRole($ch['role'])) {
+                    continue;
+                }
+                if ($isShow) {
+                    $r .= '<li><a href="' . $this->url->get($ch['code']) . '"><i class="icon-angle-right"></i>' . $ch['name'] . '</a></li>';
+                }
+
+                if ($ch['code']) {
+                    if ($this->currentAction == $ch['code']) {
+                        $this->open = "open";
+                    }
+                }
+                if ($isShow > 0) {
+                    $this->getSubNav($ch['id'], $child, $isShow - 1);
+                }
+
+            }
+        }
+        return $r;
+    }
+
+    public function notallowedAction()
+    {
+        if ($this->request->isAjax()) {
+            $this->renderJson([], '无权限执行该操作');
+        }
+    }
+
+    public function getAsynModel($model,$method,$params){
+        return $this->getDI()['complex']->call('model','arouse',array('model'=>$model,'method'=>$method,'params'=>json_encode($params)));
+    }
+
+    /**
+     * total  总条数
+     * limit  单页显示数量
+     * page   获取到的页码
+     * url    需要分页的页面地址
+     * 返回值为数组，currentpage为当前页，next为上一页，prev为下一页，offset对应查询的offset
+     * html为分页的html代码
+     */
+
+    public function pagination($total, $limit, $page = 1, $url)
+    {
+        if (!$page) {
+            $page = intval($this->request->getQuery('page'));
+        }
+        if ($total == 0) {
+            $totalpage = 1;
+        } else {
+            $totalpage = ceil($total / $limit);
+        }
+        if (strpos($url, '?')) {
+            $url .= '&';
+        } else {
+            $url .= '?';
+        }
+        $pageary = array();
+        if ($page >= $totalpage) {
+            $currentpage = $totalpage;
+            $next = $totalpage;
+            $prev = $totalpage - 1;
+        } elseif ($page < 1) {
+            $currentpage = 1;
+            $next = $currentpage + 1;
+            $prev = 1;
+        } else {
+            $currentpage = $page;
+            $next = $page + 1;
+            $prev = $page - 1;
+        }
+        $offset = ($currentpage - 1) * $limit;
+
+        $html = '<ul class="pagination">';
+        if ($total == 0) {
+            $html .= '</ul>共0条';
+            $pageary['html'] = $html;
+            return $pageary;
+        }
+        if ($totalpage < 6) {
+            if ($currentpage == 1) {
+                $html .= '<li class="disabled"><a href="' . $url . 'page=' . $prev . '">← 上一页</a></li>';
+            } else {
+                $html .= '<li><a href="' . $url . 'page=' . $prev . '">← 上一页</a></li>';
+            }
+            for ($i = 1; $i <= $totalpage; $i++) {
+                if ($currentpage == $i) {
+                    $html .= '<li class="active"><a href="' . $url . 'page=' . $i . '">' . $i . '</a></li>';
+                } else {
+                    $html .= '<li><a href="' . $url . 'page=' . $i . '">' . $i . '</a></li>';
+                }
+            }
+            if ($currentpage == $totalpage) {
+                $html .= '<li class="disabled"><a href="' . $url . 'page=' . $next . '">下一页 →</a></li>';
+            } else {
+                $html .= '<li><a href="' . $url . 'page=' . $next . '">下一页 →</a></li>';
+            }
+        } else {
+            if ($currentpage == 1) {
+                $html .= '<li class="disabled"><a href="' . $url . 'page=' . $prev . '">← 上一页</a></li>';
+            } elseif ($currentpage > 3) {
+                if (($currentpage - 5) < 1) {
+                    $jump = 1;
+                } else {
+                    $jump = ($currentpage - 5);
+                }
+
+                $html .= '<li><a href="' . $url . 'page=' . $prev . '">← 上一页</a></li><li><a href="' . $url . 'page=1">首页</a></li><li><a href="' . $url . 'page=' . $jump . '">...</a></li>';
+            } else {
+                $html .= '<li><a href="' . $url . 'page=' . $prev . '">← 上一页</a></li>';
+            }
+            if ($currentpage < 3) {
+                $bottom = 1;
+                $top = 5;
+            } elseif (($totalpage - $currentpage) < 3) {
+                $bottom = $totalpage - 4;
+                $top = $totalpage;
+            } else {
+                $bottom = $currentpage - 2;
+                $top = $currentpage + 2;
+            }
+            for ($i = $bottom; $i <= $top; $i++) {
+                if ($currentpage == $i) {
+                    $html .= '<li class="active"><a href="' . $url . 'page=' . $i . '">' . $i . '</a></li>';
+                } else {
+                    $html .= '<li><a href="' . $url . 'page=' . $i . '">' . $i . '</a></li>';
+                }
+            }
+            if ($currentpage == $totalpage) {
+                $html .= '<li class="disabled"><a href="' . $url . 'page=' . $next . '">下一页 →</a></li>';
+            } elseif ($totalpage - $currentpage > 2) {
+                if (($currentpage + 5) > $totalpage) {
+                    $jump = $totalpage;
+                } else {
+                    $jump = ($currentpage + 5);
+                }
+
+                $html .= '<li><a href="' . $url . 'page=' . $jump . '">...</a></li><li><a href="' . $url . 'page=' . $totalpage . '">尾页</a></li><li><a href="' . $url . 'page=' . $next . '">下一页 →</a></li>';
+            } else {
+                $html .= '<li><a href="' . $url . 'page=' . $next . '">下一页 →</a></li>';
+            }
+        }
+        $html .= '</ul>共' . $total . '条当前显示' . ($offset + 1) . '到' . ($offset + $limit);
+
+        $pageary['start'] = $offset;
+        $pageary['end'] = $offset + $limit;
+        $pageary['total'] = $total;
+        $pageary['html'] = $html;
+        $pageary['offset'] = $offset;
+        return $pageary;
+    }
+
+    public function __destruct()
+    {
+        $this->util->closeXh();
+        if(self::$firstAction  != $this->currentAction){
+            return false;
+        }
+
+        if (defined('LOG') && LOG) {
+            $useTime = 0;
+            if (!empty($this->startTime)) {
+                $useTime = \Libs\Util::getMicrotime() - $this->startTime;
+            }
+            if ($useTime > 1) {
+                $this->log->sqlWarn($this->currentAction . '执行：' . $useTime);
+            }
+
+            $this->dbListener->getSqlProfile($useTime);
+        }
+    }
+
+}

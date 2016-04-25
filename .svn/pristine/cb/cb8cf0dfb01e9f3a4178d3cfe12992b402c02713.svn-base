@@ -1,0 +1,316 @@
+var sku = [];
+var formatRepo=function(repo){
+    if (repo.loading) return repo.text;
+
+    var markup = '<div class="clearfix">' +
+    '<div clas="col-sm-10">' +
+    '<div class="clearfix">' +
+    '<div class="col-sm-6">' + repo.name + '</div>' +
+    '<div class="col-sm-3"><i class="fa fa-code-fork"></i> ' + repo.remark + '</div>' +
+    '<div class="col-sm-2"><i class="fa fa-star"></i> ' + repo.unit_price + '元/' + repo.unit_name + '</div>' +
+    '<div id=""></div>'
+    '</div>';
+
+    markup += '</div></div>';
+
+    return markup;
+}
+
+var formatRepoSelection = function(repo) {
+    sku = repo;
+    var specstr = repo.spec != "" ?" (" + repo.spec + ")" :'';
+    return repo.name ? repo.name + specstr + " " + repo.unit_price + '/' + repo.unit_name : '';
+}
+
+function ajaxAddSku(){
+    $(".selectAddSku").select2('close');
+    $.get('/order/ajaxsku',function(message){
+        bootbox.dialog({
+          message: message,
+          title: "添加商品",
+          onEscape: function() {},
+          show: true,
+          backdrop: true,
+          size: 'large',
+          animate: true,
+          className: "my-modal",
+          buttons: {
+            success: {
+              label: "添加",
+              className: "btn-success",
+              callback: function() {
+                var name=$("#ajax_sku_name").val();
+                var category_id=$("#ajax_sku_category_id").val();
+                var parent_category_id=$("#ajax_sku_parent_category_id").val();
+                var spec=$("#ajax_sku_spec").val();
+                var unit_id=$("#ajax_sku_unit_id").val();
+                var unit_price=$("#ajax_sku_unit_price").val();
+                var unit_number=$("#ajax_sku_unit_number").val();
+                var measure_id=$("#ajax_sku_measure_id").val();
+
+                checkrequired($("#ajax_sku_name"));
+                if($("#ajax_sku_name").attr("check")==0){
+                    return false;
+                }
+                checkrequired($("#ajax_sku_category_id"));
+                if($("#ajax_sku_category_id").attr("check")==0){
+                    return false;
+                }
+                checkrequired($("#ajax_sku_parent_category_id"));
+                if($("#ajax_sku_parent_category_id").attr("check")==0){
+                    return false;
+                }
+                checkrequired($("#ajax_sku_unit_price"));
+                if($("#ajax_sku_unit_price").attr("check")==0){
+                    return ;
+                }
+                checkrequired($("#ajax_sku_unit_id"));
+                if($("#ajax_sku_unit_id").attr("check")==0){
+                    return false;
+                }
+                if($("#ajax_sku_measure_id").val()>0 && $("#ajax_sku_unit_number").val()==''){
+                    showtip('请填写计量单位数值',2);
+                    return false;
+                }
+
+                $.ajaxSetup({async: false});
+                $.post('/order/ajaxsku',{name:name,category_id:category_id,parent_category_id:parent_category_id,spec:spec
+                    ,unit_id:unit_id,unit_price:unit_price,unit_number:unit_number,measure_id:measure_id},
+                    function(data){
+                        if(parseInt(data.data.id)>0){
+                            $("#sku_number").val('1');
+                            create_html(data.data);
+                            setTimeout(function() {
+                                $(".selectAddSku").select2('close');
+                                $("#sku_number_"+data.data.id).focus();
+                            }, 200);
+                        }else{
+                            showtip(data.errmsg,2);
+                        }
+                    },'json');
+              }
+            },
+            "取消": {
+              className: "btn-danger",
+            }
+          }
+        });
+
+        setTimeout(function() {
+            $("#category").categorySelect({
+                data: jQuery.parseJSON($("#categoryJson").html())
+            });
+        }, 200);
+    });
+}
+
+var create_html = function(addSku)
+{
+    var buy_number = $("#sku_number").val();
+    if(buy_number.length==0 || buy_number==0){
+        showtip('请输入购买数量',2);
+        return false;
+    }
+
+    if($("#order_list #sku_"+addSku.id).length>0){
+        showtip('已经添加该商品',2);
+        return false;
+    }
+
+    var sku_seq = $("#order_list tr").length;
+    var sku_price='<input id="sku_price_'+addSku.id+'" class="form-control input-width-small" onkeyup="calc_sku_amount('+addSku.id+')" type="text" name="price['+addSku.id+']" value="'+addSku.unit_price+'" onKeyPress="if((event.keyCode<48 || event.keyCode>57) && event.keyCode!=46 || /\.\d\d$/.test($(this).val()))event.returnValue=false">';
+    var sku_number = '<input id="sku_number_'+addSku.id+'" type="text" onkeyup="calc_sku_amount('+addSku.id+')" class="form-control input-width-small" name="number['+addSku.id+']" value="'+buy_number+'" onKeyPress="if((event.keyCode<48 || event.keyCode>57) && event.keyCode!=46 || /\.\d\d$/.test($(this).val()))event.returnValue=false">';
+    var sku_amount = FloatCalFun.floatMulti(buy_number , addSku.unit_price);
+    var sku_remark = '<input id="sku_remark_'+addSku.id+'" type="text" class="form-control input-width-small" name="remark['+addSku.id+']" value="">';
+    var sku_delete  = '<a href="javascript:void(0)" onclick="delete_order('+addSku.id+')">删除</a>';
+
+    var html = '<tr id="sku_'+addSku.id+'">';
+    html += "<td>"+sku_seq+"</td>";
+    html += "<td>"+addSku.name+"</td>";
+    html += "<td>"+sku_price+"</td>";
+    html += "<td>"+sku_number+"</td>";
+    html += "<td class='sku_amount sku_amount_"+addSku.id+"'>"+sku_amount.toFixed(2)+"</td>";
+    html += "<td>"+sku_remark+"</td>";
+    html += "<td>"+sku_delete+"</td>";
+    html += "</td></tr>";
+    $("#order_list").prepend(html);
+    $("#lastest_list #sku_"+addSku.id).remove();
+    $("#always_list #sku_"+addSku.id).remove();
+    
+    recalc_amount();
+
+    try{
+        $(".selectAddSku").val(null);
+        $(".select2-selection__rendered").html('');
+        $(".selectAddSku").select2('open');
+        $(window).bind('beforeunload',function(){return '确定离开此页面吗？';});
+    }catch(ex){}
+} 
+
+var delete_order = function(id){
+    bootbox.confirm("确认删除吗?",function(confirmed){
+        if(confirmed){
+            $('#sku_'+id).remove();
+            recalc_amount();
+        }
+    });
+}
+
+var recalc_amount = function(){
+    if($("#skulist tbody tr").length>1){
+        $("#addTip").hide();
+        $("#orderamount").show();
+    }else{
+        $("#addTip").show();
+        $("#orderamount").hide();
+        $(window).unbind('beforeunload');
+    }
+
+    var amount=0;
+    $(".sku_amount").each(function(){
+        amount =FloatCalFun.floatAdd(amount,$(this).html());
+    });
+
+    $("#order_amount").html(amount.toFixed(2));
+    $("#order_list tr td:first").each(function(index){
+        if($(this).parent().attr("id")=='addTip')return;
+        $(this).html($("#order_list tr").length-index-1);
+    });
+}
+
+var calc_sku_amount = function(id){
+    sku_price = $("#sku_price_"+id).val();
+    sku_number = $("#sku_number_"+id).val();
+
+    sku_amount_float = FloatCalFun.floatMulti(sku_price , sku_number);
+
+    $(".sku_amount_"+id).html(sku_amount_float.toFixed(2));
+
+    recalc_amount();
+}
+
+var submit_order = function(){
+
+    if($("input[name^=number]").length==0){
+        showtip('请添加商品',2);
+        return false;
+    }
+    
+    var reg=/^[0-9]+([.]{1}[0-9]{1,2})?$/;
+    $("input[name^=number]").each(function(){
+        if(reg.test($(this).val())==false){
+            showtip('数量设置错误');
+            $(this).focus().select();
+            return false;
+        }
+    });
+
+    bootbox.confirm("是否确认下单",function(confirmed){
+        if(confirmed){
+            $("input[type=submit]").attr("disabled",true);
+            $.ajax({
+               type:'POST', 
+               url:"order/create",
+               dataType:'json',
+               data:$("#form_order").serialize(), 
+               async:true,
+               success:function(result)
+               {
+                   if(result.data.id>0){
+                        alert('下单成功!');
+                        $(window).unbind('beforeunload');
+                        window.location.href=window.location.href.replace(window.location.search,'') + "?userid="+$("#user_id").val();
+                   }else{
+                        showtip(result.data.error,2);
+                        $("input[type=submit]").attr("disabled",false);
+                   }
+               }
+           });  
+        }
+    });  
+}
+
+$(function(){
+    $(".shop_id").bind('change',function(){
+        if($(this).val()==''){
+            shoptip('请选择客户',2);
+            return false;
+        }
+
+        window.location.href=window.location.href.replace(window.location.search,'') + "?userid="+$("#user_id").val()+"&shop_id=" + $(this).val();
+    });
+
+    $(".selectAddSku").select2({
+      language: {
+        errorLoading: function () {
+          return '无法载入结果。';
+        },
+        inputTooLong: function (args) {
+          var overChars = args.input.length - args.maximum;
+          var message = '请删除' + overChars + '个字符';
+          return message;
+        },
+        inputTooShort: function (args) {
+          var remainingChars = args.minimum - args.input.length;
+          var message = '请再输入至少' + remainingChars + '个字符';
+          return message;
+        },
+        loadingMore: function () {
+          return '载入更多结果…';
+        },
+        maximumSelected: function (args) {
+          var message = '最多只能选择' + args.maximum + '个项目';
+          return message;
+        },
+        noResults: function () {
+          return '未找到结果<input type="button" onclick="ajaxAddSku()" class="btn btn-primary" value="添加商品">';
+        },
+        searching: function () {
+          return '搜索中…';
+        }
+      },
+      ajax: {
+        url: "/order/create?shop_id="+$("input:hidden[name=shop_id]").val(),
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return {
+            term: params.term
+          };
+        },
+        processResults: function (data, page) {
+          return {
+            results: data.data
+          };
+        },
+        cache: true
+      },
+      escapeMarkup: function (markup) { return markup; },
+      minimumInputLength: 1,
+      templateResult: formatRepo,
+      templateSelection: formatRepoSelection
+    });
+
+    $(".selectAddSku").on("change", function (e) { 
+        $("#add_result").attr('disabled',false);
+        setTimeout(function() {
+            $("#sku_number").focus();
+        }, 200);
+    });
+    $("#sku_number").on('keyup',function(e){
+
+        if(e.which == 13){
+            $("#add_result").trigger("click");
+        }
+    });
+
+    $("#add_result").bind('click',function(){
+
+        create_html(sku);
+        $("#sku_number").val('');
+    });
+
+    $(".btn-buyall").bind('click',function(){
+        $("#lastest_list input:button").trigger("click");
+    });
+});

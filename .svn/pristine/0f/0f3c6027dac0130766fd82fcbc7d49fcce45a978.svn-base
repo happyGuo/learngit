@@ -1,0 +1,432 @@
+<?php
+/**
+ *  配销商自有商品管理
+ *
+ *  配销商自有商品的CRUD
+ * @author      zhangrg
+ * @version     20150810
+*/
+namespace Modules\Partner\Controllers;
+
+class PartnerskuController extends PartnerController
+{
+
+    /* 初始化 */
+    public function initialize(){
+        parent::initialize();
+        $this->view->setVar('measureArr',$this->getModel('dict')->find(['is_del=0 and parent_id=43','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('unitArr',$this->getModel('dict')->find(['is_del=0 and parent_id=37','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('categoryJson',$this->getModel('category')->getList($this->mc->getPartner($this->userId)['category'],true));
+        $this->view->setVar('tagArr',[1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼']);
+        $this->view->setVar('isDelArr',[0=>"上架",1=>'下架']);
+
+        /* 导航菜单 */
+        $this->view->menu=array('partnersku/create'=>'商品添加','partnersku/copy'=>'复制商品');
+    }
+
+    /* 显示商品列表 */
+    public function listAction()
+    {
+
+        /* 一级分类 */
+        $condition = 'partner_id = '.$this->currentUser['id'];
+
+        /* 排序 */
+        $order = 'sort asc,id desc';
+
+        /* url初始化 */
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+
+        /* 搜索条件[名称] */
+        $name = $this->request->getQuery('name');
+        if(strlen(trim($name))){
+            $this->view->s_name = $name;
+            $condition .= ' and search_name like \'%'.$name.'%\''; 
+            $url .= '&name='.$name;
+        }
+        /* 搜索条件[一级分类] */
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        if(strlen(trim($parent_category_id))){
+            $this->view->s_parent_category_id = $parent_category_id;
+            $condition .= ' and parent_category_id = '.$parent_category_id; 
+            $url .= '&parent_category_id='.$parent_category_id;
+        }
+        /* 搜索条件[二级分类] */
+        $category_id = $this->request->getQuery('category_id');
+        if(strlen(trim($category_id))){
+            $this->view->s_category_id = $category_id;
+            $condition .= ' and category_id = '.$category_id; 
+            $url .= '&category_id='.$category_id;
+        }
+
+        /* 搜索条件[其他] */
+        $type = $this->request->getQuery('type');
+        if(strlen(trim($type))){
+            $this->view->s_type = $type;
+            $condition .= ' and '.$type.'> 0 '; 
+            $url .= '&type='.$type;
+            $order = $type.' asc,id desc';
+        }
+
+        /* 搜索条件[上下架] */
+        $is_del = $this->request->getQuery('is_del');
+        if(strlen(trim($is_del))){
+            $this->view->s_is_del = $is_del;
+            $condition .= ' and is_del='.$is_del; 
+            $url .= '&is_del='.$is_del;
+        }
+
+        /* 搜索条件[客户] */
+        $shop_id = $this->request->getQuery('shop_id');
+        if(strlen(trim($shop_id))){
+            //判断是否是当前配销商的客户
+            $shop = $this->getModel('shop')->findFirst($shop_id);
+            if(isset($shop->id)){
+                $this->view->shop  = $shop->toArray();
+
+                $this->view->skuYkyj = $this->getModel('PartnerSkuYkyj')->getYkyjListByShopId($shop_id,$this->userId);
+            }
+
+            $this->view->s_shop_id = $shop_id;
+            $url .= '&shop_id='.$shop_id;
+        }else{
+            $this->view->s_shop_id = '';
+        }
+
+        $page = $this->request->getQuery('page');
+        $page = intval($page)< 0 ?1:intval($page);
+
+        $this->view->pagination = $this->pagination($this->getModel('partnerSku')->count(array($condition)), 20, $page, $url);
+        $this->view->sku = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'limit'=>20,'offset'=>$this->view->pagination['offset']));
+    }
+
+    /* 复制公共商品库的商品 */
+    public function copyAction()
+    {
+
+        //复制商品
+        $messages = [];
+        if($this->request->isPost()){
+            $ids = $this->request->getPost('ids');
+
+            $skuList = $this->getModel('sku')->find("id in ($ids)")->toArray();
+
+            //已经导入
+            foreach ($skuList as $key => $val) {
+                $val['partner_id']=$this->userId;
+
+                //判断数据是否存在
+                $where  = ' partner_id='.$this->userId." and name='{$val['name']}' and spec='{$val['spec']} and parent_category_id={$val['parent_category_id']} and category_id={$val['category_id']}'";
+                if($this->getModel('partnerSku')->count($where))continue;
+
+                //保存数据
+                $sku = $this->createModel('partnerSku')->createOne(array_slice($val,1));
+
+                $skuStr = "商品{$val['name']} ".($val['spec']?'规格:'.$val['spec']:'');
+                if($sku['id']){
+                    $messages[] = ['type'=>1,'text'=>$skuStr."复制成功"];
+                }else{
+                    $messages[] = ['type'=>1,'text'=>$skuStr."复制失败,原因:".$sku['error']];
+                }
+
+                //保存图片
+                $this->img->copyImageToPartner($val['id'],$sku['id']);
+            }
+        }
+        $this->view->messages = $messages;
+
+        //获取第一个分类
+        $categoryArr = $this->getModel('category')->getList($this->mc->getPartner($this->userId)['category']);
+
+        //默认第一个分类
+        $cate1 = current($categoryArr);
+        $cate2 = current($cate1['subs']);
+
+        /* 一级分类 */
+        $condition = '1';
+
+        /* 搜索条件[一级分类] */
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        $parent_category_id = $parent_category_id ? $parent_category_id : $cate1['id'];
+        if(strlen(trim($parent_category_id))){
+            $this->view->s_parent_category_id = $parent_category_id;
+            $condition .= ' and parent_category_id = '.$parent_category_id; 
+        }
+
+        /* 搜索条件[二级分类] */
+        $category_id = $this->request->getQuery('category_id');
+        $category_id = $category_id?$category_id:$cate2['id'];
+        if(strlen(trim($category_id))){
+            $this->view->s_category_id = $category_id;
+            $condition .= ' and category_id = '.$category_id; 
+        }
+
+        //已经复制的商品
+        $copyedList = $this->getModel('partnerSku')->getList($condition.' and partner_id='.$this->userId);
+        $skuCopyArr = [];
+        foreach ($copyedList as $key => $val) {
+            $name = trim($val['name']);
+            $skuCopyArr[]="$name|{$val['spec']}|{$val['category_id']}|{$val['parent_category_id']}";
+        }
+        $this->view->copyedList = $copyedList;
+
+        // var_dump($skuCopyArr);exit;
+
+        $list = $this->getModel('sku')->find(array($condition,'order'=>'ctime desc'));
+        $skuList = [];
+        foreach ($list as $key => $val) {
+            $sku = $val->toArray();
+            $name = trim($sku['name']);
+            if(!in_array("$name|{$sku['spec']}|{$sku['category_id']}|{$sku['parent_category_id']}", $skuCopyArr)){
+                $skuList[] = $val;
+            }
+        }
+        $this->view->sku = $skuList;
+    }
+
+    public function searchAction(){
+        $term = $this->request->getQuery('term');
+        $term = trim($term);
+        //变量初始化
+        $strCommon = $strPartner= "";
+        if(!empty($term)){
+
+            $category = $this->getModel('category')->getList($this->mc->getPartner($this->userId)['category']);
+
+            //公共商品
+            $allSku = $this->getModel('Sku')->find(array("search_name LIKE '%".$term."%' and is_del=0 and parent_category_id in (".implode(',', array_keys($category)).")"))->toArray();
+            foreach ($allSku as $key => $val) {
+                $allSku[$key]['unit_name'] = $this->mc->getDict($val['unit_id'])['name'];
+                $allSku[$key]['pic_url'] = $this->img->getUrlById('sku',$val['id']);
+            }
+        }
+        $this->renderJson($allSku);
+    }
+
+    /* 添加商品 */
+    public function createAction()
+    {
+
+        //提交
+        if($this->request->isPost()) {
+            $sku = $this->createModel('partnerSku');
+            $name = $this->request->getPost('name');
+            $category_id = $this->request->getPost('category_id');
+            $parent_category_id = $this->request->getPost('parent_category_id');
+            $sku->name = $name;
+            $sku->remark = $this->request->getPost('remark');
+            $sku->content = $this->request->getPost('content');
+            $sku->parent_category_id = $parent_category_id;
+            $sku->category_id = $category_id;
+            $sku->unit_id = $this->request->getPost('unit_id');
+            $sku->unit_price = $this->request->getPost('unit_price');
+            $sku->unit_number = $this->request->getPost('unit_number');
+            $sku->measure_id = $this->request->getPost('measure_id');
+            $sku->sort = $this->request->getPost('sort');
+            $sku->hot = $this->request->getPost('hot');
+            $sku->new = $this->request->getPost('new');
+            $sku->discount_price = $this->request->getPost('discount_price');
+            $sku->origin = $this->request->getPost('origin');
+            $sku->spec = $this->request->getPost('spec');
+            $sku->search = $this->request->getPost('search');
+            $sku->is_del = $this->request->getPost('is_del');
+            $sku->partner_id = $this->userId;
+
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadById('partner_sku',$sku->id,'pic_url');
+                if($return['error']!=''){
+                    $this->view->messages = $return['error'];
+                }else{
+                    //保存图片
+                    if($return['name']==''&&$this->request->getPost('sku_id'))$this->img->copyImageToPartner($this->request->getPost('sku_id'),$sku->id);
+                    return $this->response->redirect("partnersku/list");
+                }
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+    }
+
+    /* 修改商品 */
+    public function updateAction()
+    {
+
+        if($this->request->isPost()) {
+
+            $sku = $this->createModel('partnerSku')->findFirst($this->request->getQuery('id'));
+            
+            if(!isset($sku->id)){
+                $this->renderJson('','商品不存在');
+            }
+            
+            if($sku->partner_id!=$this->currentUser['id']){
+                $this->renderJson('','不能删除');
+            }
+
+            $sku->name = $this->request->getPost('name');
+            $sku->remark = $this->request->getPost('remark');
+            $sku->content = $this->request->getPost('content');
+            $sku->sn = $this->request->getPost('sn');
+            $sku->unit_id = $this->request->getPost('unit_id');
+            $sku->unit_price = $this->request->getPost('unit_price');
+            $sku->unit_number = $this->request->getPost('unit_number');
+            $sku->parent_category_id = $this->request->getPost('parent_category_id');
+            $sku->category_id = $this->request->getPost('category_id');
+            $sku->measure_id = $this->request->getPost('measure_id');
+            $sku->sort = $this->request->getPost('sort');
+            $sku->hot = $this->request->getPost('hot');
+            $sku->new = $this->request->getPost('new');
+            $sku->discount_price = $this->request->getPost('discount_price');
+            $sku->origin = $this->request->getPost('origin');
+            $sku->spec = $this->request->getPost('spec');
+            $sku->search = $this->request->getPost('search');
+            $sku->is_del = $this->request->getPost('is_del');
+            
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadById('partner_sku',$sku->id,'pic_url');
+                if($return['error']!=''){
+                    $this->view->messages = $return['error'];
+                }else{
+                    return $this->response->redirect("partnersku/list");
+                }
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+        $sku = $this->getModel('partnerSku')->findById($this->request->getQuery('id','int',0));
+        if(isset($sku['id'])){
+            if($sku['partner_id']!=$this->userId)$this->response->redirect("partnersku/list");
+        }else{
+            $this->response->redirect("partnersku/list");
+        }
+        $this->view->sku = $sku;
+    }
+
+    /* 商品上下架 */
+    public function updateajaxAction()
+    {
+        $sku = $this->createModel('partnerSku')->findFirst($this->request->getPost('id','int',0));
+        $sku->is_del = $this->request->getPost('is_del','int',1)==1?0:1;
+        
+        if($sku->save()) {
+            $this->renderJson($sku);
+        }else{
+            $this->renderJson('',$sku->getError());
+        }
+    }
+
+    /* 删除商品 */
+    public function deleteAction()
+    {
+        $sku = $this->createModel('partnerSku')->findFirst($this->request->getPost('id'));
+        $sku->is_del = 1;
+
+        if(!isset($sku->id)){
+            $this->renderJson('','商品不存在');
+        }
+        
+        if($sku->partner_id!=$this->currentUser['id']){
+            $this->renderJson('','不能删除');
+        }
+        
+        if($sku->save()) {
+            $pid = $this->currentUser['id'];
+            $p_name = $this->mc->getPartner($pid)['contact_name'];
+            $data['partner_id'] = $pid;
+            $data['type'] = 'delete';
+            $data['table'] = 'partnerSku';
+            $data['content'] = "".$p_name."下架了一个ID为：".$this->request->getQuery('id')."的商品";
+            $this->getModel('partnerOperateLog')->createOne($data);
+            $this->renderJson($sku);
+        }else{
+            $this->renderJson('',$sku->getError());
+        }
+    }
+
+    //更新价格
+    public function ajaxupdatepriceAction(){
+        $pid = $this->currentUser['id'];
+        $p_name = $this->mc->getPartner($pid)['contact_name'];
+        if($this->request->isAjax()){
+            $skuId = $this->request->getPost('id');
+            $shopId = $this->request->getPost('shop_id');
+            $skuykyj = $this->getModel('PartnerSkuYkyj')->findFirst(array('shop_id='.$shopId .' and sku_id='.$skuId));            
+            $shopname = $this->mc->getShop($shopId)['name'];            
+            $price = $this->request->getPost('price');
+            $data['partner_id'] = $pid;        
+            $data['table'] = 'PartnerSkuYkyj';
+                      
+            $this->getModel('partnerOperateLog')->createOne($data);
+            //客户和SKU检查 TODO
+
+            //更新数据
+            if($shopId==0){
+                $sku = $this->createModel('partnerSku')->findFirst($skuId);
+                $sku->unit_price = $price;
+                $sku->save();
+            }else{
+                $this->createModel('PartnerSkuYkyj')->savePrice($shopId,$this->userId,$skuId,$price);
+            }
+
+            $this->renderJson('ok');
+        }
+    }
+
+    //设置SKU价格 显示客户列表
+    public function setpricebyskuAction(){
+        $skuId = $this->request->getQuery('id');
+
+        if($this->request->isGet()){
+            $this->view->list = $this->getModel('PartnerSkuYkyj')->getListByPartnerSku($this->userId,$skuId);
+
+            $this->view->shop = $this->getModel('shopSku')->getShopListByPartnerId($this->userId);
+        }
+        $sku = $this->getModel('PartnerSkuYkyj')->find('sku_id ='.$skuId)->toArray();
+        foreach ($sku as $k => $v) {
+            $old_price[] = $v['price'];
+        }
+        //保存数据
+        if($this->request->isPost()){
+            $priceArr = $this->request->getPost('price');
+            $pid = $this->currentUser['id'];
+            $p_name = $this->mc->getPartner($pid)['contact_name'];
+            foreach ($priceArr as $key => $val) {
+                $skuname = $this->getModel('partnerSku')->findById($skuId)['name'];
+                $shopname = $this->mc->getShop($key)['name'];
+                $shopId = $key;
+                $skuykyj = $this->getModel('PartnerSkuYkyj')->findFirst(array('shop_id='.$shopId .' and sku_id='.$skuId));            
+                $data['partner_id'] = $pid;
+                $data['target_id'] = $skuId;
+                $data['table'] = 'PartnerSkuYkyj';
+                if(!empty($skuykyj)){
+                    $data['type'] = 'update';
+                    $data['content'] = "".$p_name."将店铺名为：".$shopname."    中商品名称为：<a href='partnersku/detail/$skuId'>".$skuname."</a>    的价格修改为：".$val."";
+                }else{
+                    $data['type'] = 'create';
+                    $data['content'] = "".$p_name."将店铺名为：".$shopname."    中商品名称为：<a href='partnersku/detail/$skuId'>".$skuname."</a>    的一客一价添加为：".$val."";
+                }
+                $this->getModel('partnerOperateLog')->createOne($data);
+                $this->createModel('PartnerSkuYkyj')->savePrice($key,$this->userId,$skuId,$val);
+            }
+
+            $this->renderJson('ok');
+        }
+
+        $this->view->setRenderLevel(\Phalcon\Mvc\View::LEVEL_ACTION_VIEW);
+    }
+   
+
+    //商品详情 [zhangrg]
+    public function detailAction($id = 0){
+        $this->view->sku = $sku = $this->mc->getPartnerSku($id);
+
+        if($sku['partner_id']!=$this->userId){
+            return $this->response->redirect("partnersku/list");
+        }
+    }
+}
+

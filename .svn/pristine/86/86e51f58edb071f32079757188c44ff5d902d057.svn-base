@@ -1,0 +1,27 @@
+<?php
+
+namespace Modules\Frontend;
+
+class Module
+{
+    public function registerAutoloaders()
+    {
+        $loader = new \Phalcon\Loader();
+
+        $loader->registerNamespaces(array(
+            'Modules\Frontend\Controllers' => __DIR__ . '/controllers/',
+            'Modules\Frontend\Libs' => __DIR__ .'/libs/',
+            'Modules\Frontend\Forms'=>__DIR__.'/forms/',
+        ))->register();
+    }
+
+    public function registerServices($di)
+    {
+        /**
+         * Read configuration
+         */
+        $config = include __DIR__ . "/config/config.php";
+        require  __DIR__ ."/config/services.php";
+    }
+
+}

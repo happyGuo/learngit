@@ -1,0 +1,32 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: feihide
+ * Date: 15-3-13
+ * Time: 下午2:24
+ */
+namespace modules\Backend\Forms;
+
+class RegisterForm extends \Libs\Form
+{
+
+    public function initialize()
+    {
+        //Set the same form as entity
+        $this->setEntity($this);
+
+        //Add a text element to capture the 'email'
+        $this->add(new \Phalcon\Forms\Element\Text('login',array('label'=>'用户名', 'maxlength' => 30,
+            'placeholder' => '用户名')));
+        $this->add(new \Phalcon\Forms\Element\Text('real_name',array( 'maxlength' => 30,
+        'placeholder' => '真实姓名')));
+        $this->add(new \Phalcon\Forms\Element\Password('pwd'));
+        $this->add(new \Phalcon\Forms\Element\Password('comfirm_pwd'));
+        //Add a text element to put a hidden csrf
+        //$this->add(new \Phalcon\Forms\Element\Hidden("csrf"));
+        //$this->add(new \Phalcon\Forms\Element\Submit("提交"));
+    }
+
+
+
+}

@@ -1,0 +1,120 @@
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors','on');
+
+require('local.php');
+
+//根据不同域名加载不同模块
+if($_SERVER['HTTP_HOST']==CL){
+    define('MODULE','frontend');
+}
+elseif($_SERVER['HTTP_HOST']==ADMIN){
+    define('MODULE','backend');
+}
+elseif($_SERVER['HTTP_HOST']==APP){
+    define('MODULE','app');
+}
+elseif($_SERVER['HTTP_HOST']==PARTNER){
+    define('MODULE','partner');
+}
+
+if(!defined('MODULE')){
+    exit('ok');
+}
+
+//已存在的库
+$cityList =array('tpl','beijing','shanghai');
+define('DB',join(',',$cityList));
+
+if(isset($_REQUEST['city'])){
+    setcookie(MODULE.'_city', $_REQUEST['city'],time()+3600*24*365,'/');
+    define('CITY',$_REQUEST['city']);
+}
+else{
+    if(isset($_COOKIE[MODULE.'_city']) && !empty($_COOKIE[MODULE.'_city'])){
+        define('CITY',$_COOKIE[MODULE.'_city']);
+    }
+//    else{
+//        define('CITY','tpl');
+//    }
+}
+if(defined('CITY')){
+    if(!in_array(CITY,$cityList)){
+        setcookie(MODULE.'_city', '',0,'/');
+        echo json_encode(array('data'=>array(),'errno' => 1,'errmsg'=>'city not open,use tpl'));
+        exit;
+    }
+}
+
+
+ini_set('date.timezone','Asia/Shanghai');
+try {
+
+    $config = include __DIR__ . "/../apps/config/config.php";
+	/**
+	 * The FactoryDefault Dependency Injector automatically register the right services             providing a full stack framework
+	 */
+    $di = new \Phalcon\DI\FactoryDefault();
+
+    require  __DIR__ ."/../apps/config/services.php";
+	/**
+	 * Handle the request
+	 */
+	$application = new \Phalcon\Mvc\Application();
+
+	$application->setDI($di);
+    
+	/**
+	 * Register application modules
+	 */
+	$application->registerModules(array(
+		'frontend' => array(
+			'className' => 'Modules\Frontend\Module',
+			'path' => '../apps/frontend/Module.php'
+		),
+        'backend'  => array(
+            'className' => 'Modules\Backend\Module',
+            'path' => '../apps/backend/Module.php',
+        ),
+        'app'  => array(
+            'className' => 'Modules\App\Module',
+            'path' => '../apps/app/Module.php',
+        ),
+        'partner'  => array(
+            'className' => 'Modules\Partner\Module',
+            'path' => '../apps/partner/Module.php',
+        )
+                                        
+	));
+
+	echo $application->handle()->getContent();
+
+} catch (Phalcon\Exception $e){
+    if(!DEBUG){
+//        $logger = new \Phalcon\Logger\Adapter\File(__DIR__ . '/../apps/logs/error.log');
+//        $logger->error($e->getMessage());
+//        $logger->error($e->getTraceAsString());
+        /**
+         * Show an static error page
+         */
+        $response = new \Phalcon\Http\Response();
+        $response->redirect('505.html');
+        $response->send();
+
+    }
+    else{
+        if(defined('LOG') && LOG && DEBUG){
+            $application->log->systemError($e->getMessage(),$e->getTraceAsString());
+        }
+        echo '<pre>'.$e->getMessage();
+        echo $e->getTraceAsString().'</pre>';
+    }
+} catch (PDOException $e){
+    if(defined('LOG') && LOG && DEBUG){
+        $application->log->systemError($e->getMessage());
+    }
+	echo $e->getMessage();
+}
+
+
+

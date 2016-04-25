@@ -1,0 +1,330 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    订单修改
+                </h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST"
+                      action="<?php echo $this->url->get('order/update', array('id' => $order->id)) ?>"
+                      onsubmit="return checkform()">
+                    <input type="hidden" name="id" value="<?php echo $order->id; ?>">
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            订单号：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php echo $order->sn; ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            订单金额：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php echo $order->buy_amount; ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            实际支付金额：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php echo $order->pay_amount; ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            订单状态：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php switch ($order->status) {
+                                case 0:
+                                    echo "待处理";
+                                    break;
+                                case 1:
+                                    echo "处理中";
+                                    break;
+                                case 2:
+                                    echo "处理完毕";
+                                    break;
+                                case 3:
+                                    echo "用户取消";
+                                    break;
+                                case 4:
+                                    echo "客服取消";
+                                    break;
+                            } ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            店铺：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php echo $shop['name']; ?>
+
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            收货人：
+                        </label>
+
+                        <div class="col-md-10">
+                            <input name="contact_name" class="form-control input-width-medium" type="text"
+                                   value="<?php echo $order->contact_name; ?>" id="contact_name"
+                                   onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            联系电话：
+                        </label>
+
+                        <div class="col-md-10">
+                            <input name="receive_mobile" class="form-control input-width-medium" type="text"
+                                   value="<?php echo $order->receive_mobile; ?>" id="receive_mobile"
+                                   onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            订单来源：
+                        </label>
+
+                        <div class="col-md-10">
+                            <?php echo $order->platform; ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            收货地址：
+                        </label>
+
+                        <div class="col-md-10">
+                            <input name="receive_address" class="form-control" type="text"
+                                   value="<?php echo $order->receive_address; ?>" id="receive_address"
+                                   onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            备注：
+                        </label>
+
+                        <div class="col-md-10">
+                            <textarea name="remark"><?php echo $order->remark; ?></textarea>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            订单商品：
+                        </label>
+
+                        <div class="col-md-10 control-label">
+                            <table class="table table-striped table-bordered table-hover table-checkable datatable">
+                                <?php foreach ($ordersku as $k => $group) { ?>
+                                <thead>
+                                <tr>
+                                    <td colspan="8"
+                                        style="text-align: left;">
+                                        分单号：<?php echo $k; ?> <span
+                                            style="margin-left:10px;">配销商：<?php echo $group['partner']['contact_name']; ?></span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th style="border-bottom: 0;">商品名称</th>
+                                    <th style="border-bottom: 0;">购买数量</th>
+                                    <th style="border-bottom: 0;">实际发货数量</th>
+                                    <?php if ($order->status == 0) { ?>
+                                        <th style="border-bottom: 0;">修改原因</th>
+                                    <?php } ?>
+                                    <th style="border-bottom: 0;">单价</th>
+                                    <th style="border-bottom: 0;">订单金额</th>
+                                    <th style="border-bottom: 0;">实际支付金额</th>
+                                    <?php if ($order->status == 0) { ?>
+                                        <th style="border-bottom: 0;">操作</th>
+                                    <?php } ?>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($group['list'] as $sku) { ?>
+                                    <tr>
+                                        <td style="text-align: left;">
+                                            <?php echo $sku['sku_name']; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($order->status == 0) { ?>
+                                                <input type="hidden" value="<?php echo $sku['price']; ?>"
+                                                       id="price_<?php echo $sku['id'] ?>"/>
+                                                <input name="buy_number" id="buy_number_<?php echo $sku['id'] ?>"
+                                                       class="form-control input-width-mini buy_num" type="text"
+                                                       value="<?php echo $sku['buy_number']; ?>"
+                                                       onkeyup="changePrice(<?php echo $sku['id'] ?>)">
+                                            <?php } else { ?>
+                                                <?php echo $sku['buy_number']; ?>
+                                            <?php } ?>
+                                        </td>
+                                        <td><span
+                                                id="real_number_<?php echo $sku['id']; ?>"><?php echo $sku['real_number']; ?></span>
+                                        </td>
+                                        <?php if ($order->status == 0) { ?>
+                                            <td><textarea id="note_<?= $sku['id'] ?>" placeholder="请输入修改原因"></textarea></td>
+                                        <?php } ?>
+                                        <td id="unit_price_<?php echo $sku['id']; ?>"><?php echo $sku['unit_price']; ?></td>
+                                        <td>
+                                            <div class="col-md-5">
+                                                <span id="buy_amount_<?php echo $sku['id']; ?>">
+                                                      <?php echo $sku['buy_amount']; ?>
+                                                    </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="col-md-5">
+                                                <span
+                                                    id="pay_amount_<?php echo $sku['id']; ?>"> <?php echo $sku['pay_amount']; ?></span>
+                                            </div>
+                                        </td>
+                                        <?php if ($order->status == 0) { ?>
+                                            <td>
+                                                <!--  <a href="<?php echo $this->url->get('order/detail', array('id' => $sku['id'], 'cmd' => 'delete', 'orderId' => $orderId)) ?>" class="btn btn-xs bs-tooltip" title="delete">删除</a>-->
+                                                <a class="btn btn-xs bs-tooltip" title="保存"
+                                                   onclick="save(<?php echo $sku['id'] ?>,<?php echo $orderId; ?>)">保存</a>
+                                            </td>
+                                        <?php } ?>
+                                    </tr>
+                                <?php }
+                                } ?>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="form-group" style="text-align: center;">
+                        <input class="btn btn-info" value="提交" type="submit">
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    //function update()
+    //{
+    //	var contact_name = $("#contact_name");
+    //	var receive_mobile = $("#receive_mobile");
+    //	var receive_address = $("#receive_address");
+    //	if(!$.trim(contact_name.val())){
+    //		alert("收货人不能为空!");
+    //		contact_name.focus();
+    //	}else if(!$.trim(receive_mobile.val())){
+    //		alert("电话不能为空!");
+    //		receive_mobile.focus();
+    //	}else if(!$.trim(receive_address.val())){
+    //		alert("收货地址不能为空!");
+    //		receive_address.focus();
+    //	}else{
+    //		$('#orderForm').submit();
+    //	}
+    //}
+    $.fn.onlyNum = function () {
+        $(this).keypress(function (event) {
+            var eventObj = event || e;
+            var keyCode = eventObj.keyCode || eventObj.which;
+            if ((keyCode >= 48 && keyCode <= 57))
+                return true;
+            else
+                return false;
+        }).focus(function () {
+            //禁用输入法
+            this.style.imeMode = 'disabled';
+        }).bind("paste", function () {
+            //获取剪切板的内容
+            var clipboard = window.clipboardData.getData("Text");
+            if (/^\d+$/.test(clipboard))
+                return true;
+            else
+                return false;
+        });
+    };
+    $(".buy_num").onlyNum();
+
+    function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+    var curr_id = null;
+    function save(id, orderId) {
+        curr_id = id;
+        var buy_number = $('#buy_number_' + id).val();
+        var buy_amount = $('#buy_amount_' + id).val();
+        var pay_amount = $('#pay_amount_' + id).val();
+
+        if (buy_number < 0) {
+            alert('购买数量不能为负数！');
+            return;
+        }
+        if (pay_amount < 0) {
+            alert('实际支付金额不能为负数！');
+            return;
+        }
+        var note = $('#note_' + id).val();
+        if (note == '') {
+            alert('请输入修改原因');
+            return false;
+        }
+        var url = '/order/detail?orderId=' + orderId;
+        $.post(url, {
+            id: id,
+            buy_number: buy_number,
+            buy_amount: buy_amount,
+            pay_amount: pay_amount,
+            note: note
+        }, function (data) {
+            if (data != 'success') {
+                alert(data);
+                $('#buy_number_' + curr_id).parent().parent().prev().find('td').css('border-bottom', "1px solid #a94442");
+                $('#buy_number_' + curr_id).parent().parent().find('td').css('border', "1px solid #a94442");
+            } else {
+                $('#buy_number_' + curr_id).parent().parent().prev().find('td').css('border-bottom', "1px solid #3c763d");
+                $('#buy_number_' + curr_id).parent().parent().find('td').css('border', "1px solid #3c763d");
+            }
+
+        });
+    }
+    function changePrice(id) {
+        var num = Number($('#buy_number_' + id).val());
+        if(num > 1000000){
+            num = 1000000;
+            $('#buy_number_' + id).val(num);
+        }
+        var realNum = $('#real_number_' + id).text(num);
+        var price = Number($('#unit_price_' + id).text());
+        var newprice = num * price;
+        newprice = newprice.toFixed(2);
+        $('#buy_amount_' + id).text(newprice);
+        $('#pay_amount_' + id).text(newprice);
+    }
+</script>

@@ -1,0 +1,421 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class ShopController extends BackendController
+{
+	 /*
+		function：创建商铺
+		author: CMZ
+		date:2015/7/28
+	*/
+	public function createAction(){
+		if($this->request->isPost()){
+            $name = $this->request->getPost('name');
+            $mobile = $this->request->getPost('contact_mobile');
+            $address = $this->request->getPost('address');
+            $contact_name = $this->request->getPost('contact_name');
+            $best_time = $this->request->getPost('best_time');
+            $shopArr = [
+                'name'=>$name,
+                'address'=>$address,
+                'contact_name'=>$contact_name,
+                'contact_mobile'=>$mobile,
+                'best_time'=>$best_time,
+                'creator_id'=>$this->userId,
+            ];
+
+            $shop = $this->createModel('shop')->createShopByMobile($mobile,$shopArr,0);
+            if(!empty($shop['id'])){
+                $this->response->redirect("shop/check");
+            }else{
+                $this->view->$shop['error'] = $shop['error'];
+            }
+        }		
+	}
+	 /*
+	  * TODO 大改
+		function：显示商铺(status = 1)
+		author: CMZ
+		date:2015/7/28
+	*/
+    public function listAction()
+    {
+        $this->view->menu=array('shop/create'=>'创建店铺');
+		if($this->request->getQuery()){
+			$where = '1 = 1 and status = 1 and is_del = 0 and type = 0';
+			$search = $this->request->getQuery('search');
+			$select = $this->request->getQuery('select');
+
+				if($select == 'id' && is_numeric($search)){
+						$where .= ' and id = '.$search;
+					}elseif($select == 'name'){
+						$where .= " and name like '%".$search."%'";
+					}elseif($select == 'address'){
+						$where .= " and address like '%".$search."%'";
+					}elseif($select == 'contact_name'){
+						$where .= " and contact_name like '%".$search."%'";
+					}
+					elseif($select == 'contact_mobile'){
+						$where .= " and contact_mobile like '%".$search."%'";
+					}elseif($select == 'status' && is_numeric($search)){
+						$where .= " and status =".$search;
+					}
+			$shop = $this->view->shop = $this->getModel('shop')->find(array($where,"order"=>"id desc"))->toArray();	
+			$total = $this->getModel('Shop')->count($where);
+			$page = intval($this->request->getQuery('page'));
+			$limit = 20;
+			$url = 'shop/list?select='.$select.'&search='.$search;
+			$pageary = $this->pagination($total, $limit, $page, $url);
+			$pageshop = $this->view->shop = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$pageary['offset']))->toArray();
+				
+				if($pageshop){
+					foreach($pageshop as $k=>$v){
+						$user = $this->mc->getUser($v["user_id"]);
+						$dict = $this->mc->getDict($v["shop_type"]);
+						$pageshop[$k]['real_name'] = $user['real_name'];
+						$pageshop[$k]['shop_type'] = $dict['name'];
+					}
+	    		}
+			$this->view->setVar("page", $pageary['html']);
+			$this->view->setVar("select",$select);
+			$this->view->setVar("search",$search);
+			$this->view->pageshop = $pageshop;
+		}else{
+			$where = "is_del = 0 and status = 1 and type = 0";
+			$shop = $this->getModel('Shop')->find(array($where,"order"=>"id desc"))->toArray();				
+			$total = $this->getModel('Shop')->count($where);
+			$page = intval($this->request->getQuery('page'));
+			$limit = 20;
+			$url = 'shop/list';
+			$pageary = $this->pagination($total, $limit, $page, $url);
+			$pageshop = $this->view->shop = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$pageary['offset']))->toArray();
+				
+				if($pageshop){
+					foreach($pageshop as $k=>$v){
+						$user = $this->getModel('user')->findFirst($v['user_id']);						
+						$pageshop[$k]['mobile'] = $user->mobile;
+					}
+				}
+			$this->view->setVar("page", $pageary['html']);
+			$this->view->pageshop = $pageshop;
+			}		
+    }
+	/*
+		function：显示商铺(status = 0 || status = 2)
+		author: CMZ
+		date:2015/7/28
+	*/
+	 public function checkAction()
+    {
+    	$this->view->menu=array('shop/create'=>'创建店铺');
+		if($this->request->getQuery()){
+			$where = '1 = 1 and is_del = 0 and (status = 0 or status = 2) and type = 0';
+			$search = $this->request->getQuery('search');
+			$select = $this->request->getQuery('select');
+
+				if($select == 'id' && is_numeric($search)){
+		                $where = 'id = '.$search;
+		            }elseif($select == 'name'){
+		                $where = "name like '%".$search."%'";
+		            }elseif($select == 'address'){
+		                $where = "address like '%".$search."%'";
+		            }elseif($select == 'contact_name'){
+		                $where = "contact_name like '%".$search."%'";
+		            }
+					elseif($select == 'contact_mobile'){
+		                $where = "contact_mobile like '%".$search."%'";
+		            }elseif($select == 'status' && is_numeric($search)){
+		                $where = "status =".$search;
+		            }
+		   	
+			$shop = $this->getModel('shop')->find(array($where,"order"=>"id desc"));
+			$total = $this->getModel('Shop')->count($where);
+			$page = intval($this->request->getQuery('page'));
+			$limit = 20;
+			$url = 'shop/check?select='.$select.'&search='.$search;
+			$pageary = $this->pagination($total, $limit, $page, $url);
+			$pageshop = $this->view->shop = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$pageary['offset']))->toArray();
+			//print_r($pageshop);die;	
+				if($pageshop){
+					foreach($pageshop as $k=>$v){
+						$user = $this->mc->getUser($v["user_id"]);
+						$dict = $this->mc->getDict($v["shop_type"]);
+						$pageshop[$k]['real_name'] = $user['real_name'];
+						$pageshop[$k]['shop_type'] = $dict['name'];
+						
+	    			}
+	    		}
+
+			$this->view->setVar("page", $pageary['html']);
+			$this->view->setVar("select",$select);
+			$this->view->setVar("search",$search);
+			$this->view->pageshop = $pageshop;
+		}else{
+			$where = "is_del = 0 and status = 0 or status = 2 and type = 0";
+			$shop = $this->getModel('shop')->find(array($where,"order"=>"id desc"))->toArray();			
+			$total = $this->getModel('Shop')->count($where);
+			$page = intval($this->request->getQuery('page'));
+			$limit = 20;
+			$url = 'shop/check';
+			$pageary = $this->pagination($total, $limit, $page, $url);
+			$pageshop = $this->view->shop = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$pageary['offset']))->toArray();
+				if($pageshop){
+					foreach($pageshop as $k=>$v){
+						$user = $this->getModel('user')->findFirst($v['user_id']);
+						$pageshop[$k]['mobile'] = $user->mobile;
+					}
+				}
+			$this->view->setVar("page", $pageary['html']);
+			$this->view->pageshop = $pageshop;
+		}
+					
+    }	
+	/*
+		function：删除店铺
+		author: CMZ
+		date:2015/7/28
+	*/
+	public function deleteAction(){	
+		if($this->request->isAjax()){
+			$id = $this->request->getPost('id',"int");
+			$shop = $this->getModel('shop')->findFirst($id);				
+			$shop->is_del = 1;
+			$user = $this->getModel('user')->findFirst('mobile ='.$shop->contact_mobile);			
+	    	if($shop->save() ){
+	    		$user->is_del = 1;
+	    		$user->save();
+	    		$shopsku = $this->getModel('ShopSku')->find('shop_id = '.$id);
+					foreach ($shopsku as $key => $value) {
+						$value->is_del =1;
+						$value->save();		
+					}
+				if($this->request->getPost('status') == 1){					
+					echo 1;exit();
+				}else{
+					echo 2;exit();
+				}	    		
+	    	}else{
+				echo 3;exit();
+			}
+		}
+	}
+	/*
+		function：修改店铺信息
+		author: CMZ
+		date:2015/7/28
+	*/
+	public function updateAction(){
+		$shopid = intval($this->request->getQuery('shopid'));
+		$status = intval($this->request->getQuery('status'));			
+		$where = 'id = '.$shopid.' and status='.$status;
+        $this->view->shop = $this->getModel('shop')->find(array($where,"limit"=>1));
+
+		if($this->request->isPost()) {
+			$shopId = $this->request->getPost('id');
+			$status = $this->request->getPost('status');           
+            $shopname = $this->request->getPost('name');
+            $sname = $this->getModel('shop')->findFirst("name ='$shopname'");
+            if(!empty($sname->name)){
+            	$messages = '此店铺已被占用，请联系客服人员：400-600-2584';
+            	$this->view->messages = $messages;
+            }
+            $shop = $this->getModel('shop')->findFirst($shopId);
+            $shop->address = $this->request->getPost('address');
+            $shop->name = $this->request->getPost('name');
+            $shop->best_time = $this->request->getPost('best_time');
+            $shop->contact_name = $this->request->getPost('contact_name');
+            $shop->contact_mobile = $this->request->getPost('contact_mobile');
+            if($shop->save()) {
+				if($shop->status == 1){
+					return $this->response->redirect("shop/list");
+				}else{ 				
+					return $this->response->redirect("shop/check");
+				}
+			}	
+        }
+       	
+	}
+	/*
+		function：店铺匹配配销商
+		author: CMZ
+		date:2015/7/30
+	*/
+	public function shopskuAction()
+	{
+		$shop = intval($this->request->getQuery('shopid'));
+		$conditions = 'id ='.$shop;
+		$shopId = $this->getModel('shop')->find($conditions)->toArray();
+		$status = intval($this->request->getQuery('status'));
+		//获取用户，判断账期
+			$userId = $this->userId;
+			$user = $this->getModel('user')->findFirst($userId);
+			$user_pay = $user->pay_day_id;
+			if ($user_pay == 0) {
+				$user_pay = 0;
+			}else{
+				$dict = $this->getModel('dict')->findFirst($user_pay)->toArray();
+				$user_pay = $dict['id'];
+			}
+
+			//分类
+		$where = 'parent_id = 0 and is_del = 0';
+		$category = $this->getModel('category')->find($where)->toArray();
+		//分类对应配销商
+		foreach($category as $key=>$val)
+		{				
+			$category[$key]['partner'] = $this->getModel('partner')->find('find_in_set('.$val['id'].',category) and is_del = 0')->toArray();
+			if ($category[$key]['partner'] == '') {
+				$messages = "配销商为空，无法分配配销商";
+				$this->view->messages = $messages;
+			}
+			//已关联的数据
+			$shopSku = $this->getModel('ShopSku')->findFirst('shop_id='.$shop.' and category_id='.$val['id']);
+			if($shopSku){
+				$category[$key]['partner_id'] = $shopSku->toArray();
+				$category[$key]['type'] = 1;
+			}							
+		}
+		$this->view->shopId = $shopId;
+		$this->view->user_pay = $user_pay;
+		$this->view->status = $status;
+		$this->view->category = $category;
+
+		if($this->request->isPost()) {
+			$shopId = intval($this->request->getQuery('shopid'));
+			$status = intval($this->request->getQuery('status'));
+			$category_id = $this->request->getPost('category_id');
+			$partner_id = $this->request->getPost('partner_id',"int");
+			if($partner_id == ''){
+				$messages = "配销商不能为空，请选择配销商";
+				$this->view->messages = $messages;
+				return;
+			}
+			foreach ($partner_id as $k => $v) {
+				if($v == ''){
+					$messages = "配销商不能为空，请选择配销商";
+					$this->view->messages = $messages;
+					return;
+				}
+			}			
+			$shopsku = $this->getModel('ShopSku')->findFirst('shop_id='.$shopId);
+
+				if($shopsku){
+					foreach($category_id as $k=>$v){		
+						$shop_sku = $this->createModel('ShopSku')->findFirst(array('shop_id='.$shopId .' and category_id='.$v));							
+						$shop_sku->partner_id = $partner_id[$k];
+							if($shop_sku->save()){
+
+								if($status == 0 || $status == 2){
+
+									$this->response->redirect("shop/check");
+								}else{
+									$this->response->redirect("shop/list");
+								}								
+							}else{
+								echo $shop->getError();
+							}
+					}
+				}else{
+					foreach($category_id as $k=>$v)
+					{	
+						$shop_sku = $this->createModel('ShopSku');	
+						$shop_sku->category_id = $category_id[$k];
+						$shop_sku->partner_id = $partner_id[$k];
+						$shop_sku->shop_id = $shopId;
+						$shop_sku->type = 0;
+							if($shop_sku->save()){
+								if($status == 0 || $status == 2){
+									$this->response->redirect("shop/check");
+								}else{
+									$this->response->redirect("shop/list");
+								}								
+							}else{
+								echo $shop->getError();
+							}
+				}
+			}	
+				
+		}
+		//分类对应配销商	
+		$this->view->shopId = $shopId;
+		$this->view->user_pay = $user_pay;
+		$this->view->status = $status;
+		$this->view->category = $category;
+			
+	}
+
+	//审核通过
+	public function statusAction(){
+        $userId = $this->userId;
+		if($this->request->isAjax()){
+			$id = $this->request->getPost('id');
+
+			$shopsku = $this->getModel('ShopSku')->findFirst('shop_id ='.$id);
+			
+			$shop = $this->getModel('shop')->findFirst($id);		
+			$shop->status = 1;
+			if (!empty($shopsku->shop_id)){
+				 if($shop->save()) {
+				 	$user = $this->getModel('user')->findFirst($shop->user_id);
+				 	$user->city = CITY;
+                	$user->type = 0;
+                	$user->save();
+				 	echo 1;exit();
+				 }else{
+				 	echo 2;exit();
+				 }
+			}else{
+				echo 3;exit();
+			}          
+		}
+
+	}
+	//审核不通过
+	public function nostatusAction(){
+		if($this->request->isAjax()){
+			$id = $this->request->getPost('id',"int");
+			$shop = $this->getModel('shop')->findFirst($id);		
+			$shop->status = 2;
+
+			if ($shop->save()) {
+				echo  1;exit();
+			}else{
+				echo  2;exit();
+			}
+		}
+	}
+	//手机号码唯一
+	public function ajaxmobileAction()
+    {
+        $mobile = $this->request->getPost('contact_mobile');
+        if($mobile == ''){
+        	echo 4;exit();
+        }
+        $count = strlen($mobile);   
+        $user = $this->getModel('user')->findFirst("mobile ='$mobile'");
+        
+        if(isset($user->mobile)){
+            echo 2;exit();
+        }else if($count != '11'){
+            echo 3;exit();
+        }else{
+            echo 1;exit();
+        }
+    }
+    //店铺名称唯一
+    public function ajaxshopnameAction()
+    {
+        $name = $this->request->getPost('name');
+        if($name == ''){
+        	echo 3;exit();
+        }
+        $shop = $this->getModel('shop')->findFirst("name ='$name'");
+        
+        if(isset($shop->name)){
+            echo 2;exit();
+        }else{
+            echo 1;exit();
+        }
+    }
+
+}

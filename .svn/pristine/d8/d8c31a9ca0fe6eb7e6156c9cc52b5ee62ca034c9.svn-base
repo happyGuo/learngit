@@ -1,0 +1,25 @@
+<h1>注册!</h1>
+
+<form method="post">
+<?php
+foreach ($form as $element) {
+
+    //Get any generated messages for the current element
+    $messages = $form->getMessagesFor($element->getName());
+
+    if (count($messages)) {
+        //Print each element
+        echo '<div class="messages">';
+        foreach ($messages as $message) {
+            echo $message;
+        }
+        echo '</div>';
+    }
+
+    echo '<p>';
+    echo '<label for="', $element->getName(), '">', $element->getLabel(), '</label>';
+    echo $element;
+    echo '</p>';
+}
+?>
+</form>

@@ -1,0 +1,14 @@
+<?php
+
+return new \Phalcon\Config(array(
+
+    'application' => array(
+        'controllersDir' => __DIR__ . '/../controllers/',
+        'modelsDir' => __DIR__ . '/../../models/',
+        'viewsDir' => __DIR__ . '/../views/',
+    ),
+    'params' => array('app_license' => 'zyfwd'),
+    'partner' => '2088911302996194',//合作身份者id，以2088开头的16位纯数字
+    'notify_url' => '',//服务器异步通知页面路径
+    'return_url' => '',//页面跳转同步通知页面路径
+));

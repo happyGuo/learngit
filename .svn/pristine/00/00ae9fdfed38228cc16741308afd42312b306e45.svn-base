@@ -1,0 +1,26 @@
+<?php
+
+namespace Modules\App;
+
+class Module
+{
+	public function registerAutoloaders()
+	{
+		$loader = new \Phalcon\Loader();
+
+		$loader->registerNamespaces(array(
+			'Modules\App\Controllers' => __DIR__ . '/controllers/',
+            'Modules\App\Libs' => __DIR__ .'/libs/',
+		))->register();
+	}
+
+	public function registerServices($di)
+	{
+		/**
+		 * Read configuration
+		 */
+		$config = include __DIR__ . "/config/config.php";
+        require  __DIR__ ."/config/services.php";
+	}
+
+}

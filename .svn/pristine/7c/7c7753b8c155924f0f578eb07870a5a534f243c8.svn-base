@@ -1,0 +1,229 @@
+<?php
+namespace Plugins;
+
+class Img extends \Phalcon\Mvc\User\Plugin
+{
+    public $host;
+    public $typeList = array('image/jpeg', 'image/pjpeg', 'image/png', 'image/x-png');
+    public $picType = array(1 => 'gif', 2 => 'jpg', 3 => 'png');
+    public $error;
+    public $type;
+
+    public function __construct($host)
+    {
+        $this->host = $host;
+    }
+
+    public function test(){
+        return 2;
+    }
+
+    public function getUpload($key, $type = '')
+    {
+        $this->error = $this->type = '';
+        if ($this->request->hasFiles() == true) {
+            foreach ($this->request->getUploadedFiles() as $file) {
+                if ($key == $file->getKey()) {
+                    if ($file->getName()) {
+                        list($width, $height, $imageType, $attr) = getimagesize($file->getTempName());
+                        if (!array_key_exists($imageType, $this->picType)) {
+                            $this->error = '上传类型不符';
+                        } else {
+                            if ($type && $type != $imageType) {
+                                $this->error = '图片必须是' . $this->picType[$type];
+                            } else {
+                                $this->type = $this->picType[$imageType];
+                                return file_get_contents($file->getTempName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return '';
+    }
+
+    /**
+     * 上传图片返回图片地址
+     * @param $key
+     * @return array
+     */
+    public function upload($key)
+    {
+        $content = $this->getUpload($key);
+
+        if ($content) {
+            $name = $this->createFileName($content);
+            $this->save('image', $name, $content);
+        } else {
+            $name = '';
+        }
+        return array('error' => $this->error, 'name' => $name);
+    }
+
+    /**
+     * 根据内容上传图片返回图片地址
+     * @param $content
+     * @return array
+     */
+    public function uploadContent($content)
+    {
+        $this->type = 'jpg';
+
+        if ($content) {
+            $name = $this->createFileName($content);
+
+            $this->save('image', $name, $content);
+        } else {
+            $name = '';
+        }
+        return array('error' => $this->error, 'name' => $name);
+    }
+
+
+    /**
+     * 根据ID上传某类型图片
+     * $type = 'sku,user,partner_sku'
+     * $id为商品主键
+     * $ext 为文件后缀
+     * $content 为文件内容
+     */
+    public function uploadById($type, $id, $key)
+    {
+        $this->deleteById($type,$id);
+        $content = $this->getUpload($key, 2);
+
+        if ($content) {
+            return $this->uploadContentById($type, $id, $content);
+        } else {
+            return array('error' => $this->error, 'name' => '');
+        }
+
+    }
+
+    /**
+     * 根据内容上传图片
+     * @param $type
+     * @param $id
+     * @param $content
+     * @return array
+     */
+    public function uploadContentById($type, $id, $content)
+    {
+        $this->type = 'jpg';
+        $this->deleteById($type,$id);
+        $filename = $this->createName($type, $id);
+        $this->delete($filename, $type);
+        $this->save($type, $filename, $content);
+        return array('error' => $this->error, 'name' => $filename);
+
+    }
+
+
+    public function save($type, $name, $content)
+    {
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+        if($type=='image'){
+            $fileContent = $gridfs->findOne(['filename' => $name]);
+            if (isset($fileContent->file)){
+                return;
+            }
+        }
+
+        return $gridfs->storeBytes($content, array('filename' => $name));
+    }
+
+
+    public function deleteById($type,$id){
+        $filename = $this->createName($type, $id);
+        $this->delete($filename,$type);
+    }
+
+    public function delete($name, $type = 'image')
+    {
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+        $gridfs->remove(array('filename' => $name));
+    }
+
+    public function getUrl($url)
+    {
+        return 'http://' . $this->host . '/image/' . $url;
+    }
+
+    /**
+     *  通过id获取图片地址
+     */
+    public function getUrlById($type, $id)
+    {
+        $this->type = 'jpg';
+        return 'http://' . $this->host . '/' . $type . '/' . $this->createName($type, $id);
+    }
+
+    public function createName($type, $id, $city = CITY)
+    {
+        if ($type != 'user') {
+            $sid = $city . '_' . $id;
+        } else {
+            $sid = $id;
+        }
+
+        return sha1(sha1($sid) . md5($id)) . '.' . $this->type;
+    }
+
+    public function createFileName($content)
+    {
+        return md5($content) . '.' . $this->type;
+    }
+
+    /* 拷贝图片到指定的城市 */
+    public function copyImageToCity($skuId, $city, $type = 'sku')
+    {
+
+        //初始化MongoDB
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+
+        //老的文件内容
+        $this->type = 'jpg';
+        $tplFilename = $this->createName($type, $skuId, 'tpl');
+        $fileContent = $gridfs->findOne(['filename' => $tplFilename]);
+
+        //生成新的文件IDf
+        $newFilename = $this->createName($type, $skuId, $city);
+
+        //保存内容
+        if (isset($fileContent->file)) $gridfs->storeBytes($fileContent->getBytes(), array('filename' => $newFilename));
+    }
+
+    /* 拷贝图片到指定的配销商 */
+    public function copyImageToPartner($copyImageSkuIds, $city = CITY)
+    {
+
+        //初始化MongoDB
+        ini_set('mongo.long_as_object', 1);
+
+        // 图片类型
+        $this->type = 'jpg';
+
+        //循环ID数
+        foreach ($copyImageSkuIds as $key => $val) {
+
+            //老的文件内容
+            $tplFilename = $this->createName('sku', $val['from'], $city);
+            $fileContent = $this->image_mongo->sku->getGridFS()->findOne(['filename' => $tplFilename]);
+
+            //生成新的文件ID
+            $newFilename = $this->createName('partner_sku', $val['to'], $city);
+            $this->delete($newFilename, 'partner_sku');
+
+            //保存内容
+            if (isset($fileContent->file)) $this->image_mongo->partner_sku->getGridFS()->storeBytes($fileContent->getBytes(), array('filename' => $newFilename));
+        }
+
+        //释放资源
+        $this->image_mongo->close(true);
+    }
+
+}

@@ -1,0 +1,168 @@
+<div class="row">
+	<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-5">
+                    <label class="col-md-4 control-label">日期：</label>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" name="start_time" class="form-control datepicker" placeholder="起始日期" value="<?php echo isset($start_time)?$start_time:'';?>">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="end_time" class="form-control datepicker" placeholder="结束日期" value="<?php echo isset($end_time)?$end_time:'';?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-2">
+                    <select class="form-control" name="type">
+				<option value=''>全部类型</option>
+                                <option <?php if($type==1){ echo 'selected'; }?> value="1">充值</option>
+				<option <?php if($type==2){ echo 'selected'; }?> value="2">冻结资金</option>
+				<option <?php if($type==3){ echo 'selected'; }?> value="3">余额支付确认收货</option>
+				<option <?php if($type==4){ echo 'selected'; }?> value="4">提现</option>
+                                <option <?php if($type==5){ echo 'selected'; }?> value="5">拒收解冻资金</option>
+                                <option <?php if($type==6){ echo 'selected'; }?> value="6">订单取消解冻资金</option>
+                                <option <?php if($type==7){ echo 'selected'; }?> value="7">争议退款</option>
+                                <option <?php if($type==8){ echo 'selected'; }?> value="8">货到付款已到账</option>
+                                <option <?php if($type==9){ echo 'selected'; }?> value="9">系统自动核销</option>
+                                <option <?php if($type==10){ echo 'selected'; }?> value="10">人工审核核销</option>
+                    </select>
+                
+                </div>
+		<!--<div class="col-md-10">
+			<input type="checkbox" name='type[]' id="inlineCheckbox1" value="0"> 充值
+                        <input type="checkbox" name='type[]' value="1"> 冻结资金
+                        <input type="checkbox" name='type[]' value="2"> 余额支付确认收货
+                        <input type="checkbox" name='type[]' value="3"> 提现
+                        <input type="checkbox" name='type[]' value="4"> 拒收解冻资金
+                        <input type="checkbox" name='type[]' value="5"> 订单取消解冻资金
+                        <input type="checkbox" name='type[]' value="6"> 争议退款
+                        <input type="checkbox" name='type[]' value="7"> 货到付款已到账
+                        <input type="checkbox" name='type[]' value="8"> 系统自动核销
+                        <input type="checkbox" name='type[]' value="9"> 人工审核核销
+		</div>-->
+                
+		<div class="col-md-1">
+			<input class="btn btn-info btn-block" value="搜索" type="submit"> 
+		</div>
+                <div class="col-md-1">
+                        <a href="<?php echo $this->url->get('balance/specification', array('ntype' => $ntype,'print'=>1)); ?>"><input class="btn btn-info btn-block" value="导出" type="button"> </a>
+                </div>
+	</form>
+</div>
+<div class='control-group col-md-12'>
+    <a class="btn btn-xs bs-tooltip" <?php if($ntype==1){ echo "style='color:red'"; }?> href="<?php echo $this->url->get('balance/specification', array('ntype' => 1)); ?>">本日</a>
+    <a class="btn btn-xs bs-tooltip" <?php if($ntype==2){ echo "style='color:red'"; }?> href="<?php echo $this->url->get('balance/specification', array('ntype' => 2)); ?>">本周</a>
+    <a class="btn btn-xs bs-tooltip" <?php if($ntype==3){ echo "style='color:red'"; }?> href="<?php echo $this->url->get('balance/specification', array('ntype' => 3)); ?>">本月</a>
+    <a class="btn btn-xs bs-tooltip" <?php if($ntype==4){ echo "style='color:red'"; }?> href="<?php echo $this->url->get('balance/specification', array('ntype' => 4)); ?>">本年</a>
+</div>
+
+</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 资金流水明细</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">流水号</th>
+                                                <th class="align-center">交易流水号</th>
+						<th class="align-center">用户手机号</th>
+						<th class="align-center">店铺名</th>
+						<th class="align-center">订单号</th>
+						<th class="align-center">批次</th>
+                                                <th class="align-center">类型</th>
+                                                <th class="align-center">状态</th>
+                                                <th class="align-center">金额</th>
+                                                <th class="align-center">时间</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach($list as $k=>$v){ ?>
+					<tr>
+                                                <td><?php echo $k+1;?></td>
+                                                <td><?php echo $v['sn'];?></td>
+                                                <td><?php echo $v['pay_sn'];?></td>
+                                                <td><?php $mobile=$this->mc->getUser($v['user_id'])['mobile'];echo !empty($mobile)?$mobile:'未匹配';?></td>
+                                                <td><?php echo $this->mc->getShop($v['shop_id'])['name'];?></td>
+                                                <td><?php echo $v['order_sn'];?></td>
+                                                <td><?php echo $v['subcontract'];?></td>
+                                                <td>
+                                                    <?php 
+                                                    if($v['type']==0){
+                                                        echo '充值';
+                                                    }elseif($v['type']==1){
+                                                        echo '冻结资金';
+                                                    }elseif($v['type']==2){
+                                                        echo '实际扣款'; 
+                                                    }elseif($v['type']==3){
+                                                         echo '提现';
+                                                    }elseif($v['type']==4){
+                                                         echo '拒收解冻资金';
+                                                    }elseif($v['type']==5){
+                                                         echo '订单取消解冻资金';
+                                                    }elseif($v['type']==6){
+                                                         echo '争议退款';
+                                                    }elseif($v['type']==7){
+                                                         echo '货到付款已到账';
+                                                    }elseif($v['type']==8){
+                                                         echo '系统自动核销';
+                                                    }elseif($v['type']==9){
+                                                         echo '人工审核核销';
+                                                    }
+                                                    ?>
+                                                </td>
+                                                <td>
+                                                <?php 
+                                                if($v['status']==0){
+                                                    echo '待审核';
+                                                }else{
+                                                    echo '已审核';
+                                                };
+                                                ?>
+                                                </td>
+                                                <td><?php echo $v['amount'];?></td>
+                                                <td><?php echo isset($v['ctime'])?date('Y-m-d H:i:s',$v['ctime']):'' ;?></td>
+                                                
+					</tr>
+				<?php } ?>
+                                        <tr>
+                                            <td>合计</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td><?php echo $sum; ?></td>
+                                            <td></td>
+                                            
+                                        </tr>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+                                            <?php echo $page;  ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+</script>

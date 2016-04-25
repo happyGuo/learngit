@@ -1,0 +1,242 @@
+<?php
+namespace Plugins;
+
+class DbListener extends \Phalcon\Mvc\User\Plugin
+{
+    protected $_profiler;
+    protected $_logger;
+    protected static $sql = array();
+    protected $num = 0;
+
+    public function __construct($di)
+    {
+        $this->_dependencyInjector = $di;
+        //$this->_logger = new \Phalcon\Logger\Adapter\File("../apps/logs/db.log");
+        $this->_profiler = new \Phalcon\Db\Profiler();
+
+    }
+
+    public function afterConnect()
+    {
+
+    }
+
+    public function beforeQuery($event, $connection)
+    {
+        $this->_profiler->startProfile($connection->getSQLStatement());
+    }
+
+
+    public function afterQuery($event, $connection)
+    {
+        $this->_profiler->stopProfile();
+    }
+
+    public function afterPartnerSkuUpdate($event, $connection,$data)
+    {
+        print_r($data);
+        print_r($connection->toArray());
+    }
+
+    public function getSqlProfile($useTime)
+    {
+        $tp = $this->_profiler->getProfiles();
+        $exist = array();
+        if (!empty($tp)) {
+            foreach ($tp as $profile) {
+
+                $sum = $profile->getTotalElapsedSeconds();
+                if ($sum > 0) {
+                    $tmp = array();
+                    $tmp['sql'] = $profile->getSQLStatement();
+                    //                    $tmp['start']=$profile->getInitialTime();
+                    //                    $tmp['final']=$profile->getFinalTime();
+                    $tmp['sum'] = round($sum, 5);
+
+                    $md5 = json_encode($tmp);
+                    if (!in_array($md5, $exist)) {
+                        $exist[] = $md5;
+                        self::$sql[] = $tmp;
+                    }
+                    if ($sum > 1.5) {
+                        $message = $this->dispatcher->getControllerName() . '/' . $this->dispatcher->getActionName() .'页面中有一条sql执行' . $sum;
+                        $this->log->sqlWarn($message, $tmp['sql']);
+                    }
+                }
+
+            }
+        }
+
+        $sqlNum = count(self::$sql);
+        if ($sqlNum > 50) {
+            $message = $this->dispatcher->getControllerName() . '/' . $this->dispatcher->getActionName() . '页面sql数' . count(self::$sql);
+            $this->log->sqlWarn($message, print_r(self::$sql, true));
+        }
+        if (MODULE == 'app') {
+            return;
+        }
+
+        if (MODULE == 'complex') {
+            return;
+        }
+
+        if (!DEBUG) {
+            return;
+        }
+
+        if(!isset($_SERVER['HTTP_USER_AGENT'])){
+            return;
+        }
+
+        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            return;
+        }
+        if ($sqlNum > 60) {
+            $rank = 'poor';
+        } elseif ($sqlNum > 20) {
+            $rank = 'average';
+        } else {
+            $rank = 'good';
+        }
+
+        $out = <<<END
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title></title>
+    <style>
+        #rightAside { position:fixed;top:200px;right:0px;z-index:999;text-align:center;font-size:12px;background-color:#fefefe;height:auto;overflow-y:auto;width:30px;}
+        .fadeActive { min-width:125px;right:10px;}
+        #rightAside div{float:right; border:2px solid #ffd800;overflow:auto;}
+        #rightAside .active { display:block!important;}
+        #rightAside .noborder { border-bottom:none!important;}
+        #rightAside .side_bg{background:#ccc;}
+        .wrap_bg{background-color:#fefefe;width:100%!important;}
+        #rightAside #asideCenter,#rightAside #asideLeft { display:none;width:80%;height:700px;}
+        #rightAside #asideLeft{width:60%;}
+        #rightAside.fadeActive #asideRight{width:120px;overflow:hidden}
+        #asideCenter dl,#asideLeft dl { margin-top:20px;}
+        #rightAside #asideCenter dt,#asideLeft dd { display:none;}
+        #rightAside #asideCenter dt { cursor:pointer;}
+        #rightAside #asideCenter dt span{color:red;background:yellow}
+        #rightAside #asideLeft dd span{color:red;background:yellow }
+        #rightAside #asideCenter dt,#asideLeft dd{ display:block;height:30px;line-height:30px;border-bottom:1px solid #ccc;padding:5px;overflow:hidden;}
+        #rightAside #asideCenter dd {display:none;}
+        #rightAside .asideTitle { font-weight:bold;background:#ffd800;padding:5px;cursor:pointer;}
+        #asideRight dl { display:none;}
+        .fadeActive #asideRight dl { display:block;}
+        #asideRight dt { display:none;height:70px;line-height:70px;font-size:20px;cursor:pointer;width:70px auto;color:#fff;}
+        #asideRight .good { background-color:green;}
+        #asideRight .average { background-color:yellow;color:red;}
+        #asideRight .poor { background-color:red;}
+        #asideRight dd { height:30px;line-height:30px;border-bottom:1px dashed #ccc;padding:5px;}
+        #rightAside dd span {color:red;font-weight:bold; }
+    </style>
+</head>
+<body>
+ <div id="rightAside" class="fadeActive" >
+    <div id="asideRight" title="一级菜单，点击页面性能评价可展开数据信息，再次点击隐藏">
+            <p class="asideTitle">性能报表-></p>
+END;
+
+        $config = array('poor' => '差', 'average' => '良', 'good' => '优');
+        $out .= '<dl><dt class="' . $rank . '">';
+        $out .= $config[$rank] . '</dt>';
+        $out .= '<dd>SQL数量：( <span id="sqlCount">' . count(self::$sql) . '</span> )</dd>';
+        $out .= '<dd>总耗时:<span id="userTime">' . round($useTime, 3) . 's</span></dd>';
+        $out .= '<dd>耗内存:<span id="userTime">' . round(memory_get_usage() / 1024 / 1024, 3) . 'M</span></dd>';
+        $out .= <<<END
+</dl></div>
+        <div id="asideCenter" title="二级菜单，点击可查看详细信息">
+            <!--dl不循环，dl里面的dt,dd参与循环--><dl>
+END;
+        if (!empty(self::$sql)) {
+            $out .= '<dt><span>本次执行</span></dt>';
+            foreach (self::$sql as $k => $v) {
+                $tmp = $v['sql'] . '耗时:' . $v['sum'];
+                $out .= '<dt title="' . $tmp . '">' . $tmp . '</dt>';
+            }
+//            foreach(self::$ex as $k=>$v){
+//                $out.='<dt title="'.$v.'">'.$v.'</dt>';
+//            }
+        }
+
+
+//        if(!empty($before)){
+//            $out.='<dt><span>上次提交操作</span></dt>';
+//            foreach($before as $k=>$v){
+//                $out.='<dt title="'.$v.'">'.$v.'</dt>';
+//            }
+//        }
+//
+//        if(!empty($beforeQuery)){
+//            $out.='<dt><span>上次查询操作</span></dt>';
+//            foreach($beforeQuery as $k=>$v){
+//                $out.='<dt title="'.$v.'">'.$v.'</dt>';
+//            }
+//        }
+
+        $out .= <<<END
+
+
+</dl></div>
+        <div id="asideLeft"></div>
+    </div>
+    <script>
+     if (typeof jQuery == "undefined") {
+END;
+        //    $out.=  'document.write(\'<script src="http://'.STATIC_1.'/assets/js/module/vendor/jquery-1.7.2.min.js"></\' + \'script>\');';
+        $out .= <<<END
+          }
+    </script>
+    <script>
+        jQuery(".asideTitle").bind("click", function () {
+        if(jQuery("#rightAside").hasClass("fadeActive"))
+            jQuery(this).html("性能报表<-");
+        else
+            jQuery(this).html("性能报表->");
+            jQuery("#rightAside").removeClass("wrap_bg");
+            jQuery("#asideCenter").hide();
+            jQuery("#asideLeft").hide();
+            jQuery("#rightAside").toggleClass("fadeActive");
+        })
+        jQuery("#asideRight dd:last").addClass("noborder");
+        jQuery("#asideRight dt").each(function (i) {
+            jQuery("#asideRight dt").eq(0).addClass("active");//默认优
+            jQuery(this).click(function () {
+                jQuery("#rightAside").toggleClass("wrap_bg");
+                jQuery("#asideCenter").toggle();
+                jQuery("#asideLeft").hide();
+                jQuery("#asideCenter dl").hide();
+                var nowWrap = jQuery("#asideCenter dl").eq(i);
+                nowWrap.show();
+                nowWrap.find("dt").each(function (j) {
+                    var nowObj = nowWrap.find("dt").eq(j);
+                    nowObj.bind("click", function () {
+                        nowWrap.find("dt").removeClass("side_bg");
+                        nowObj.addClass("side_bg");
+                        jQuery("#asideLeft").html("");
+                        var wrapInfo = nowWrap.find("dt").eq(j).nextUntil("dt");
+                        var wrapStr = "";
+                        for (var k = 0; k < wrapInfo.length; k++) {
+                            wrapStr += wrapInfo[k].outerHTML;
+                        }
+                        jQuery("#asideLeft").html("<dl>" + wrapStr + "</dl>");
+                        jQuery("#asideLeft").show();
+                    })
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
+END;
+
+        echo $out;
+
+    }
+
+
+}

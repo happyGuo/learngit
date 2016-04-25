@@ -1,0 +1,67 @@
+<?php
+namespace Models;
+
+class Region extends CommonModel
+{
+
+    public function validation()
+    {
+    	$this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'local_name',
+            'message' => '城市名称不能为空'
+        )));
+
+    	if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    /**
+     * getCityListByStatus 通过开通状态返回城市列表
+     * @param  [type]  $status 0为未开通，1为后台开通，2为前台开通
+     * @param  string  $order  数据库排序字段，默认sort降序
+     * @param  integer $is_del 0返回未删除数据，1返回已删除数据
+     * @return  array          city字段为查询结果，where字段为查询条件用于分页
+     */
+    public function getCityListByStatus($status = null, $order='sort desc', $is_del=0)
+    {
+        if (is_null($status)) {
+            $where = 'region_grade = 2 and is_del = '.$is_del;
+        } else {
+            $where = 'region_grade =2 and is_del = '.$is_del.' and status = '.$status;
+        }
+
+        $city = $this->find(array($where,"order"=>$order));
+        $res['city'] = $city;
+        $res['where'] = $where;
+        return $res;
+    }
+
+    /**
+     * [getRegionListByCity 通过城市id获取城市下属地区列表]
+     * @param  [type]  $cityid 对应城市的id
+     * @param  string  $order  数据库排序字段，默认sort降序
+     * @param  integer $is_del 0返回未删除数据，1返回已删除数据
+     * @return array           region字段为查询结果，where字段为查询条件用于分页
+     */
+    public function getRegionListByCity($cityid, $order='sort desc', $is_del=0)
+    {
+        $where = 'p_region_id='.$cityid.' and region_grade=3 and is_del = '.$is_del;
+        $res['region'] = $this->find(array($where,"order"=>$order));
+        $res['where'] = $where;
+        return $res;
+    }
+
+    public function getRegionById($regionId){
+        $where = "is_del = 0 and id = ".$regionId;
+        $region = $this->findFirst();
+    }
+
+    //根据城市拼音获得城市编码
+    public function getZipByEnName($en_name){
+        $where = "is_del = 0 and region_grade = 2 and en_name = '$en_name'";
+        $region = $this->findFirst($where);
+
+        return isset($region->zip)?$region->zip:'';
+    }
+}

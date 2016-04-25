@@ -1,0 +1,169 @@
+<!-- <div class="row">
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value=''>请选择查询条件</option>
+				<option value="id">id</option>
+				<option value="real_name">账户名</option>
+				<option value="mobile">手机号</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="keyword" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form> -->
+<div class="form-horizontal row-border">
+	<div class="row">
+	<label class="col-md-2 control-label" style="font-size:20px">状态索引</label>
+		<div class="col-md-3">
+			<select class="form-control" onchange="select_comfirm(this.value)">
+					<option value=0>未审核</option>
+					<option value=1 selected='selected'>审核成功</option>
+					<option value=2>审核失败</option>
+			</select>
+		</div>
+	</div>
+</div><br>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 确认充值列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+				<tr>
+					<th class="align-center">ID</th>
+					<th class="align-center">流水号</th>
+					<th class="align-center">充值类型</th>
+					<th class="align-center">充值金额</th>
+					<th class="align-center">充值用户</th>
+					<th class="align-center">备注</th>
+					<th class="align-center">状态</th>
+					<th class="align-center">确认备注</th>
+					<th class="align-center">确认人</th>
+					<th class="align-center">创建时间</th>
+					<th class="align-center">更新时间</th>
+				</tr>
+				</thead>
+				<tbody>
+				<?php foreach($recharge as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->recharge_sn; ?></td>
+						<td><?php
+							switch($v->type) {
+								case 0:
+									echo '支付宝充值';
+									break;
+								case 1:
+									echo '银行转账';
+									break;
+							}
+							?></td>
+						<td><?php echo $v->amount; ?></td>
+						<td><?php echo $this->mc->getUser($v->user_id)['real_name']  ?></td>
+						<td><?php echo $v->remark; ?></td>
+						<td><?php
+							switch($v->status) {
+								case 0:
+									echo '待确认';
+									break;
+								case 1:
+									echo '已确认';
+									break;
+								case 2:
+									echo '确认失败';
+									break;
+							}
+							?></td>
+						<td><?php echo $v->comfirm_remark; ?></td>
+						<td><?php echo $this->mc->getAdmin($v->comfirm_id)['real_name'] ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->utime); ?></td>
+					</tr>
+				<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<div id="message" style="display: none;"><input class="form-control" type='text' name='comfirm_remark'></div>
+<!-- /Page Content -->
+<script type="text/javascript">
+	function comfrim(status,id) {
+		if (status == 1) {
+			$.post('<?php echo $this->url->get('recharge/confirm')?>', {status: status, id: id}, function (data) {
+				if (data) {
+					alert('已确认！');
+				} else {
+					alert('确认失败');
+				}
+				window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+			});
+		} else {
+			var html = "<input class='form-control' type='text' id='comfirm_remark'>";
+			bootbox.dialog({
+				message  : html,
+				title    : "添加确认备注",
+				onEscape : function () {
+				},
+				show     : true,
+				backdrop : true,
+				size     : 'large',
+				animate  : true,
+				className: "my-modal",
+				buttons  : {
+					success: {
+						label    : "确认",
+						className: "btn-success",
+						callback : function () {
+							var comfirm_remark = $("#comfirm_remark").val();
+							$.ajaxSetup({async: false});
+							$.post('recharge/noconfirm', {status: status, id: id, comfirm_remark: comfirm_remark},
+								function (data) {
+									if(data){
+										window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+									}else{
+										alert(data['error']);
+									}
+								}, 'text');
+						}
+					},
+					"取消"   : {
+						className: "btn-danger",
+					}
+				}
+			});
+		}
+	}
+	function select_comfirm(value) {
+		if(value == 1){
+			window.location.href = '<?php echo $this->url->get('recharge/confirmed');?>';
+		}
+		if(value == 2){
+			window.location.href = '<?php echo $this->url->get('recharge/unconfirmed');?>';
+		}
+		if(value == 0){
+			window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+		}
+	}
+</script>

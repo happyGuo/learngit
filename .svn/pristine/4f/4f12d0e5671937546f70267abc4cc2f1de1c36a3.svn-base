@@ -1,0 +1,13 @@
+<?php
+namespace Modules\Complex\Controllers;
+//TODO 设置缓存系统
+class ApiController extends ComplexController
+{
+    public function initialize()
+    {
+        parent::initialize();
+
+    }
+
+}
+

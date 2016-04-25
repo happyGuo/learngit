@@ -1,0 +1,304 @@
+<?php
+/**
+ *  后台商品管理
+ *
+ *  商品的CRUD
+ * @author      zhangrg
+ * @version     20150801
+*/
+namespace Modules\Backend\Controllers;
+
+class SkuController extends BackendController
+{
+
+    /* 初始化 */
+    public function initialize(){
+        parent::initialize();
+        $this->view->setVar('measureArr',$this->getModel('dict')->find(['is_del=0 and parent_id=43','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('unitArr',$this->getModel('dict')->find(['is_del=0 and parent_id=37','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('categoryJson',$this->getModel('category')->getList('',true));
+        $this->view->setVar('tagArr',[1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼']);
+        $this->view->setVar('isDelArr',[0=>"上架",1=>'下架']);
+
+        /* 导航菜单 */
+        $this->view->menu=array('sku/add'=>'商品添加','sku/list'=>'商品列表');
+    }
+
+    /* 显示商品列表 */
+    public function listAction()
+    {
+        
+        /* 一级分类 */
+        $condition = 'id > 0';
+
+        /* 排序 */
+        $order = 'sort asc,id desc';
+
+        /* url初始化 */
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+
+        /* 搜索条件[名称] */
+        $name = $this->request->getQuery('name');
+        if(strlen(trim($name))){
+            $this->view->s_name = $name;
+            $condition .= ' and search_name like \'%'.$name.'%\'';
+            $url .= '&name='.$name;
+        }
+        /* 搜索条件[一级分类] */
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        if(strlen(trim($parent_category_id))){
+            $this->view->s_parent_category_id = $parent_category_id;
+            $condition .= ' and parent_category_id = '.$parent_category_id; 
+            $url .= '&parent_category_id='.$parent_category_id;
+        }
+        /* 搜索条件[二级分类] */
+        $category_id = $this->request->getQuery('category_id');
+        if(strlen(trim($category_id))){
+            $this->view->s_category_id = $category_id;
+            $condition .= ' and category_id = '.$category_id; 
+            $url .= '&category_id='.$category_id;
+        }
+        /* 搜索条件[其他] */
+        $type = $this->request->getQuery('type');
+        if(strlen(trim($type))){
+            $this->view->s_type = $type;
+            $condition .= ' and '.$type.'> 0 '; 
+            $url .= '&type='.$type;
+            $order = $type.' asc,id desc';
+        }
+        /* 搜索条件[标签] */
+        $tag = $this->request->getQuery('tag');
+        if(strlen(trim($tag))){
+            $this->view->s_tag = $tag;
+            $condition .= ' and find_in_set('.$tag.',tag)'; 
+            $url .= '&tag='.$tag;
+        }
+        /* 搜索条件[上下架] */
+        $is_del = $this->request->getQuery('is_del');
+        if(strlen(trim($is_del))){
+            $this->view->s_is_del = $is_del;
+            $condition .= ' and is_del='.$is_del; 
+            $url .= '&is_del='.$is_del;
+        }
+        
+
+        $page = $this->request->getQuery('page');
+        $page = intval($page)< 0 ?1:intval($page);
+
+        // var_dump($condition);exit;
+
+        $this->view->pagination = $this->pagination($this->getModel('sku')->count(array($condition)), 20, $page, $url);
+        $this->view->sku = $this->getModel('sku')->find(array($condition,'order'=>$order,'limit'=>20,'offset'=>$this->view->pagination['offset']));
+
+
+        /*  var_dump($this->view->pagination);exit; */
+    }
+
+    /* 添加商品 */
+    public function addAction()
+    {
+        if($this->request->isPost()) {
+            $sku = $this->createModel('sku');
+
+            $sku->name = $this->request->getPost('name');
+            $sku->sn = $this->request->getPost('sn');
+            $sku->remark = $this->request->getPost('remark');
+            $sku->content = $this->request->getPost('content');
+            $sku->unit_id = $this->request->getPost('unit_id');
+            $sku->unit_price = $this->request->getPost('unit_price');
+            $sku->unit_number = $this->request->getPost('unit_number');
+            $sku->parent_category_id = $this->request->getPost('parent_category_id');
+            $sku->category_id = $this->request->getPost('category_id');
+            $sku->measure_id = $this->request->getPost('measure_id');
+            $sku->sort = $this->request->getPost('sort');
+            $sku->hot = $this->request->getPost('hot');
+            $sku->new = $this->request->getPost('new');
+            $sku->discount_price = $this->request->getPost('discount_price');
+            $sku->origin = $this->request->getPost('origin');
+            $sku->spec = $this->request->getPost('spec');
+            $sku->search = $this->request->getPost('search');
+            $sku->tag = $this->request->getPost('tag');
+            $sku->is_del = $this->request->getPost('is_del');
+            
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadById('sku',$sku->id,'pic_url');
+                if($return['error']!=''){
+                    $this->view->messages = $return['error'];
+                }else{
+                    return $this->response->redirect("sku/list");
+                }
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+    }
+
+    /* 修改商品 */
+    public function updateAction()
+    {
+        if($this->request->isPost()) {
+            $sku = $this->createModel('sku')->findFirst($this->request->getQuery('id'));
+
+            $sku->name = $this->request->getPost('name');
+            $sku->sn = $this->request->getPost('sn');
+            $sku->remark = $this->request->getPost('remark');
+            $sku->content = $this->request->getPost('content');
+            $sku->unit_id = $this->request->getPost('unit_id');
+            $sku->unit_price = $this->request->getPost('unit_price');
+            $sku->unit_number = $this->request->getPost('unit_number');
+            $sku->parent_category_id = $this->request->getPost('parent_category_id');
+            $sku->category_id = $this->request->getPost('category_id');
+            $sku->measure_id = $this->request->getPost('measure_id');
+            $sku->sort = $this->request->getPost('sort');
+            $sku->hot = $this->request->getPost('hot');
+            $sku->new = $this->request->getPost('new');
+            $sku->discount_price = $this->request->getPost('discount_price');
+            $sku->origin = $this->request->getPost('origin');
+            $sku->spec = $this->request->getPost('spec');
+            $sku->search = $this->request->getPost('search');
+            $sku->tag = $this->request->getPost('tag');
+            $sku->is_del = $this->request->getPost('is_del');
+            
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadById('sku',$sku->id,'pic_url');
+                if($return['error']!=''){
+                    $this->view->messages = $return['error'];
+                }else{
+                    return $this->response->redirect("sku/list");
+                }
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+        $skuid = intval($this->request->getQuery('id'));
+        $where = 'id = '.$skuid;
+        $this->view->sku = $this->getModel('sku')->findFirst(array($where));
+        
+    }
+
+    /* 商品上下架 */
+    public function updateajaxAction()
+    {
+        $sku = $this->createModel('sku')->findFirst($this->request->getPost('id','int',0));
+        $sku->is_del = $this->request->getPost('is_del','int',1)==1?0:1;
+        
+        if($sku->save()) {
+            $this->renderJson($sku);
+        }else{
+            $this->renderJson('',$sku->getError());
+        }
+    }
+
+    /* 删除商品 */
+    public function deleteAction()
+    {
+        $sku = $this->createModel('sku')->findFirst($this->request->getPost('id'));
+        $sku->is_del = 1;
+        
+        if($sku->save()) {
+            $this->renderJson($sku);
+        }else{
+            $this->renderJson('',$sku->getError());
+        }
+    }
+
+    //商品详情
+    public function detailAction($id = 0){
+        $this->view->sku = $sku = $this->getModel('sku')->count($id)?$this->getModel('sku')->findFirst($id)->toArray():[];
+
+        if(!isset($sku['id'])){
+            return $this->response->redirect("sku/list");
+        }
+    }
+
+    public function exportAction(){
+        $headArr = ['商品ID','商品名称','规格','简介','一级分类','二级分类','显示单位','商品单价','计量单位','计量单位数值','状态'];
+
+        $columns = ['id','name','spec','remark','parent_category_id','category_id','unit_id','unit_price','measure_id','unit_number','is_del'];
+        $isDelArr = [0=>"上架",1=>'下架'];
+        $list = $this->getModel('sku')->find(['columns'=>$columns])->toArray();
+        $data = [];
+        foreach ($list as $key => $val) {
+            $list[$key]['parent_category_id'] = $this->mc->getCategory($val['parent_category_id'])['name'];
+            $list[$key]['category_id'] = $this->mc->getCategory($val['category_id'])['name'];
+            $list[$key]['unit_id'] = $this->mc->getDict($val['unit_id'])['name'];
+            $list[$key]['measure_id'] = $this->mc->getDict($val['measure_id'])['name'];
+            $list[$key]['is_del'] = $isDelArr[$val['is_del']];
+            $data[]= array_values($list[$key]);
+        }
+        // Create new PHPExcel object
+        $response = $this->response;
+        $objPHPExcel = $this->iniPHPExcel('商品导出列表');//初始化设置
+        $objPHPExcel = $this->_setPHPExcelContent($objPHPExcel, $headArr, $data);//设置内容
+        // temp file name to save before output
+        $objWriter = \PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+
+        ob_end_clean();//清除缓冲区,避免乱码
+        header('Content-Type: application/vnd.ms-excel');
+        header('Content-Disposition: attachment;filename="商品列表(' . date('Ymd-His') . ').xlsx"');
+        header('Cache-Control: max-age=0');
+
+        $objWriter->save("php://output");
+        exit();
+    }
+
+    /**
+     * @function 设置PHPExcel数据
+     * @parameter $objActSheet, $headArr, $data
+     * @return PHPExcel对象
+     */
+    private function _setPHPExcelContent($objPHPExcel, $headArr, $data)
+    {
+        if (!$data) {
+            return $objPHPExcel;
+        }
+        $objActSheet = $objPHPExcel->setActiveSheetIndex(0);
+        //设置表头
+        $key = ord("A");
+        foreach ($headArr as $v) {
+            $colum = chr($key);
+            $objActSheet->setCellValue($colum . '1', $v);
+            $objActSheet->getColumnDimension($colum)->setAutoSize(true);
+            $key += 1;
+        }
+        $column = 2;
+        foreach ($data as $key => $row) { //行写入
+            $span = ord("A");
+            $objActSheet->setCellValue(chr($span) . $column, $row[0], \PHPExcel_Cell_DataType::TYPE_STRING);
+            for ($i = 1; $i < count($row); $i++) {
+                $objActSheet->setCellValueExplicit(chr(++$span) . $column, $row[$i], \PHPExcel_Cell_DataType::TYPE_STRING);
+            }
+            $column++;
+        }
+        return $objPHPExcel;
+    }
+
+    /**
+     * @function 初始化PHPExcel对象
+     * @parameter title
+     * @return PHPExcel对象
+     */
+    private function iniPHPExcel($title)
+    {
+        require_once(dirname(__FILE__) . '/../../libs/PHPExcel.php');
+        $objPHPExcel = new \PHPExcel();
+        // Set document properties
+        $objPHPExcel->getProperties()->setCreator("liannong")
+            ->setLastModifiedBy("liannong")
+            ->setTitle($title)
+            ->setSubject("Office 2007 XLSX Test Document")
+            ->setDescription("document for Office 2007 XLSX, generated using PHP classes.")
+            ->setKeywords("liannong")
+            ->setCategory("liannong");
+        // Rename worksheet
+        $objPHPExcel->getActiveSheet()->setTitle($title);
+        // Set active sheet index to the first sheet, so Excel opens this as the first sheet
+        $objPHPExcel->setActiveSheetIndex(0);
+        return $objPHPExcel;
+    }
+}
+

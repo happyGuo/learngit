@@ -1,0 +1,133 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改用户信息
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" onsubmit="return checkform()">
+                <?php if(isset($messages)):?>
+                    <div class="alert alert-danger fade in">
+                        <i class="icon-remove close" data-dismiss="alert"></i>
+                        <?php echo $messages ;?>
+                    </div>
+                <?php endif;?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            用户名：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="real_name" class="form-control" type="text" value='<?php echo $user['real_name']?>'>
+                        </div>
+                    </div>
+                        <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
+                        <input type="hidden" name="type" value="<?php echo $type; ?>">
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            性别：
+                        </label>
+                        <div class="col-md-10">
+                            <select name='sex' class="form-control">
+                                <?php foreach(\Libs\Util::getSexList() as $key=>$val):?>
+                                    <?php $selected = $key == $user['sex'] ? " selected" :''; ?>
+                                    <option <?php echo $selected ?> value="<?php echo $key ?>"><?php echo $val ?></option>
+                                <?php endforeach;?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php if($user['type'] == 0): ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            信用额度：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="credit_line" class="form-control" type="text" value="<?php echo $user['credit_line']; ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label" >
+                            销售代码：
+                        </label>
+                        <div class="col-md-2">
+                            <input id="sale_code" class="form-control" type="text" value="<?php echo $sale['code'] ?>">
+                            <input type="hidden" name="sale_id" value="<?php echo $sale['id'] ?>">
+                            <span id='spsalecode'><?php echo $sale['id']?"销售人员: ".$sale['real_name']:''?></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            账期：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $this->tag->select(['pay_day_id',$payDayList,'using'=>['id','name'],'class'=>'form-control','useEmpty'=> true,'emptyText'  => '现结','emptyValue' => '0','value'=>$user['pay_day_id']]) ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            手机号：
+                        </label>
+                        <div class="col-md-4">
+                            <input name="mobile" class="form-control" type="text" value="<?php echo $user['mobile']; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            城市：
+                        </label>
+                        <div class="col-md-3">
+                            <input name="city" class="form-control" type="text" value="<?php echo $user['city']; ?>"  readonly="readonly">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            修改密码：
+                        </label>
+                        <div class="col-md-3">
+                            <input name="pwd" class="form-control" type="text" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2">
+                            <input class="btn btn-info btn-block" value="提交" type="submit">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+$(function(){
+    $("#sale_code").bind('blur',function(){
+        if($(this).val()==''){
+            $(":hidden[name=sale_id]").val("");
+            $("#spsalecode").html('');
+        }
+        if($(this).val().length!=9)return;
+        $.getJSON("shop/create",{sale_code:$(this).val()},function(data){
+            if(data.data.id > 0){
+                $(":hidden[name=sale_id]").val(data.data.id);
+                $("#spsalecode").html('销售人员: '+data.data.real_name);
+            }else{
+                $(":hidden[name=sale_id]").val("");
+                $("#spsalecode").html('<font color="red">未查询到此销售代码对应的人员</font>');
+            }
+        });
+    });
+});
+function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+}
+</script>

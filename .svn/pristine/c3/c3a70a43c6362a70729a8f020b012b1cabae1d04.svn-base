@@ -1,0 +1,12 @@
+<?php
+
+namespace Modules\App\Controllers\C;
+use Modules\App\Controllers\AppController;
+
+class CAppController extends AppController
+{
+    public function initialize()
+    {
+
+    }
+}

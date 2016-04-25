@@ -1,0 +1,68 @@
+<?php
+namespace Models;
+use Phalcon\Mvc\Model\Validator\Email as EmailValidator;
+
+class User extends CommonModel
+{
+
+    public function validation()
+	{
+		$this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+			'field' => 'mobile',
+			'max' => 11,
+			'min' => 11,
+			'messageMaximum' => '手机号不正确',
+			'messageMinimum' => '手机号不正确'
+		)));
+		
+		if(isset($this->mobile)){
+			$this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+				"field" => 'mobile',
+				'pattern' => '/^0?(13[0-9]|15[012356789]|18[0-9]|14[57]|17[0-9])[0-9]{8}$/',
+				'message' => '手机号无效'
+
+			)));
+		}
+        
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Uniqueness(array(
+            'field' => 'mobile',
+            'message' => '手机号已占用'
+        )));
+
+		if(isset($this->before_pwd)){
+			$this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+				'field' => 'before_pwd',
+				'max' => 20,
+				'min' => 6,
+				'messageMaximum' => '密码太长',
+				'messageMinimum' => '密码太短'
+			)));
+		}
+		
+		if(isset($this->credit_line)){
+			$this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+				"field" => 'credit_line',
+				'pattern' => '/^\+?(:?(:?\d+\.\d+)|(:?\d+))$/',
+				'message' => '输入的信用额度是整数或者是小数'
+
+			)));
+		}
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+	public function afterValidationOnCreate(){
+         $this->real_name = $this->mobile;
+		 $this -> pwd = $this->getDi()-> getCrypt() ->encryptBase64($this -> before_pwd);
+		 unset($this->before_pwd);
+	}
+	
+    public function afterValidationOnUpdate(){
+		if(isset($this->before_pwd)){
+			$this -> pwd = $this->getDi()-> getCrypt() ->encryptBase64($this -> before_pwd);
+			unset($this->before_pwd);
+		}
+	}
+
+}

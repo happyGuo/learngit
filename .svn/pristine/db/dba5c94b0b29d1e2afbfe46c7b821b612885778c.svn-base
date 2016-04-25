@@ -1,0 +1,61 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: jiangzhuoran
+ * Date: 2015/9/9
+ * Time: 15:04
+ */
+
+namespace Modules\App\Controllers;
+
+class BCategoryController extends BAppController
+{
+
+
+    public function topAction(){
+
+        $condition = 'is_del = 0 and parent_id = 0 ';
+        $columns = ['id','name','parent_id','code','usetag','pic_url','sort'];
+        $list = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns))->toArray();
+
+        foreach ($list as $key => $val) {
+            $list[$key]['pic_url'] = $this->img->getUrl($val['pic_url']);
+            $list[$key]['usetag'] = intval($val['usetag']);
+        }
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('category')->count($condition)]);
+    }
+
+
+    public function subAction(){
+        $condition = 'is_del = 0';
+
+        $parent_id = $this->request->getQuery('parent_id');
+        if(intval($parent_id)>0){
+            $condition .= ' and parent_id='.$parent_id;
+        }else{
+            $condition .= ' and parent_id > 0';
+        }
+
+        $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+        $list = $this->getModel('category')->find(array($condition,'columns'=>$columns,'order'=>'sort asc'))->toArray();
+
+        foreach ($list as $key => $val) {
+            $list[$key]['pic_url'] = $this->img->getUrl($val['pic_url']);
+        }
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('category')->count($condition)]);
+    }
+
+
+    public function shoptopAction(){
+        $shopId = $this->request->getQuery('shop_id','int');
+        if(!isset($shopId)){
+            return $this->renderJson([],'参数错误');
+        }
+        $partnerId = $this->userId;
+        $shopSku = $this->getModel('shopSku')->getCategoryListByPartner($partnerId,$shopId);
+        return $this->renderJson(['list'=>$shopSku['category']]);
+    }
+
+}

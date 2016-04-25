@@ -1,0 +1,195 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: jiangzhuoran
+ * Date: 2015/9/14
+ * Time: 9:42
+ */
+namespace Modules\App\Controllers;
+class BShopController extends  BAppController{
+    var $tagArr = [];
+
+    public function initialize(){
+        parent::initialize();
+        $this->tagArr = [1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼'];
+    }
+    //用户客户列表
+    public function listAction(){
+        $partnerId = $this->userId;
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $shopsku = $this->getModel('shopSku')->find('is_del = 0 and partner_id ='.$partnerId)->toArray();
+        if(!empty($shopsku)) {
+            foreach ($shopsku as $key => $val) {
+                $shopid[] = $val['shop_id'];
+                $newshop = array_unique($shopid);
+            }
+            $box = '';
+            if (isset($newshop)) {
+                foreach ($newshop as $key => $val) {
+                    $box .= "," . $val;
+                }
+            }
+            $newbox = substr($box, 1);
+            $where = ' is_del = 0 and id in (' . $newbox . ')';
+            $shop = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$offset))->toArray();
+            foreach ($shop as $key=>$val) {
+                if($val['platform'] == 'partner' || $val['platform'] == 'app_partner'){
+                    $shop[$key]['type_key'] = '自助订单';
+                    $shop[$key]['type'] = 'self';
+                }else{
+                    $shop[$key]['type_key'] = '下发订单';
+                    $shop[$key]['type'] = 'app';
+                }
+            }
+            return $this->renderJson(['list'=>$shop,'num'=>$this->getModel('shop')->count($where)]);
+        }
+    }
+
+    //添加客户
+    public function createAction(){
+        $partnerId = $this->userId;
+            if($this->request->isPost()) {
+                $type = $this->request->getPost('type');
+                $mobile = $this->request->getPost('contact_mobile');
+                if(!preg_match('/^1([0-9]{9})/',$mobile)){
+                    $messages = "您输入的手机号格式不正确";
+                    return $this->renderJson([],$messages);
+                }
+                $arr['name'] = trim($this->request->getPost('name'));
+                $arr['contact_mobile'] = $mobile;
+                $arr['address'] = trim($this->request->getPost('address'));
+                $arr['contact_name'] = trim($this->request->getPost('contact_name'));
+                $arr['best_time'] = $this->request->getPost('best_time');
+                $arr['partner_id'] = $partnerId;
+                $return = $this->getModel('shop')->createShopByMobile($mobile,$arr,$type);
+                return $this->renderJson(['shop'=>$return]);
+        }
+    }
+
+
+    /*
+       function：修改客户信息
+       author: zrg
+       date:2015-08-10
+   */
+    public function updateAction(){
+
+        if($this->request->isPost()) {
+            $shopId = $this->request->getPost('shop_id');
+            $shop = $this->getModel('shop')->findFirst($shopId);
+            $shop->address = $this->request->getPost('address');
+            $shop->best_time = $this->request->getPost('best_time');
+            $shop->contact_name = $this->request->getPost('contact_name');
+            $shop->contact_mobile = $this->request->getPost('contact_mobile');
+            $shop->name = $this->request->getPost('name');
+
+            if($shop->save()) {
+                $shop = $this->getModel('shop')->findFirst($shopId);
+                return $this->renderJson([$shop]);
+            }
+        }
+
+    }
+
+
+    //客户详情
+    public function detailAction(){
+        $messages = '';
+        $shopId = $this->request->getQuery('shop_id');
+        $limit = $this->request->getQuery('limit') ? $this->request->getQuery('limit') : 10;
+        $offset = $this->request->getQuery('offset') ? $this->request->getQuery('offset') : 0;
+        $partnerId = $this->userId;
+        $shopInfo = $this->getModel('shop')->findById($shopId);
+        if(!$shopInfo){
+            $messages = "该客户不存在";
+        }
+        if($shopInfo['platform'] == 'partner' || $shopInfo['platform'] == 'app_partner'){
+            $shopInfo['type_key'] = '自助订单';
+            $shopInfo['type'] = 'self';
+        }else{
+            $shopInfo['type_key'] = '下发订单';
+            $shopInfo['type'] = 'app';
+        }
+        $where = "is_del = 0 and shop_id = ".$shopId;
+        $columns = ['id','sn','buy_amount','pay_amount','ctime'];
+        $condition = array(
+            'columns' => $columns,
+            'conditions' => $where,
+            "order" => isset($order) ? $order : 'ctime desc',
+            "limit" => $limit,
+            "offset" => $offset
+        );
+        $orderList = $this->getModel('order')->find($condition);
+        if($orderList){
+            $orderList = $orderList->toArray();
+            foreach($orderList as $key=>$val){
+                $orderList[$key]['ctime'] = date('Y-m-d H:i:s',$orderList[$key]['ctime']);
+            }
+        }
+        return $this->renderJson(['shop'=>$shopInfo,'orderList'=>$orderList],$messages);
+    }
+
+
+
+    public function deleteAction(){
+
+        $shopId = $this->request->getQuery('shop_id');
+        $shop = $this->getModel('shop')->findFirst($shopId);
+        if(!isset($shop->id)){
+            return $this->renderJson('','店铺不存在');
+        }
+        if($shop->partner_id!=$this->userId){
+            $this->renderJson('','不能删除');
+        }
+        //删除记录
+        $shop->is_del = 1;
+        if($shop->save()) {
+           return $this->renderJson($shop);
+        }else{
+           return $this->renderJson('',$shop->getError());
+        }
+    }
+
+    //搜索
+    public function searchAction()
+    {
+        $partnerId = $this->userId;
+        $limit = $this->request->getQuery('limit') ? $this->request->getQuery('limit') : 10;
+        $offset = $this->request->getQuery('offset') ? $this->request->getQuery('offset') : 0;
+        $condition = 'is_del = 0 and partner_id =' . $partnerId;
+        $shopsku = $this->getModel('shopSku')->find([$condition])->toArray();
+        if (!empty($shopsku)) {
+            foreach ($shopsku as $key => $val) {
+                $shopid[] = $val['shop_id'];
+                $newshop = array_unique($shopid);
+            }
+
+            $box = '';
+            if (isset($newshop)) {
+                foreach ($newshop as $key => $val) {
+                    $box .= "," . $val;
+                }
+            }
+            $newbox = substr($box, 1);
+            //搜索条件初始化
+            $where = ' is_del = 0 and type = 1 and id in (' . $newbox . ')';
+            $search = $this->request->getQuery('search');
+            $where .= " and name like '%" . $search . "%'";
+            $shoplist = $this->getModel('shop')->find(array($where,"order"=>"id desc", "limit"=>$limit, "offset"=>$offset))->toArray();
+            return $this->renderJson(['list'=>$shoplist,'num'=>$this->getModel('shop')->count(array($where))]);
+        }
+
+    }
+
+
+    public function arealistAction(){
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $columns = ['id','local_name'];
+        $condition = "is_del = 0";
+        $list = $this->getModel('region')->find(array($condition,'columns'=>$columns,'order'=>'id desc','limit'=>$limit,'offset'=>$offset))->toArray();
+        return $this->renderJson(['list'=>$list]);
+    }
+
+}

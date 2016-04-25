@@ -1,0 +1,127 @@
+<?php
+namespace Models;
+
+use Phalcon\Mvc\Model\Validator\Email as EmailValidator;
+
+class UserPush extends CommonModel
+{
+    /*
+    @ function：极光推送
+    @ param string $contentType 消息内容
+    @ param int $uid 用户id
+    @ param int $action_id 如果是商品，就是商品id，如果是订单，就是订单id
+    @ param string $url  跳转地址
+    @ author：宿伟
+    @ date：2015/08/06
+    */
+    public function sendJpush($contentType, $uid, $action_id)
+    {
+        if ($action_id != '') {
+            $orderPlatform = $this->getModel('order')->findById($action_id);
+        } else {
+            $orderPlatform['platform'] = \Libs\Util::getPlatform();
+        }
+        switch ($orderPlatform['platform']) {
+            case 'backend':
+                $platform = 'app_liannong';
+                break;
+            case 'partner':
+                $platform = 'app_ykyj';
+                break;
+            default:
+                $platform = $orderPlatform['platform'];
+
+        }
+
+
+        $userDevice = $this->getModel('userDevice')->findFirst(array('platform = "' . $platform . '" and user_id=' . $uid, 'order' => 'utime desc'));
+        if (empty($userDevice)) {
+            return false;
+        }
+        if (strlen($userDevice->device_token) < 10) {
+            return false;
+        }
+        $contentType = explode('|', $contentType);
+        switch ($contentType[0]) {
+            case 'unknown':
+                $n_content = '未知';
+                break;
+            case 'order_creation_success':
+                $n_content = '订单创建成功';
+                break;
+            case 'order_processing':
+                $n_content = '订单处理中';
+                break;
+            case 'order_confirmation_deduction':
+                $n_content = '订单确认扣款';
+                break;
+            case 'rejection_of_order':
+                $n_content = '订单拒收解冻';
+                break;
+            case 'order_finish':
+                $n_content = '订单处理完毕';
+                break;
+            case 'delivery_reminder':
+                $n_content = '订单发货';
+                break;
+            case 'order_cancellation':
+                $n_content = '订单取消';
+                break;
+
+            case 'recharge_success':
+                $n_content = '充值成功,充值金额为' . $contentType[1] . '元';
+                break;
+
+            default:
+                $n_content = '您有新的消息';
+        }
+
+        switch ($n_content) {
+            case strpos($n_content, '外链'):
+                $contentType = 2;
+                break;
+            case strpos($n_content, '订单'):
+                $contentType = 3;
+                break;
+            case strpos($n_content, '商品'):
+                $contentType = 4;
+                break;
+            case strpos($n_content, '充值'):
+                $contentType = 5;
+                break;
+            case strpos($n_content, '账期'):
+                $contentType = 6;
+                break;
+        }
+
+        $device_token = $userDevice->device_token;
+        $device_type = $userDevice->device_type;
+
+        if ($device_type != 'android') {
+            $device_type = 'android';
+        }
+        if (!empty($action_id)) {
+            $order_sn = $this->getModel('order')->findById($action_id)['sn'];
+        } else {
+            $order_sn = '';
+        }
+        //定义结构体
+        $text = array(
+            'type' => $contentType,
+            'content' => $n_content,
+            'action_id' => $action_id,
+            'created_at' => date('Y-m-d H:i:s'),
+            'order_sn' => $order_sn
+        );
+        $this->getDI()['util']->jpush($device_token, $contentType, $text, $device_type, $n_content, $platform);
+
+        $this->user_id = $uid;
+        $this->device_type = $device_type;
+        $this->content = json_encode($text);
+        $this->device_token = $device_token;
+        $this->push_type = $n_content;
+        $this->platform = $platform;
+        $this->save();
+
+    }
+}

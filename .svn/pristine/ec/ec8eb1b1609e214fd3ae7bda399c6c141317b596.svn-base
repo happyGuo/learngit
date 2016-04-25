@@ -1,0 +1,148 @@
+<script type="text/javascript"
+        src="plugins/uniform/jquery.uniform.min.js"></script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    添加配销商
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" enctype="multipart/form-data" method="POST" onsubmit="return checkform()" action="">
+                <?php if(isset($messages)) :?>
+                    <div class="alert alert-danger fade in">
+                        <i class="icon-remove close" data-dismiss="alert"></i>
+                        <?php echo $messages ;?>
+                    </div>
+                <?php endif; ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            手机号：
+                        </label>
+                        <div class="col-md-10">
+                            <input onblur="checkrequired($(this))" name="mobile" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            真实名字：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="contact_name" onblur="checkrequired($(this))" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            公司名字：
+                        </label>
+                        <div class="col-md-10">
+                            <input onblur="checkrequired($(this))" name="company_name" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <?php if(CITY=='beijing'): ?>
+                    <div class="form-group" id='city'>
+                        <label class="col-md-2 control-label">
+                            区域：
+                        </label>
+                        <div class="col-md-4">
+                            <select name='area' class="form-control" onblur="checkrequired($(this))">
+                                <option value="">请选择</option>
+                                <?php foreach(\Libs\Util::getAreaList() as $key=>$val): ?>
+                                <option value="<?php echo $key ?>"><?php echo $key.' '.$val ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            角色：
+                        </label>
+                        <div class="col-md-10">
+                           <select name='role'>
+                                <option value='admin'>管理员</option>
+                           </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            银行卡号：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="bankcard" class="form-control" type="text" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            账期：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $this->tag->select(['pay_day_id',$payDayList,'using'=>['id','name'],'class'=>'form-control']) ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="pwd" class="form-control" onblur="checkrequired($(this))" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            地址：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="address" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            分类：
+                        </label>
+                        <div class="col-md-10">
+                            <label class="checkbox-inline" style="margin-right: 10px;margin-left: 0;">
+                                <input type="checkbox" class="uniform check-all"/>全选
+                            </label>
+                            <?php foreach($category as $k=>$v) :?>
+                            <label class="checkbox-inline check" style="margin-right: 10px;margin-left: 0;">
+                                <input type="checkbox" name="category[]" class="uniform" value="<?php echo $v->id?>"><?php echo $v->name; ?>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                        </label>
+                        <div class="col-md-2"><input class="btn btn-info btn-block" value="提交" type="submit"></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+    $('.check-all').on('change', function () {
+        var checked = $(this).prop('checked');
+        console.log(checked);
+        $('.check').each(function (j, cb) {
+            // Only toggle it if checkbox is not disabled
+            var cb_self = $(':checkbox:not(:disabled)', $(cb)).prop("checked", checked).trigger('change');
+            if (cb_self.hasClass('uniform')) {
+                $.uniform.update(cb_self);
+            }
+        });
+    });;
+</script>

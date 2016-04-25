@@ -1,0 +1,12 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class SubcontractController extends BackendController
+{
+    public function pscAction()
+    {
+        $id = $this->request->getQuery('id');
+        $imageNames = $this->getModel('orderSubcontract')->getImgUrl(NULl, $id);
+        $this->view->imageNames = $imageNames;
+    }
+}

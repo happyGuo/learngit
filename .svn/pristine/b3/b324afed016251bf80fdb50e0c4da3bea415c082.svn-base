@@ -1,0 +1,553 @@
+<?php
+namespace Models;
+
+use Phalcon\Mvc\Model\Resultset\Simple as Resultset;
+
+class Order extends CityModel
+{
+    //订单号生成
+    public function createOrderSn()
+    {
+        list($usec, $sec) = explode(' ', microtime());
+        return date('ymdHis', $sec) . substr($usec, 3, 3) . rand(100, 999);
+    }
+
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'sn',
+            'message' => '订单号不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'buy_amount',
+            'message' => '订单金额不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'shop_id',
+            'message' => '店铺ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'contact_name',
+            'message' => '收货人不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'receive_address',
+            'message' => '收货地址不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'receive_mobile',
+            'message' => '电话不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'pay_type',
+            'message' => '支付方式不能为空'
+        )));
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    public function afterUpdate()
+    {
+        //print_r($this->toArray());die;
+        if (in_array($this->getSource(), self::$cacheTable))
+            $this->cacheMetaData();
+//        $orders = $this->getModel('OrderSubcontract')->findFirst('order_id ='.$this->id)->toArray();
+//        $id = $orders['id'];
+//        $partner_id = $orders['partner_id'];
+//        $status = $this->status;
+//        $p_name = $this->getModel('partner')->findById($partner_id)['contact_name'];
+//        $data['partner_id'] = $partner_id;
+//        $data['type'] = 'update';
+//        $data['table'] = 'order';
+//        $data['target_id'] = $this->id;
+//        if($status == 1){
+//            $data['content'] = "".$p_name."将订单号为：".$this->sn."    确认订单[接受]";
+//        }
+//        $this->getModel('partnerOperateLog')->createLog($data);
+            
+        if ($this->is_del)
+            $this->getModel('OrderSubcontract')->deleteAll('order_id = ' . $this->id);
+    }
+
+
+    /**
+     * 平台用户创建订单
+     * @param $userId
+     * @param $shopId
+     * @param $orderDetailArr
+     * @param $payType
+     * @param string $remark
+     * @return array
+     */
+    public function createOrder($userId, $shopId, $orderDetailArr, $payType, $remark = '')
+    {
+        $message = '';
+        $userInfo = $this->getModel('user')->findById($userId);
+
+        if ($userInfo['payment_freeze']) {
+            $message = '您因逾期未还款，账号已被系统自动冻结，无法下单';
+        } elseif ($userInfo['freeze']) {
+            $message = '您的账号已被人工冻结，无法下单';
+        } elseif (!is_array($orderDetailArr) || empty($orderDetailArr)) {
+            $message = '订单参数错误';
+        }
+        if (empty($message)) {
+            if (!in_array($payType, array(1, 2))) {
+                $message = '支付类型无效';
+            }
+        }
+        $this->debug('开始创建订单');
+        if (empty($message)) {
+            $shop = $this->getModel('shop')->findById($shopId);
+            if (!$shop || $shop['is_del']) {
+                $message = '该商家不存在或者已经下架';
+            } elseif ($shop['status'] != 1) {
+                $message = '该店铺尚未通过审核';
+            }
+        }
+
+        //当为配销商用户，无法余额支付
+        if ($userInfo['type']) {
+            if ($payType == 2) {
+                $message = '配销商用户无法余额支付';
+            }
+        }
+        //根据不同的平台来源设置不同的配置
+        $platform = \Libs\Util::getPlatform();
+        $skuType = 0;
+        switch ($platform) {
+            case 'backend':
+                $skuDb = 'sku';
+                break;
+            case 'app_liannong':
+                $skuDb = 'sku';
+                break;
+            case 'app_ykyj':
+                $skuDb = 'partnerSku';
+                $skuType = 1;
+                break;
+            case 'partner':
+                $skuDb = 'partnerSku';
+                $skuType = 1;
+                break;
+        }
+        if ($skuType) {
+            $partnerList = array_keys($this->getModel('shopSku')->getPartnerListByShop($shopId));
+        }
+
+        $this->debug('计算订单总金额及创建购买商品数组');
+        if (empty($message)) {
+            // 计算商品总额，以及每件商品所需金额
+            $buy_amount = 0;
+            $skuArr = array();
+            foreach ($orderDetailArr as $key => $val) {
+                if ($val['buy_number'] <= 0) {
+                    $message = '购买数量不能小于等于零';
+                    break;
+                }
+
+                $sku = $this->getModel($skuDb)->findById($val['sku_id']);
+
+                if (empty($sku) || $sku['is_del']) {
+                    $message = '存在无效商品' . $sku['name'] . '，请重新下单';
+                    break;
+                }
+                //判断下的订单商品是否是绑定的店铺提供的商品
+                if ($skuType) {
+                    if (!in_array($sku['partner_id'], $partnerList)) {
+                        $message = '购买的商品' . $sku['name'] . '不是您的配销商提供的，请重新下单';
+                        break;
+                    }
+                }
+
+                $skuArr[$key]['sku_id'] = $val['sku_id'];
+                if (isset($val['user_remark'])) {
+                    $skuArr[$key]['user_remark'] = $val['user_remark'];
+                }
+                $skuArr[$key]['sku_name'] = $sku['name'];
+                $skuArr[$key]['unit_id'] = $sku['unit_id'];
+                $skuArr[$key]['measure_id'] = $sku['measure_id'];
+                if ($skuType) {
+                    //判断该用户是否有当前商品的ykyj
+                    $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId, $sku['partner_id']);
+                    if (!empty($ykyj) && array_key_exists($val['sku_id'], $ykyj)) {
+                        $skuArr[$key]['unit_price'] = $ykyj[$val['sku_id']];
+                    }
+                }
+
+
+                if (!isset($skuArr[$key]['unit_price']))
+                    $skuArr[$key]['unit_price'] = ($sku['discount_price'] != 0.00) ? $sku['discount_price'] : $sku['unit_price'];
+
+                $skuArr[$key]['unit_number'] = $sku['unit_number'];
+                $skuArr[$key]['buy_number'] = $skuArr[$key]['real_number'] = $val['buy_number'];
+                $skuArr[$key]['buy_amount'] = $skuArr[$key]['pay_amount'] = \Libs\Util::bcMul($val['buy_number'], $skuArr[$key]['unit_price']);
+                $skuArr[$key]['sku_type'] = $skuType;
+
+                $skuArr[$key]['category_id'] = $sku['category_id'];
+                $skuArr[$key]['spec'] = $sku['spec'];
+                $skuArr[$key]['remark'] = $sku['remark'];
+                $skuArr[$key]['parent_category_id'] = $sku['parent_category_id'];
+                $buy_amount = \Libs\Util::bcAdd($buy_amount, $skuArr[$key]['buy_amount']);
+            }
+
+            if (empty($message)) {
+                if ($payType == 2) {
+                    //判断非账期用户是否余额足够
+                    if ($userInfo['balance'] - $userInfo['freeze_balance'] + $userInfo['credit_line'] < $buy_amount) {
+                        $message = '您的余额不足，请先充值';
+                    }
+
+                }
+            }
+
+
+            if (empty($message)) {
+                // 存储订单信息
+                $order = $this->createModel('order');
+                $order->sn = $this->createOrderSn();
+                $this->debug('开始存储总订单,sn=' . $order->sn);
+
+                $order->user_id = $userId;
+                $order->buy_amount = $order->pay_amount = $buy_amount;
+                $order->shop_id = $shopId;
+                $order->contact_name = $shop['contact_name'];
+                $order->receive_address = $shop['address'];
+                $order->receive_mobile = $shop['contact_mobile'];
+                $order->remark = $remark;
+                $order->pay_type = $payType;
+                $order->order_detail = serialize($skuArr);
+                if ($order->save()) {
+                    //设置用户账期结算日
+                    if (empty($userInfo['payment_start']) && $userInfo['pay_day_id']) {
+                        $this->getModel('user')->updateOne($userId, array('payment_start' => time()+ $this->mc->getDict($userInfo['pay_day_id'])['code']*24*3600));
+                    }
+
+                    $order_id = $order->id;
+                    // 获取订单插入后的自增id
+                    $this->debug('订单id' . $order_id . '保存成功');
+
+                    $this->getAsynModel('order','dealSubOrder',array('orderId'=>$order_id));
+
+
+                    $this->getModel('userPush')->sendJpush('order_creation_success', $userId, $order_id);
+                } else {
+                    $message = $order->getError();
+                }
+            }
+        }
+        if ($message) {
+            $order_id = 0;
+        }
+
+        return array('id' => $order_id, 'error' => $message);
+    }
+
+    public function dealSubOrder($orderId)
+    {
+        $this->debug('订单id' . $orderId . '开始创建订单分组');
+
+        $order = $this->findById($orderId);
+        $userInfo = $this->getModel('user')->findById($order['user_id']);
+        if (empty($order)) {
+            return '订单不存在';
+        }
+
+        if ($order['deal_status']) {
+            return '订单二级处理已完成';
+        }
+        $skuArr = unserialize($order['order_detail']);
+
+        $sub = 1;
+        $subcontract = array();
+        $categoryPartner = array();
+        // 添加每个商品的小订单order_sku
+
+        foreach ($skuArr as &$orderSku) {
+
+            $orderSku['order_id'] = $orderId;
+            $orderSku['order_sn'] = $order['sn'];
+            $orderSku['shop_id'] = $order['shop_id'];
+            $orderSku['user_id'] = $order['user_id'];
+            $orderSku['platform'] = $order['platform'];
+            if (!isset($categoryPartner[$orderSku['parent_category_id']])) {
+                $cate = $this->getModel('shopSku')->findFirst(array('shop_id= ' . $order['shop_id'] . ' and category_id =' . $orderSku['parent_category_id']));
+                if ($cate) {
+                    $categoryPartner[$orderSku['parent_category_id']] = $cate->toArray();
+                } else {
+                    $this->debug('shopid=' . $order['shop_id'] . '的商品分类为' . $orderSku['parent_category_id'] . '尚未指定配销商');
+                }
+            }
+
+            $orderSku['partner_id'] = $partnerId = $categoryPartner[$orderSku['parent_category_id']]['partner_id'];
+
+            if (!isset($subcontract[$partnerId])) {
+                $partnerOrder = [];
+                $partnerOrder['order_id'] = $orderId;
+                $partnerOrder['user_type'] =$userInfo['type'];
+                $partnerOrder['order_sn'] = $order['sn'];
+                $partnerOrder['shop_id'] = $order['shop_id'];
+                $partnerOrder['user_id'] = $order['user_id'];
+                $partnerOrder['partner_id'] = $partnerId;
+                $partnerOrder['subcontract'] = $order['sn'] . ($sub < 10 ? '0' . $sub : $sub);
+                $partnerOrder['pay_type'] = $order['pay_type'];
+                $partnerOrder['buy_amount'] = $partnerOrder['pay_amount'] = 0;
+                $partnerOrder['platform'] = $order['platform'];
+                $sub++;
+                $subcontract[$partnerId] = $partnerOrder;
+            }
+
+            $subcontract[$partnerId]['buy_amount'] = \Libs\Util::bcAdd($subcontract[$partnerId]['buy_amount'], $orderSku['buy_amount']);
+            $subcontract[$partnerId]['pay_amount'] = \Libs\Util::bcAdd($subcontract[$partnerId]['pay_amount'], $orderSku['pay_amount']);
+
+            $orderSku['subcontract'] = $subcontract[$partnerId]['subcontract'];
+            $orderSku['remark'] = $orderSku['buy_amount'];
+            $this->getModel('orderSku')->createOne($orderSku);
+        }
+
+        $this->debug('订单sku创建结束');
+        //创建分组订单
+        foreach ($subcontract as $partnerOrder) {
+            $this->getModel('orderSubcontract')->createOne($partnerOrder);
+        }
+        $this->debug('订单批次创建结束');
+        //直接冻结资金
+        if ($order['pay_type'] == 2) {
+            $balanceFlow = array('user_id' => $order['user_id'], 'shop_id' => $order['shop_id'], 'order_id' => $orderId, 'order_sn' => $order['sn'], 'amount' => $order['buy_amount'], 'type' => 1, 'creator_id' => $order['user_id'], 'platform' => $order['platform']);
+            $this->getModel('balanceFlow')->createFlow($balanceFlow);
+        }
+
+        $this->updateOne($orderId, array('deal_status' => 1));
+        $this->debug('订单二次处理正式结束');
+        return '';
+    }
+
+    public function findOrdersByParam($param)
+    {
+        $res = array('list' => '', 'num' => 0);
+        if ($param and is_array($param)) {
+            if (isset($param['page'])) {
+
+                $where = array(
+                    'conditions' => $param['where'],
+                    "order" => isset($param['order']) ? $param['order'] : 'id desc',
+                    "limit" => $param['limit'],
+                    "offset" => ($param['page'] - 1) * $param['limit']
+                );
+            } else {
+                $where = array(
+                    'conditions' => $param['where'],
+                    "order" => isset($param['order']) ? $param['order'] : 'id desc',
+                );
+            }
+            $list = $this->getModel('order')->find($where);
+            if (!isset($param['page'])) {
+                return $list;
+            }
+            $res['num'] = $total = $this->getModel('order')->count($param['where']);
+        } else {
+            $list = $this->getModel('order')->find($param);
+            return $list;
+        }
+        $res['list'] = $list;
+        return $res;
+    }
+
+    public function getOrdersListByParams($dealStatus, $userId, $shopId, $ctime, $status, $utime, $limit, $offset, $order)
+    {
+
+        //根据不同的平台来源设置不同的配置
+        $platform = \Libs\Util::getPlatform();
+        switch ($platform) {
+            case 'backend':
+            case 'app_liannong':
+                $where = "platform in ('backend','app_liannong')";
+                break;
+            case 'app_ykyj':
+            case 'partner':
+                $where = "platform in ('app_ykyj','partner')";
+                break;
+        }
+        $limit = isset($limit) ? $limit : 10;
+        $offset = isset($offset) ? $offset : 0;
+        if (intval($shopId)>0) {
+            $where .= " and shop_id = " . $shopId;
+        }
+
+        if ($status !='') {
+            $where .= " and status = ".$status;
+        }
+        $where .= " and is_del = 0 and user_id = " . $userId;
+        $columns = ['id', 'status', 'order_detail', 'ctime', 'user_id', 'shop_id', 'platform', 'sn', 'pay_type', 'utime', 'buy_amount', 'pay_amount'];
+
+        $list = $this->getModel('order')->find(array($where,'columns'=>$columns,'order'=>'ctime desc','limit'=>$limit,'offset'=>$offset))->toArray();
+        foreach ($list as $key => $val) {
+            if (!empty($list[$key]['order_detail'])) {
+                $detail = unserialize($list[$key]['order_detail']);
+                $list[$key]['status'] = $list[$key]['status'];
+                $list[$key]['buy_number'] = 0;
+                foreach ($detail as &$orderDetail) {
+                    $list[$key]['buy_number'] += $orderDetail['buy_number'];
+                }
+            }
+        }
+        return $list;
+    }
+
+
+    public function getOrderCountByParam($dealStatus, $userId, $shopId, $status='')
+    {
+        //根据不同的平台来源设置不同的配置
+        $platform = \Libs\Util::getPlatform();
+        switch ($platform) {
+            case 'backend':
+            case 'app_liannong':
+                $where = "platform in ('backend','app_liannong')";
+                break;
+            case 'app_ykyj':
+            case 'partner':
+                $where = "platform in ('app_ykyj','partner')";
+                break;
+        }
+        if ($status !='') {
+            $where .= " and status = ".$status;
+        }
+        $where .= " and is_del = 0 and user_id = " . $userId;
+        if (intval($shopId)>0) {
+            $where .= " and shop_id = " . $shopId;
+        }
+        $count = $this->getModel('order')->count(array($where));
+        return $count;
+    }
+
+
+    //删除订单
+    public function deleteOrder($orderId, $userId)
+    {
+        $message = '';
+        $order = $this->getModel('order')->findFirst(array('is_del=0 and id = ' . $orderId));
+        if (empty($order)) {
+            $message = '订单不存在';
+            return $message;
+        }
+
+        if ($order->user_id != $userId) {
+            $message = '没有权限操作该订单';
+            return $message;
+        }
+
+        if ($order->status != 0) {
+            $message = '订单已确认无法删除';
+            return $message;
+        }
+        $this->getModel('order')->deleteOne($orderId);
+        return $message;
+    }
+
+    //取消订单
+
+    public function cancleOrder($orderId, $userId)
+    {
+        $message = '';
+        $order = $this->getModel('order')->findFirst($orderId);
+        if (!$order) {
+            $message = '订单不存在';
+        }
+        if ($order->status != 0) {
+            $message = '订单已确认或已取消';
+        }
+
+        if ($order->user_id != $userId) {
+            $message = '没有权限操作该订单';
+        }
+
+        if ($message == '') {
+            if ($this->getModel('order')->updateOne($orderId, array('status' => 3))) {
+                if (!empty($userId)) {
+                    $this->getModel('userPush')->sendJpush('order_cancellation', $userId, $orderId);
+                }
+                $this->getModel('OrderSubcontract')->updateAll("order_id={$orderId}", array('status' => 6, 'receive_time' => time()));
+                if ($order->pay_type != 1) {
+                    $balanceFlow = array('user_id' => $userId, 'shop_id' => $order->shop_id, 'order_id' => $orderId, 'order_sn' => $order->sn, 'amount' => $order->pay_amount, 'type' => 5, 'creator_id' => $userId, 'platform' => $order->platform);
+                    $this->getModel('balanceFlow')->createFlow($balanceFlow);
+                }
+            }
+        }
+        return $message;
+    }
+
+
+    //确定或拒绝收货
+
+    public function receiveOrder($userId, $subcontract, $status)
+    {
+        $message = '';
+        if (!in_array($status, array(3, 4, 5))) {
+            $message = '操作类型有误';
+            return $message;
+
+        }
+        //判断是否是已发货状态
+        $subcontract = $this->getModel('OrderSubcontract')->findFirst('subcontract="' . $subcontract . '"');
+        if (!$subcontract) {
+            $message = '订单信息不存在';
+            return $message;
+        }
+        if ($subcontract->status != 2) {
+            $message = '当前订单不是已发货状态，无法操作';
+            return $message;
+        }
+        if ($subcontract->user_id != $userId) {
+            $message = "您无权修改不属于您的订单";
+            return $message;
+        }
+        $subcontract->receive_time =time();
+        $subcontract->status = $status;
+        $subcontract->save();
+        if ($subcontract->pay_type == 2) {
+            if ($status == 3 || $status == 5) {
+                $data = array('user_id' => $userId, 'shop_id' => $subcontract->shop_id, 'order_id' => $subcontract->order_id, 'order_sn' => $subcontract->order_sn, 'subcontract' => $subcontract->subcontract, 'partner_id' => $subcontract->partner_id, 'amount' => $subcontract->pay_amount, 'type' => 2, 'creator_id' => $userId);
+                if ($status == 5) {
+                    $data['remark'] = "系统自动确认收货";
+                }
+                $this->getModel('balanceFlow')->createFlow($data);
+            }
+            if ($status == 4) {
+                $data = array('user_id' => $userId, 'shop_id' => $subcontract->shop_id, 'order_id' => $subcontract->order_id, 'order_sn' => $subcontract->order_sn, 'subcontract' => $subcontract->subcontract, 'partner_id' => $subcontract->partner_id, 'amount' => $subcontract->pay_amount, 'type' => 4, 'creator_id' => $userId);
+                $this->getModel('balanceFlow')->createFlow($data);
+            }
+        }
+        //判断是不是最后一个完成的分组，是的更新整个订单状态完成
+        $todo = $this->getModel('orderSubcontract')->find('(status =0 or status =1 or status=2) and order_id=' . $subcontract->order_id);
+
+        if (!count($todo)) {
+            $this->getModel('order')->updateOne('id=' . $subcontract->order_id, array('status' => 2));
+            $this->getModel('userPush')->sendJpush('order_finish', $userId, $subcontract->order_id);
+        }
+        return $message;
+    }
+    //添加日志(添加)
+    public function afterCreate(){
+//        $shopsku = $this->getModel('shopSku')->findFirst('shop_id='.$this->shop_id)->toArray();
+//        $partner_id = $shopsku['partner_id'];
+//        $p_name = $this->getModel('partner')->findById($partner_id)['contact_name'];
+//        $data['partner_id'] = $partner_id;
+//        $data['type'] = 'create';
+//        $data['table'] = 'order';
+//        $data['target_id'] = $this->id;
+//        $data['content'] = "".$p_name."添加了一个ID为：".$this->id."的订单";
+//        $this->getModel('partnerOperateLog')->createLog($data);
+    }
+}

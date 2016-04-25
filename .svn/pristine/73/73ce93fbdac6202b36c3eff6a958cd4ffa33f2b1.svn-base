@@ -1,0 +1,29 @@
+<?php
+
+namespace Modules\Backend;
+
+class Module
+{
+    public function registerAutoloaders()
+    {
+        $loader = new \Phalcon\Loader();
+
+        $loader->registerClasses(array(
+            'PHPExcel' => __DIR__ . '/libs/PHPExcel/Classes/PHPExcel.php',
+            ))->registerNamespaces(array(
+            'Modules\Backend\Controllers' => __DIR__ . '/controllers/',
+            'Modules\Backend\Libs' => __DIR__ . '/libs/',
+            'Modules\Backend\Forms' => __DIR__ . '/forms/',
+        ))->register();
+    }
+
+    public function registerServices($di)
+    {
+        /**
+         * Read configuration
+         */
+        $config = include __DIR__ . "/config/config.php";
+        require __DIR__ . "/config/services.php";
+    }
+
+}

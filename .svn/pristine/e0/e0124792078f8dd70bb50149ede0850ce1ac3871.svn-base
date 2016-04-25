@@ -1,0 +1,97 @@
+<div class="tabbable tabbable-custom tabbable-full-width">
+	<ul class="nav nav-tabs">
+		<li class="active"><a data-toggle="tab" onclick="gohref('partnershop/list')" href="javascript:void(0)">自有客户</a></li>
+		<li class=""><a onclick="gohref('partnershop/lianlist')"  data-toggle="tab" href="javascript:void(0)">下发客户</a></li>
+	</ul>
+	<div class="tab-content row">
+	</div>
+		<div class="col-md-12">
+			<div class="widget box">
+				<div class="widget-header">
+					<div class="page-header"></div>
+
+					<div class="page-header"></div>
+					<div class="form-group">
+						<div class="form-group">
+							<div class="row">
+								<div class="col-md-2"></div>
+								<form class="form-horizontal row-border" method="get" action="">
+									<div class="col-md-2">
+										<h4><font color = 'red'><a href='partnershop/create'>创建客户</a></font></h4>
+									</div>
+									<div class="col-md-2">
+												<select class="form-control" name="select">
+													<option value="">请选择搜索条件</option>
+													<option value="id">id</option>
+												</select>
+									</div>
+									<div class="col-md-2">
+										<input name="search" class="form-control" placeholder="" type="text">
+									</div>
+
+									<div class="col-md-2">
+										<input class="btn btn-info btn-block" value="搜索" type="submit">
+									</div>
+								</form>
+							</div> <!--.row -->
+
+						</div>
+					</div>
+				</div>
+				<div class="widget-content">
+					<table class="table table-hover table-striped  table-bordered table-highlight-head">
+						<thead>
+						<tr>
+							<th>ID</th>
+							<th>客户名称</th>
+							<th>客户地址</th>
+							<th>联系人姓名</th>
+							<th>联系人电话</th>
+							<th>最佳送货时间</th>
+							<th>操作</th>					
+						</tr>
+						</thead>
+						<tbody>
+							<?php 
+							if(!empty($pageshop)) {?>
+								<?php foreach($pageshop as $k=>$v) { ?>
+							<tr>
+								<td><?php echo $v['id']; ?></td>
+								<td><?php echo $v['name']; ?></td>
+								<td><?php echo $v['address']; ?></td>
+								<td><?php echo $v['contact_name']; ?></td>
+								<td><?php echo $v['contact_mobile']; ?></td>
+								<td><?php echo $v['best_time'];?></td>
+								<td>
+									<?php if($v['creator_id'] == $creator_id){?>
+								    <a href="partnershop/update?shopid=<?php echo $v['id']?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+								    <?php } ?>
+									<a href="amount/userorderlist?userid=<?php echo $v['id']?>" class="btn btn-xs bs-tooltip" title="订单">订单</a>
+									<a href="partnersku/list?shop_id=<?php echo $v['id']?>" class="btn btn-xs bs-tooltip" title="设置价格">设置价格</a>
+								</td>
+								
+							</tr>
+							<?php } ?>
+							<?php }else{ ?>
+								<tr>
+									
+									<td colspan="7" align="center">无记录</td>
+								</tr>
+							<?php	}?>
+						</tbody>
+					</table>
+				</div>
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo @$page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+</div>
+<script type="text/javascript">
+	var gohref = function(href)
+	{
+		window.location.href=href;
+	}
+</script>

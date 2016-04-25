@@ -1,0 +1,64 @@
+<div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                   	 订单修改
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form onsubmit="return checkform()" action="/order/update?id=<?=$order_sku['id']?>" method="POST" class="form-horizontal row-border">
+                    <input type="hidden" value="<?=$order_sku['id']?>" name="id">
+
+                    
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+							菜品名：
+                        </label>
+                        <div class="col-md-10">
+                            <input type="text" readonly="readonly" onblur="checkrequired($(this))" id="sku_name" value="<?=$order_sku['sku_name']?>" class="form-control input-width-medium" name="contact_name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+							单价：
+                        </label>
+                        <div class="col-md-10">
+                            <input type="text" onblur="checkrequired($(this))" value="<?=$order_sku['unit_price']?>" id="price" class="form-control input-width-medium" name="price">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+							数量：
+                        </label>
+                        <div class="col-md-10">
+                            <input type="text" onblur="checkrequired($(this))" value="<?=$order_sku['buy_number']?>" class="form-control input-width-medium" id="number" name="number">
+                        </div>
+                    </div>
+
+			</div>
+                    <input type="submit" value="提交" class="btn btn-info btn-block">
+            </form>
+                
+        </div>
+    </div>
+    <script type="text/javascript">
+    	var checkform = function(){
+    		var price = $('#price').val();
+    		var number = $('#number').val();
+	 		var strReg = new RegExp('^(?!(0{1,4}(((\\.0{2})?))$))([1-9]{1,2}[0-9]{0,9}|0)(\\.[0-9]{1,2})?$');
+	          if(strReg.exec(price) == null){
+	                alert('价格输入有误');
+	                return false;
+	            }
+	          if(strReg.exec(number) == null){
+	                $('#number').val(number);
+	                $('#number').trigger("focus").trigger("select");
+	                alert('输入数量有误');
+	                return false;
+	            }
+	            return true;
+    	}
+    </script>

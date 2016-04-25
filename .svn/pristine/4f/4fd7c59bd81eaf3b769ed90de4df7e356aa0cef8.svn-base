@@ -1,0 +1,22 @@
+<?php
+
+namespace Modules\Partner\Controllers;
+
+class ErrorController extends PartnerController
+{
+    public function indexAction(){
+        exit('333');
+    }
+
+    public function show404Action()
+    {
+        $this->response->setStatusCode(404, "Not Found");
+    }
+
+    public function show500Action()
+    {
+        $this->response->setStatusCode(500, "ERROR");
+    }
+
+}
+

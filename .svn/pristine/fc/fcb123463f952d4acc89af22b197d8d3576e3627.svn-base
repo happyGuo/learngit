@@ -1,0 +1,22 @@
+<?php
+
+namespace Modules\Frontend\Controllers;
+
+class IndexController extends FrontendController
+{
+    public function indexAction()
+    {
+        $u = $this->auth->getInfo();
+        $this -> view -> user = $u;
+    }
+
+    public function testAction(){
+        $q = $this->request->getQuery();
+        $q =  $this->dispatcher->getParams();
+        //echo $a.'_'.$b;
+        print_r($q);
+        $this->view->disable();
+        return 'test';
+    }
+
+}

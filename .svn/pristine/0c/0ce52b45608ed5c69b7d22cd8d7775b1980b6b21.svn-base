@@ -1,0 +1,107 @@
+<script type="text/javascript">
+$(function(){
+    $("#parent_category_id").change(function(){
+        if($(this).val()=='') return;
+        $.get('category/get','parent_id='+$(this).val(),function(datalist){
+            $("#category_id").html('<option value="">请选择</option>');
+            var html = '';
+            $.each(datalist.data,function(id,category){
+                html+='<option value="'+category.id+'">'+category.name+'</option>';
+            });
+            $(html).appendTo("#category_id");
+            <?php if($s_category_id): ?>
+            $("#category_id").val('<?php echo $s_category_id ?>')
+            <?php endif; ?>
+        },'json');
+    });
+    $("#parent_category_id").val('<?php echo $s_parent_category_id ?>');
+    $("#parent_category_id").change();
+});
+</script>
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 用户收藏商品列表</h4>
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+
+                <form class="form-horizontal row-border" action="" method="get">
+                    <div class="form-group">
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <input type="text" name="user_id" placeholder="用户ID" class="form-control" value="<?php echo isset($s_user_id)?$s_user_id:''?>">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="text" name="sku_id" placeholder="商品ID" class="form-control" value="<?php echo isset($s_sku_id)?$s_sku_id:''?>">
+                                </div>
+                                <div class="col-md-2">
+                                    <?php \Phalcon\Tag::setDefault('platform', isset($s_platform)?$s_platform:''); ?>
+                                    <?php echo $this->tag->select(['platform',\Libs\Util::getPlatformList(),'using'=>['id'=>'platform'],'class'=>'form-control']) ?>
+                                </div>
+                                <div class="col-md-1">
+                                    <input type="submit" value="搜索" class="btn btn-primary">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                    </div>
+                </form>
+
+                <table class="table table-hover table-striped table-bordered table-highlight-head">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户信息</th>
+                            <th>来源</th>
+                            <th>商品ID</th>
+                            <th>商品图片</th>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>商品总价</th>
+                            <th>显示单位</th>
+                            <th>计量单位</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php $platformArr = ['app_liannong'=>'getSku','app_ykyj'=>'getPartnerSku','backend'=>'getSku','partner'=>'getPartnerSku']?>
+                    <?php $skuTypeArr = ['app_liannong'=>'sku','app_ykyj'=>'partner_sku','backend'=>'sku','partner'=>'partner_sku']?>
+                        <?php foreach($sku as $k=>$v) { ?>
+                        <?php $sku = $this->mc->$platformArr[$v->platform]($v->sku_id);?>
+                        <?php if(isset($sku['id'])):?>
+                        <tr>
+                            <td><?php echo $v->id; ?></td>
+                            <td><a href="user/detail?userid=<?php echo $v->user_id; ?>"><?php echo $this->mc->getUser($v->user_id)['real_name']; ?></a></td>
+                            <td><?php echo \Libs\Util::getPlatformName($v->platform); ?></td>
+                            <td><?php echo $sku['id']; ?></td>
+                            <td><img style="height:80px;" src="<?php echo $this->img->getUrlById($skuTypeArr[$v->platform],$sku['id']) ?>"></td>
+                            <td><?php echo $sku['name']; ?><br /><?php echo $sku['remark']; ?></td>
+                            <td><?php echo $this->mc->getCategory($sku['category_id'])['name']; ?></td>
+                            <td><?php echo $sku['unit_price']; ?></td>
+                            <td><?php echo $this->mc->getDict($sku['unit_id'])['name']; ?></td>
+                            <td><?php echo $this->mc->getDict($sku['measure_id'])['name']; ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php } ?>
+                    </tbody>
+                </table>
+                <div class="row">
+                    <div class="table-footer">
+                        <div class="col-md-12">
+                            <?php echo $pagination['html'] ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

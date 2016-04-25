@@ -1,0 +1,84 @@
+<!--=== Page Content ===-->
+<script type="text/javascript" src="plugins/pickadate/picker.js"></script>
+<script type="text/javascript" src="plugins/pickadate/picker.date.js"></script>
+<script type="text/javascript" src="plugins/pickadate/picker.time.js"></script>
+<script type="text/javascript" src="plugins/bootstrap-colorpicker/bootstrap-colorpicker.min.js"></script>
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 采购单管理</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<form class="form-horizontal" action="" method="get" onsubmit="return checkform()">
+				<div class="form-group">
+					<div class="col-md-12">
+						<div class="row">
+							<div class="col-md-2">
+								<label class="control-label">按天搜索：</label>
+							</div>
+							<div class="col-md-3">
+								<input type="text" name="day" value="<?php echo $day; ?>" class="form-control datepicker" placeholder="选择日期" readonly="readonly">
+							</div>
+							<div class="col-md-3">
+								<input type="submit" value="搜索" class="btn btn-primary">
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+				</div>
+			</form>
+
+			<table class="table table-hover table-striped table-bordered table-highlight-head" id="print">
+				<thead>
+					<tr>
+						<th>采购单名称</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php 
+					if(empty($purchase)){
+					echo '暂无数据';
+					return;
+					}
+					foreach($purchase as $k=>$v) { 
+						?>
+					<tr>
+						<td><?php echo $v->title; ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href="<?php echo $this->url->get('purchase/pdetail',array('id'=>$v->id)); ?>" class="btn btn-xs bs-tooltip" title="查看">查看</a>
+								<a href="javascript:;" onclick="deleteByID('<?php echo $this->url->get($this->dispatcher->getControllerName().'/delete') ?>','<?php echo $v->id ?>');" class="btn btn-xs bs-tooltip" title="删除" >删除</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<!--分页显示位置-->
+						<?php ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- /Table with Footer -->
+<script type="text/javascript">
+$( ".datepicker" ).datepicker({
+	showOtherMonths:true,
+	autoSize: true,
+});
+</script>
+<!-- /Page Content -->

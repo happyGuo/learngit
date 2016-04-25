@@ -1,0 +1,18 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: xiaochuan
+ * Date: 2015/8/31
+ * Time: 9:40
+ */
+
+namespace Models;
+
+
+class ConsoleLog extends BaseCollection
+{
+    public function getSource()
+    {
+        return "console_log";
+    }
+}

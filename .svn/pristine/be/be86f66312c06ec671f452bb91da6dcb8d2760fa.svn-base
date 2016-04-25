@@ -1,0 +1,12 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class IndexController extends ComplexController
+{
+    public function indexAction(){
+        $value = $this->getParam();
+        print_r($value);
+    }
+
+}
+

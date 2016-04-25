@@ -1,0 +1,17 @@
+<?php
+
+return new \Phalcon\Config(array(
+//	'database' => array(
+//		'adapter'  => 'Mysql',
+//		'host'     => '127.0.0.1',
+//		'username' => 'root',
+//		'password' => '',
+//		'name'     => 'fl_common',
+//	),
+	'application' => array(
+		'controllersDir' => __DIR__.'/../controllers/',
+		'modelsDir' => __DIR__.'/../../models/',
+		'viewsDir' => __DIR__.'/../views/',
+	),
+    'params'=>array('partner_license'=>'zyccc')
+));

@@ -1,0 +1,12 @@
+<?php
+/**
+ * ³äÖµÄ£ÐÍ.
+ * User: xiaochuan
+ * Date: 2015/8/27
+ * Time: 11:17
+ */
+namespace Models;
+
+class Recharge extends CommonModel
+{
+}

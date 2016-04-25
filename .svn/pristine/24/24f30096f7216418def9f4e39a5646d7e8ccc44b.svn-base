@@ -1,0 +1,79 @@
+<script type="text/javascript">
+$(function() {
+    $("#check_all").click(function(){
+        var checked = $( this ).prop( 'checked' );
+        $(".checkbox1").prop( "checked", checked ).trigger('change');
+    });
+});
+function executeSql(id){
+    if(parseInt(id)<1)return;
+    bootbox.confirm("是否确认开通城市?",function(confirmed){
+        if(confirmed){
+            $("#openform #id").val(id);
+            $("#openform").submit();
+        }
+    });
+}
+
+function checkform(){
+    var checkflag=true;
+    $("textarea[onblur]").each(function(){
+        this.onblur();
+        if($(this).attr("check")==0)checkflag=false;
+    });
+    if($(".checkbox1:checked").length<1){
+        showtip("请选择要执行的数据库",2);
+        checkflag = false;
+    }
+
+    return checkflag;
+}
+
+</script>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i>执行sql</h4>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form class="form-horizontal row-border" action="" method="post" id="openform" onsubmit="return checkform()">
+            <div class="form-group">
+                <label class="col-md-1 control-label">
+                    选择城市：
+                </label>
+                <div class="col-md-10">
+                    <label class="checkbox-column"><input type="checkbox" id="check_all">全选</label><br />
+                    <?php foreach(explode(',', DB) as $key=>$val):?>
+                    <label style="margin-right:20px;display:inline;"><input class="checkbox1" type="checkbox" name="database[]" value="<?php echo $val?>"><?php echo $val ?></label>
+                    <?php endforeach ?>
+                </div>
+            </div>
+            <div class="form-group">
+                <label style="display:none">SQL</label>
+                <div class="col-md-12">
+                    <textarea onblur="checkrequired($(this))" name="sql" style="height:600px;" class="form-control"><?php echo isset($sql)?$sql:'' ?></textarea>
+                </div>
+            </div>
+            <?php if(isset($messages)): ?>
+            <?php foreach($messages as $key=>$message): ?>
+            <div class="alert alert-info fade in">
+                <i class="icon-remove close" data-dismiss="alert"></i>
+                <?php echo $key ?> 执行成功
+            </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
+            <div class="form-group">
+                <div class="col-md-2">
+                    <input class="btn btn-info btn-block" value="执行" type="submit">
+                </div>
+            </div>
+            </form>
+        </div>
+    </div>
+</div>

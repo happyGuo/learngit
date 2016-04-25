@@ -1,0 +1,26 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: zyf
+ * Date: 15-3-26
+ * Time: 下午4:44
+ */
+namespace Apis;
+class Common extends BaseApi {
+
+    public function sendSms($data){
+        return $this->post('/sendsms',$data);
+    }
+
+    public function push($data){
+        return $this->post('/push',$data);
+    }
+
+    public function operatelog($data){
+        return $this->post('/operatelog',$data);
+    }
+
+    public function call(){
+        return $this->get('http://127.0.0.1:8848/call?fff=1&cc=22',array('mobile'=>15921709039,'msg'=>'test'));
+    }
+}

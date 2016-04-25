@@ -1,0 +1,141 @@
+<?php
+/**
+ *  商品Model
+ *
+ *  商品CURDModel
+ * @author      zhangrg
+ * @version     20150801
+*/
+namespace Models;
+
+class PartnerSku extends CityModel
+{
+
+    /* 验证 */
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'name',
+            'max' => 100,
+            'min' => 1,
+            'messageMaximum' => '商品名称不能超过100个字符',
+            'messageMinimum' => '商品名称不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'unit_id',
+            'message' => '单位不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'unit_price',
+            'message' => '价格不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'parent_category_id',
+            'message' => '一级分类不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'category_id',
+            'message' => '二级分类不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Uniqueness(array(
+            'field' => ['name','spec','category_id','parent_category_id','partner_id'],
+            'message' => '商品已经存在！【名称、规格、一级分类、二级分类】相同'
+        )));
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    
+    /* 添加日志 */
+    public function afterCreate(){
+        parent::afterCreate();
+        $this->getModel('partnerOperateLog')->partnerSkuCreate($this);
+        //搜索字段,商品名+拼音+简拼
+        //商品编码
+        $this->sn = 'P'.sprintf('%03s',$this->partner_id).sprintf('%02s',$this->parent_category_id).sprintf('%03s',$this->parent_category_id).sprintf('%05s',$this->id);
+        $this->save();
+    }
+
+    /* 添加前重置搜索字段 */
+    public function beforeCreate(){
+
+        //搜索字段,商品名+拼音+简拼
+        // var_dump($this);exit;
+        $str2py = new \Libs\StringToPinyin();
+        $quanpin = $str2py->str2py($this->name);
+        $jianpin = $str2py->str2py($this->name,false);
+        $this->search_name= "{$this->name}|{$quanpin}|$jianpin";
+
+    }
+    /* 更新前重置搜索字段 */
+        public function beforeUpdate(){
+        //搜索字段,商品名+拼音+简拼
+        $str2py = new \Libs\StringToPinyin();
+        $quanpin = $str2py->str2py($this->name);
+        $jianpin = $str2py->str2py($this->name,false);
+        $this->search_name= "{$this->name}|{$quanpin}|$jianpin";
+        $before=  $this->findById($this->id);
+        $this->getAsynModel('partnerOperateLog','partnerSkuUpdate',array('before'=>$before,'after'=>$this->toArray()));
+    }
+
+    //配销商后台复制平台商品用 (无分页.数组参数,数组返回)
+    public function getList($where = ''){
+        $strWhere = '';
+        if(is_array($where)){
+            foreach ($where as $key => $val) {
+                $strWhere .= " and `$key`= '$val'";
+            }
+        }
+        if(is_string($where))$strWhere .= " $where";
+        $list = $this->find($strWhere);
+
+        return count($list)?$list->toArray():[];
+    }
+
+
+    public function refreshSku($ids,$shopId,$userId){
+        $order = "id desc";
+        $condition = "is_del = 0";
+        if(!is_array($ids) || empty($ids)){
+            return  array();
+        }
+        $ids = implode(',',$ids);
+        if($ids){
+            $condition .= "  and id in ('".$ids."')";
+        }
+        //select字段
+        $columns = ['id','name','remark','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id'];
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'columns'=>$columns))->toArray();
+        if(empty($list) || !$list){
+            return array();
+        }
+        $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId);
+        $return = [];
+        foreach ($list as $val) {
+            //计数单位
+            $unit = $this->dict($val['unit_id']);
+            $val['unit_price'] = $ykyj[$val['id']] ? $ykyj[$val['id']] : $val['unit_price'];
+            $val['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+            unset($val['unit_id']);
+            //计量单位
+            $measure = $this->dict($val['measure_id']);
+            $val['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+            unset($val['measure_id']);
+            //图片
+            $val['pic_url'] = $this->img->getUrlById('partner_sku', $val['id']);
+            //是否收藏
+            $val['is_favored'] = $userId > 0 ? $this->getModel('userFavor')->count(['is_del=0 and user_id=' . $userId . ' and sku_id=' . $val['id']]) : 0;
+            $return[] = $val;
+        }
+        return $return;
+    }
+    
+
+}

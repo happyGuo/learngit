@@ -1,0 +1,63 @@
+<?php return array (
+ 0 => 
+ array (
+   0 => 'id',
+   1 => 'login',
+   2 => 'pwd',
+   3 => 'real_name',
+   4 => 'ctime',
+   5 => 'utime',
+ ),
+ 1 => 
+ array (
+   0 => 'id',
+ ),
+ 2 => 
+ array (
+   0 => 'login',
+   1 => 'pwd',
+   2 => 'real_name',
+   3 => 'ctime',
+   4 => 'utime',
+ ),
+ 3 => 
+ array (
+   0 => 'id',
+   1 => 'login',
+   2 => 'pwd',
+   3 => 'real_name',
+   4 => 'ctime',
+   5 => 'utime',
+ ),
+ 4 => 
+ array (
+   'id' => 0,
+   'login' => 2,
+   'pwd' => 2,
+   'real_name' => 2,
+   'ctime' => 0,
+   'utime' => 0,
+ ),
+ 5 => 
+ array (
+   'id' => true,
+   'ctime' => true,
+   'utime' => true,
+ ),
+ 8 => 'id',
+ 9 => 
+ array (
+   'id' => 1,
+   'login' => 2,
+   'pwd' => 2,
+   'real_name' => 2,
+   'ctime' => 1,
+   'utime' => 1,
+ ),
+ 10 => 
+ array (
+ ),
+ 11 => 
+ array (
+ ),
+);

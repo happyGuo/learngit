@@ -1,0 +1,30 @@
+<?php
+namespace Models;
+
+class Dict extends CommonModel
+{
+    public  function getListByParentId($parent_id,$offset = 0,$limit = 100){
+
+        return $this->find(array('is_del=0 and parent_id='.$parent_id,'offset'=>$offset,'limit'=>$limit));
+    }
+
+    public function getDictByCode($code){
+    	$data = $this->findOneByCache('is_del=0 and code="'.$code.'"');
+    	if($data){
+    		return $data['id'];
+    	}
+    	else{
+    		return false;
+    	}
+    }
+
+    public  function getListByCode($code){
+    	$id = $this->getDictByCode($code);
+    	if($id){
+    		return $this->getListByParentId($id);
+    	}
+    	else{
+    		return false;
+    	}
+    }
+}

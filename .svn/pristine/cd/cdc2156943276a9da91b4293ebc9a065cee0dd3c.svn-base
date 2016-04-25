@@ -1,0 +1,10 @@
+<?php
+namespace Models;
+
+class Dict extends CommonModel
+{
+    public static function getListByParentId($parent_id,$offset = 0,$limit = 100){
+
+        return \Models\Dict::find(array('is_del=0 and parent_id='.$parent_id,'offset'=>$offset,'limit'=>$limit));
+    }
+}

@@ -1,0 +1,462 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: jiangzhuoran
+ * Date: 2015/9/9
+ * Time: 15:18
+ */
+
+namespace Modules\App\Controllers;
+
+class BSkuController extends BAppController{
+    var $tagArr = [];
+
+    public function initialize(){
+        parent::initialize();
+
+        $this->tagArr = [1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼'];
+    }
+
+    /*
+     * 商品列表
+     * @param  $offset
+     * @param  $limit
+     * @param  $categoryId
+     * @param  $pcategoryId
+     */
+
+    public function listAction()
+    {
+        $offset = $this->request->getQuery('offset','int',0);
+        $limit = $this->request->getQuery('limit','int',10);
+        $partnerId = $this->userId;
+        $condition = 'is_del = 0 and partner_id = '.$partnerId;
+        $categoryId = $this->request->getQuery('category_id','int');
+        if(intval($categoryId)>0){
+            $condition .= " and category_id = ".$categoryId;
+        }
+        $pcategoryId = $this->request->getQuery('parent_category_id','int');
+        if(intval($pcategoryId)>0){
+            $condition .= " and parent_category_id = ".$pcategoryId;
+        }
+        //select字段
+        $columns = ['id','name','remark','unit_id','unit_price','unit_number','measure_id','origin','discount_price','category_id','parent_category_id'];
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>'ctime desc','columns'=>$columns,'limit'=>$limit , 'offset' => $offset))->toArray();
+        $return = [];
+        foreach ($list as $val) {
+            $val['origin'] = $val['origin'] ? $val['origin'] :'';
+            //计数单位
+            $unit = $this->dict($val['unit_id']);
+            $val['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+            unset($val['unit_id']);
+            //计量单位
+            $measure = $this->dict($val['measure_id']);
+            $val['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+            unset($val['measure_id']);
+            if ($val['discount_price'] > 0) {
+                $val['price'] = $val['discount_price'];
+            } else {
+                $val['price'] = $val['unit_price'];
+            }
+            //图片
+            $val['pic_url'] = $this->img->getUrlById('partner_sku', $val['id']);
+            $return[] = $val;
+        }
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('partnerSku')->count(array($condition))]);
+    }
+
+
+    public function skulistAction(){
+        /* 一级分类 */
+        $condition = '1';
+
+        /* 搜索条件[一级分类] */
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        if(strlen(trim($parent_category_id))){
+            $condition .= ' and parent_category_id = '.$parent_category_id;
+        }
+
+        /* 搜索条件[二级分类] */
+        $category_id = $this->request->getQuery('category_id');
+        if(strlen(trim($category_id))){
+            $condition .= ' and category_id = '.$category_id;
+        }
+
+        //已经复制的商品
+        $copyedList = $this->getModel('partnerSku')->getList($condition.' and partner_id='.$this->userId);
+        $skuCopyArr = [];
+        foreach ($copyedList as $key => $val) {
+            $skuCopyArr[]="{$val['name']}|{$val['spec']}|{$val['category_id']}|{$val['parent_category_id']}";
+        }
+        $list = $this->getModel('sku')->find(array($condition,'order'=>'ctime desc'));
+        $skuList = [];
+        foreach ($list as $key => $val) {
+            $sku = $val->toArray();
+            if(!in_array("{$sku['name']}|{$sku['spec']}|{$sku['category_id']}|{$sku['parent_category_id']}", $skuCopyArr)){
+                $skuList[] = $val;
+            }
+        }
+        return $this->renderJson(['list'=>$skuList]);
+    }
+
+
+    /*
+     * 商品详情
+     * @param  $skuId
+     */
+    public function detailAction(){
+        //初始化
+        $condition = 'is_del = 0';
+        $partnerId = $this->userId;
+        //ID
+        $skuId = $this->request->getQuery('id');
+        if(intval($skuId)>0){
+            $condition .= ' and id='.$skuId.' and partner_id = '.$partnerId;
+        }
+        //字段
+        $columns = ['id','name','remark','content','unit_id','unit_price','unit_number','measure_id','tag','discount_price','origin','spec','is_del','category_id','parent_category_id'];
+        //查询，关联字段
+        $oneSku = $this->getModel('partnerSku')->findFirst(array($condition,'order'=>'sort desc','columns'=>$columns));
+        //商品已下架
+        if(!isset($oneSku->id)){
+           return  $this->renderJson([],'商品已下架');
+        }
+        $condition = "is_del = 0 and sku_id = ".$skuId;
+        $buy_number = $this->getModel('orderSku')->findFirst(array($condition,'columns'=>'sum(buy_number) as buy_number'));
+        $oneSku->unit_name = $this->dict($oneSku->unit_id)['name'];
+        $oneSku->buy_number = $buy_number->buy_number ? $buy_number->buy_number : 0;
+        $oneSku->category = $this->mc->getCategory($oneSku->category_id)['name'];
+        $oneSku->parent_category = $this->mc->getCategory($oneSku->parent_category_id)['name'];
+        $oneSku->measure_name = $this->dict($oneSku->measure_id)['name'];
+        //图片
+        $oneSku->pic_url=$this->img->getUrlById('partner_sku',$oneSku->id);
+        return $this->renderJson(['product'=>$oneSku]);
+    }
+
+    //设置价格
+    //设置SKU价格 显示客户列表
+    public function setpricebyskuAction(){
+
+        $message = '无效请求';
+        //保存数据
+        if($this->request->isPost()){
+            $message = '';
+            $skuId = $this->request->getPost('id');
+            $partnerId = $this->userId;
+            $shopList = $this->getModel('shopSku')->getShopListByPartnerId($partnerId);
+            $priceArr = $this->request->getPost('price');
+            $priceArr = json_decode($priceArr,true);
+            $pid = $partnerId;
+            $p_name = $this->mc->getPartner($pid)['contact_name'];
+            if(is_array($priceArr) && !empty($priceArr)) {
+                foreach ($priceArr as $key => $val) {
+                    $data['partner_id'] = $pid;
+                    $data['type'] = 'create';
+                    $data['table'] = 'PartnerSkuYkyj';
+                    $data['content'] = "[一客一价日志]" . $p_name . "将店铺ID为：" . $key . "中商品ID为" . $skuId . "的价格修改为：" . $val . "";
+                    $this->getModel('partnerOperateLog')->createOne($data);
+                    $this->getModel('PartnerSkuYkyj')->savePrice($key, $partnerId, $skuId, $val);
+                }
+            }
+        }
+        return $this->renderJson(['list'=>$shopList],$message);
+    }
+
+
+    //添加商品
+
+    /* 添加商品 */
+    public function createAction()
+    {
+        if($this->request->isPost()) {
+            $param = $this->request->getPost('params');
+            $param = json_decode($param,true);
+            $sku = $this->getModel('partnerSku');
+            $content = $param['params']['content'];
+            $content = trim($content);
+            $name = $param['params']['name'];
+            $name = trim($name);
+            $category_id = $param['params']['category_id'];
+            $parent_category_id = $param['params']['parent_category_id'];
+            $data['name'] = $name;
+            $data['content'] = $content;
+            $data['remark'] =  $param['params']['remark'];
+            $data['parent_category_id'] = $parent_category_id;
+            $data['category_id'] = $category_id;
+            $sku->name = $name;
+            $sku->content = $content;
+            $sku->remark =
+            $sku->parent_category_id = $parent_category_id;
+            $sku->category_id = $category_id;
+            $sku->hot = 0;
+            $sku->new = 0;
+            $sku->origin = '';
+            $sku->unit_id = isset($param['params']['unit_id']) ? $param['params']['unit_id'] : 0;
+            $sku->unit_price = $param['params']['unit_price'];
+            $sku->unit_number = (isset($param['params']['unit_number']) && !empty($param['params']['unit_number'])) ? $param['params']['unit_number'] : '0.00';
+            $sku->measure_id = (isset($param['params']['measure_id']) && !empty($param['params']['measure_id'])) ? $param['params']['measure_id'] : '';
+            $sku->discount_price = (isset($param['params']['discount_price']) && !empty($param['params']['discount_price'])) ? $param['params']['discount_price'] : '0.00';
+            $sku->spec = (isset($param['params']['spec']) && !empty($param['params']['spec'])) ? $param['params']['spec'] : '';
+            $sku->partner_id = $this->userId;
+            $picUrl = $param['pic_url'];
+            $picUrl = base64_decode($picUrl);
+            $messages = '';
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadContentById('partner_sku',$sku->id,$picUrl);
+                if($return['error']!='') {
+                    $messages = $return['error'];
+                }
+            }else{
+                $messages = $sku->getError();
+            }
+            return $this->renderJson([$sku],$messages);
+        }
+
+    }
+
+    /* 修改商品 */
+    public function updateAction()
+    {
+        $messages = '';
+        if($this->request->isPost()) {
+            $param = $this->request->getPost('params');
+            $param = json_decode($param,true);
+            $skuId = $this->request->getPost('id',"int");
+            $sku = $this->getModel('partnerSku')->findFirst($skuId);
+            if(!isset($sku->id)){
+                $this->renderJson('','商品不存在');
+            }
+            if($sku->partner_id!=$this->userId){
+                $this->renderJson('','不能修改');
+            }
+            $content = $param['params']['content'];
+            $content = trim($content);
+            $name = $param['params']['name'];
+            $name = trim($name);
+            $category_id = $param['params']['category_id'];
+            $parent_category_id = $param['params']['parent_category_id'];
+            $sku->name = $name;
+            $sku->content = $content;
+            $sku->remark = $param['params']['remark'];
+            $sku->parent_category_id = $parent_category_id;
+            $sku->category_id = $category_id;
+            $sku->hot = 0;
+            $sku->new = 0;
+            $sku->origin = (isset($param['params']['origin']) && !empty($param['params']['origin'])) ? $param['params']['origin'] : 0;
+            $sku->unit_id = (isset($param['params']['unit_id']) && !empty($param['params']['unit_id'])) ? $param['params']['unit_id'] : 0;
+            $sku->unit_price = (isset($param['params']['unit_price']) && !empty($param['params']['unit_price'])) ? $param['params']['unit_price'] : '0.00';
+            $sku->unit_number = (isset($param['params']['unit_number']) && !empty($param['params']['unit_number'])) ? $param['params']['unit_number'] : '0.00';
+            $sku->measure_id = (isset($param['params']['measure_id']) && !empty($param['params']['measure_id']))  ? $param['params']['measure_id'] : '';
+            $sku->discount_price = (isset($param['params']['discount_price']) && !empty($param['params']['discount_price']))  ? $param['params']['discount_price'] : '0.00';
+            $sku->spec =  (isset($param['params']['spec']) && !empty($param['params']['spec']))  ? $param['params']['spec'] : '';
+            $sku->partner_id = $this->userId;
+            $picUrl = (isset($param['pic_url']) && !empty($param['pic_url'])) ? base64_decode($param['pic_url']) : '';
+            $messages = '';
+            if($sku->save()) {
+                //保存图片
+                $return = $this->img->uploadContentById('partner_sku',$sku->id,$picUrl);
+                if($return['error']!='') {
+                    $messages = $return['error'];
+                }
+            }else{
+                $messages = $sku->getError();
+            }
+            return $this->renderJson([$sku],$messages);
+        }
+
+    }
+
+    /* 复制公共商品库的商品 */
+    public function copyAction()
+    {
+
+        //复制商品
+        if($this->request->isPost()){
+            $ids = $this->request->getPost('ids');
+            $ids = trim($ids,',');
+            $skuList = $this->getModel('sku')->find("id in ($ids) and is_del=0")->toArray();
+            $userId = $this->userId;
+            //已经导入
+            foreach ($skuList as $key => $val) {
+                $val['partner_id']=$userId;
+                //判断数据是否存在
+                $where  = ' partner_id='.$this->userId." and name='{$val['name']}' and spec='{$val['spec']} and parent_category_id={$val['parent_category_id']} and category_id={$val['category_id']}'";
+                if($this->getModel('partnerSku')->count($where))continue;
+                //保存数据
+                $sku = $this->getModel('partnerSku');
+                $sku->save(array_slice($val,1));
+                $skuStr = "商品{$val['name']} ".($val['spec']?'规格:'.$val['spec']:'');
+                if($sku->id){
+                    $messages = '';
+                }else{
+                    $messages = $skuStr."复制失败,原因:".$sku->error;
+                }
+                //保存图片
+                $this->img->copyImageToPartner($val['id'],$sku->id);
+            }
+            // $this->renderJson('成功');
+        }
+        return $this->renderJson([],$messages);
+    }
+
+    public function searchAction(){
+
+        $search = $this->request->getQuery('search');
+        $search = trim($search);
+        $partnerId = $this->userId;
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $category = $this->mc->getPartner($partnerId)['category'];
+        $condition = "is_del = 0  and parent_category_id in (".$category.")";
+        if(!empty($search)) {
+            //公共商品
+            $condition .= " and search_name LIKE '%".$search."%'";
+        }
+            $columns = ['id','name','remark','unit_id','unit_price','unit_number','measure_id','origin','discount_price','category_id','parent_category_id'];
+            $allSku = $this->getModel('partnerSku')->find(array($condition,'order'=>'sort asc','columns'=>$columns,'limit'=>$limit,'offset'=>$offset))->toArray();
+            foreach ($allSku as $key => $val) {
+                $allSku[$key]['unit_name'] = $this->mc->getDict($val['unit_id'])['name'];
+                $allSku[$key]['pic_url'] = $this->img->getUrlById('sku',$val['id']);
+            }
+        $this->renderJson(['list'=>$allSku])  ;
+    }
+
+    //商品下架
+    public function downAction(){
+        if($this->request->isPost()) {
+            $skuId = $this->request->getPost('id');
+            $sku = $this->getModel('partnerSku')->findFirst($skuId);
+            $sku->is_del = 1;
+            if($sku->save()) {
+                $this->renderJson([$sku]);
+            }else{
+                $message = '下架失败';
+                $this->renderJson([],$message);
+            }
+        }
+    }
+
+
+    //设置价格
+
+    //设置SKU价格 显示客户列表
+    public function setpriceAction(){
+
+        $message = '无效请求';
+        //保存数据
+        if($this->request->isPost()){
+            $message = '';
+            $shopId = $this->request->getPost('shop_id');
+            $partnerId = $this->userId;
+            $price = $this->request->getPost('price');
+            $priceArr = json_decode($price,true);
+            $pid = $partnerId;
+            if(is_array($priceArr) && !empty($priceArr)) {
+                foreach ($priceArr as $key => $val) {
+
+                    $this->getModel('PartnerSkuYkyj')->savePrice($shopId, $partnerId, $key, $val);
+                }
+            }
+        }
+        return $this->renderJson([],$message);
+    }
+
+//常购商品
+    public function commenAction(){
+        $condition = "is_del = 0";
+        $shopId = $this->request->getQuery('shop_id');
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $order = "sort desc";
+        //分类
+        $category_id = $this->request->getQuery('category_id');
+        if(intval($category_id)>0){
+            $condition .= ' and category_id='.$category_id;
+        }
+        $pcategory_id = $this->request->getQuery('parent_category_id');
+        if(intval($pcategory_id)>0){
+            $condition .= " and parent_category_id = ".$pcategory_id;
+        }
+        $shopSku = $this->getModel('shopSku')->getPartnerListByShop($shopId);
+        $partner = array_keys($shopSku);
+        $partnerStr = implode(',',$partner);
+        if(!empty($partnerStr)){
+            $condition .= " and partner_id in (".$partnerStr.")";
+        }
+        //select字段
+        $columns = ['id','name','remark','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id'];
+        $list = $this->getModel('partnerSku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>$limit , 'offset' => $offset));
+        $ykyj = $this->getModel('partnerSkuYkyj')->getYkyjListByShopId($shopId);
+        $return = [];
+        if($list) {
+            $list = $list->toArray();
+            foreach ($list as $val) {
+                //计数单位
+                $unit = $this->dict($val['unit_id']);
+                $val['unit_price'] = (isset($ykyj[$val['id']])&&!empty($ykyj[$val['id']])) ? $ykyj[$val['id']] : $val['unit_price'];
+                $val['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+                unset($val['unit_id']);
+                //计量单位
+                $measure = $this->dict($val['measure_id']);
+                $val['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+                unset($val['measure_id']);
+                //图片
+                $val['pic_url'] = $this->img->getUrlById('partner_sku', $val['id']);
+                //是否收藏
+                $val['is_favored'] = $this->userId > 0 ? $this->getModel('userFavor')->count(['is_del=0 and user_id=' . $this->userId . ' and sku_id=' . $val['id']]) : 0;
+                $return[] = $val;
+            }
+        }
+        //常购商品
+        $alwaysList = $this->getModel('UserSku')->getList($this->mc->getShop($shopId)['user_id'],'partner');
+        return $this->renderJson(['list'=>$return,'alwayslist'=>$alwaysList]);
+
+    }
+
+    public function shoppriceAction(){
+        $partnerId = $this->userId;
+        $skuId = $this->request->getQuery('sku_id','int');
+        $list = $this->getModel('PartnerSkuYkyj')->getListByPartnerSku($partnerId,$skuId);
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $shopsku = $this->getModel('shopSku')->find('is_del = 0 and partner_id ='.$partnerId)->toArray();
+        if(!empty($shopsku)) {
+            foreach ($shopsku as $key => $val) {
+                $shopid[] = $val['shop_id'];
+                $newshop = array_unique($shopid);
+            }
+            $box = '';
+            if (isset($newshop)) {
+                foreach ($newshop as $key => $val) {
+                    $box .= "," . $val;
+                }
+            }
+            $newbox = substr($box, 1);
+
+            $where = ' is_del = 0 and id in (' . $newbox . ')';
+            $shop = $this->getModel('shop')->find(array($where, "order" => "id desc", "limit" => $limit, "offset" => $offset))->toArray();
+            foreach ($shop as $key => $val) {
+                if ($val['platform'] == 'partner' || $val['platform'] == 'app_partner') {
+                    $shop[$key]['type_key'] = '自助订单';
+                    $shop[$key]['type'] = 'self';
+                } else {
+                    $shop[$key]['type_key'] = '下发订单';
+                    $shop[$key]['type'] = 'app';
+                }
+                $shop[$key]['price'] = (isset($list[$shop[$key]['id']]['price']) && !empty($list[$shop[$key]['id']]['price'])) ? $list[$shop[$key]['id']]['price'] : '0.00';
+            }
+
+            return $this->renderJson(['shoplist' => $shop]);
+        }
+    }
+
+    public function getDictAction(){
+        $measureArr = $this->getModel('dict')->find(['is_del=0 and parent_id=43','columns'=>['name','id'],'order'=>'sort asc'])->toArray();
+        $unit = $this->getModel('dict')->find(['is_del=0 and parent_id=37','columns'=>['name','id'],'order'=>'sort asc'])->toArray();
+        return $this->renderJson(['measure'=>$measureArr,'unit'=>$unit]);
+    }
+
+
+
+}

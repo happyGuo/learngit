@@ -1,0 +1,118 @@
+<div class="col-md-12">
+    <a href="balance/detail?type=0" class="btn <?php echo $type == 0 ? 'btn-primary' : 'btn-default'; ?> btn-lg"
+       role="button">充值记录</a>
+    <a href="balance/detail?type=1" class="btn <?php echo $type == 1 ? 'btn-primary' : 'btn-default'; ?>  btn-lg "
+       role="button">资金交易</a>
+    <a href="balance/detail?type=2" class="btn <?php echo $type == 2 ? 'btn-primary' : 'btn-default'; ?> btn-lg"
+       role="button">提现记录</a>
+</div>
+<div class="col-md-12" style="margin-top: 15px;">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 收支明细列表</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form class="form-horizontal" action="" method="get">
+                <div class="form-group">
+                    <div class="col-md-10">
+                        <div class="row">
+                            <div class="col-md-2">
+                                用户ID： <input type="text" name="uid" placeholder="用户ID" class="form-control"
+                                             value="<?php echo isset($s_uid) ? $s_uid : '' ?>">
+                            </div>
+                            <div class="col-md-2">
+                                类型：
+                                <select class="form-control" name="s_type" id="s_type" style="display:inline;">
+                                    <option value="0" <?php if (isset($s_type)) echo $s_type == 0 ? 'selected' : ''; ?>>
+                                        全部
+                                    </option>
+                                    <option
+                                        value="-1" <?php if (isset($s_type)) echo $s_type == -1 ? 'selected' : ''; ?>>
+                                        充值
+                                    </option>
+                                    <option value="1" <?php if (isset($s_type)) echo $s_type == 1 ? 'selected' : ''; ?>>
+                                        冻结金额
+                                    </option>
+                                    <option value="2" <?php if (isset($s_type)) echo $s_type == 2 ? 'selected' : ''; ?>>
+                                        实际扣款
+                                    </option>
+                                    <option value="3" <?php if (isset($s_type)) echo $s_type == 3 ? 'selected' : ''; ?>>
+                                        提现
+                                    </option>
+                                    <option value="4" <?php if (isset($s_type)) echo $s_type == 4 ? 'selected' : ''; ?>>
+                                        拒收解冻金额
+                                    </option>
+                                    <option value="5" <?php if (isset($s_type)) echo $s_type == 5 ? 'selected' : ''; ?>>
+                                        订单取消解冻金额
+                                    </option>
+                                    <option value="6" <?php if (isset($s_type)) echo $s_type == 6 ? 'selected' : ''; ?>>
+                                       争议退款
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <input type="hidden" name="type" value="<?php echo $type; ?>"/>
+                                <input type="submit" value="搜索" class="btn btn-primary" style="margin-top:18px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                </div>
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>流水号</th>
+                    <?php if ($type == 1) { ?>
+                        <th>订单号</th>
+                    <?php } ?>
+                    <th>用户</th>
+                    <?php if ($type == 1) { ?>
+                        <th>店铺</th>
+                    <?php } ?>
+                    <th>配销商</th>
+                    <th>类型</th>
+                    <th>金额（元）</th>
+                    <!--<th>详情</th>-->
+                    <th>创建时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php if ($logs) {
+                    foreach ($logs as $k => $v) { ?>
+                        <tr>
+                            <td><?php echo $v['sn']; ?></td>
+                            <?php if ($type == 1) { ?>
+                                <td><?php echo $v['order_sn']; ?></td>
+                            <?php } ?>
+                            <td><?php echo isset($v['user']) ? ($v['user']['real_name'] ? $v['user']['real_name'] : $v['user']['mobile']) : ''; ?></td>
+                            <?php if ($type == 1) { ?>
+                                <td><?php echo isset($v['shop']) ? $v['shop']['name'] : ''; ?></td>
+                            <?php } ?>
+                            <td><?php echo isset($v['partner']) ? $v['partner']['contact_name'] : ''; ?></td>
+                            <td><?php echo $v['type_name']; ?></td>
+                            <td><?php echo $v['amount']; ?></td>
+                            <!--<td><?php echo isset($v['info']) ? $v['info'] : ''; ?></td>-->
+                            <td><?php echo date('Y-m-d H:i', $v['ctime']); ?></td>
+                        </tr>
+                    <?php }
+                } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

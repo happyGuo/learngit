@@ -1,0 +1,28 @@
+<?php
+
+namespace Test;
+
+/**
+ * Class UnitTest
+ */
+class UnitTest extends \UnitTestCase
+{
+    public function test()
+    {
+
+        $s = $this->getDI()['img']->test();
+        $this->assertEquals($s,
+            2,
+            'This is OK'
+        );
+        $s = '[{"sku_id":1,"buy_number":1},{"sku_id":9,"buy_number":2},{"sku_id":3,"buy_number":3},{"sku_id":187,"buy_number":4}]';
+        $s = $this->getModel('order')->createOrder(132,102,json_decode($s,true),1);
+        var_dump($s);
+        $this->assertEquals('111',$this->getModel('order')->test());
+
+        $this->assertEquals('works1',
+            'works1',
+            'This will fail'
+        );
+    }
+}

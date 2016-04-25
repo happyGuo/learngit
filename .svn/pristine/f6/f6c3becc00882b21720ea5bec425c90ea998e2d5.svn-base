@@ -1,0 +1,172 @@
+<div class="row">
+<div class="tabbable tabbable-custom tabbable-full-width">
+<ul class="nav nav-tabs">
+		<?php
+			if($type == '' || $type == 0){?>
+				<li class="active"><a data-toggle="tab" onclick="gohre()" href="javascript:void(0)">审核通过<span></span></a></li>
+				<li class=""><a onclick="gohref()"  data-toggle="tab" href="javascript:void(0)">待审核/审核失败<span></span></a></li>
+		<?php	}else{ ?>
+				<li class=""><a data-toggle="tab" onclick="gohre()" href="javascript:void(0)">审核通过<span></span></a></li>
+				<li class="active"><a onclick="gohref()"  data-toggle="tab" href="javascript:void(0)">待审核/审核失败<span></span></a></li>
+		<?php }
+		?>
+		
+</ul>
+	<div class="form-group">
+		<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+					<select class="form-control" name="select">
+						<option value="">请选择搜索条件</option>
+						<option value="id">id</option>
+						<option value="name">店铺名称</option>
+						<option value="address">店铺地址</option>
+						<option value="contact_name">联系人</option>
+						<option value="contact_mobile">联系电话</option>
+					</select>
+		</div>
+
+		<div class="col-md-2">
+			<input name="search" class="form-control" placeholder="" type="text">
+		</div>
+
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	</div>
+</div>	
+	<!--=== Table with Footer ===-->
+<div class="col-md-12">
+<div class="widget box">
+<div class="widget-header">
+	<h4><i class="icon-reorder"></i> 店铺列表</h4>
+<div class="toolbar no-padding">
+<div class="btn-group">
+	<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+</div>
+</div>
+</div>
+<div class="widget-content">
+<table class="table table-hover table-striped table-bordered table-highlight-head">
+<thead>
+	<tr>
+		<th>店铺ID</th>
+		<th>店铺名称</th>
+		<th>店铺地址</th>
+		<th>餐馆类型</th>
+		<th>联系人姓名</th>
+		<th>联系人电话</th>
+		<th>审核状态</th>
+		<th>最佳送货时间</th>
+		<th>前台用户</th>
+		<th>账期结算日</th>
+		<th>操作</th>		
+	</tr>
+</thead>
+<tbody>
+	<?php foreach($pageshop as $k=>$v) { ?>
+	<tr>
+		<td><?php echo $v['id']; ?></td>
+		<td><?php echo $v['name']; ?></td>
+		<td><?php echo $v['address']; ?></td>
+		<td><?php 
+			if (isset($v['shop_type'])) {
+				echo $v['shop_type'];
+			}else{
+				echo "暂无餐馆类型";
+			}
+			
+		
+		 ?></td>
+		<td><?php echo $v['contact_name']; ?></td>
+		<td><?php echo $v['contact_mobile']; ?></td>
+		<td><?php 
+		         switch($v['status']){
+			      case 0:
+			       echo "待审核";
+			       break;
+			      case 1:
+			       echo "审核通过";
+			       break;
+			      case 2:
+			       echo "审核未通过";
+			       break;
+			}
+
+		?></td>
+		<td><?php echo $v['best_time'];?></td>
+		<td><?php echo $v['real_name'];?></td>
+		<td><?php 
+		if($this->mc->getUser($v['user_id'])['payment_start'] == '' || $this->mc->getUser($v['user_id'])['payment_start'] == 0){
+			echo '';			
+		}else{
+			echo date('Y-m-d H:i:s',$this->mc->getUser($v['user_id'])['payment_start']);
+		}?></td>
+		<td>
+		    <a href="shop/shopsku?shopid=<?php echo $v['id']?>&status=<?php echo $v['status'];?>" class="btn btn-xs bs-tooltip" title="修改配销商">修改配销商</a>
+		    <!-- <a class="btn btn-xs bs-tooltip" href="javascript:void(0)" onclick="del(status='<?=$v['status']?>',id='<?=$v['id']?>')">删除</a> -->
+		    <a href="shop/update?shopid=<?php echo $v['id']?>&status=<?php echo $v['status'];?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+		</td>
+		
+	</tr>
+	<?php } ?>
+
+</tbody>
+</table>
+<div class="row">
+<div class="table-footer">
+	<div class="col-md-12">
+
+	</div>
+	<div class="col-md-12">
+		<?php echo $page; ?>
+	</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+	function notg(){
+		location.href='shop/check';
+	}
+	//删除
+	function del(status,id){
+		var data = 'status='+status+'&id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"shop/delete",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+            	if(result == 1){
+            		alert('删除成功');
+            		location.href = 'shop/list';
+            	}
+            	if(result == 2){
+            		alert('删除成功');
+            		location.href = 'shop/check';
+            	}
+            	if(result == 3){
+            		alert('删除失败');
+            	}
+            }
+        });		
+	}
+	function gohre(){
+		location.href = 'shop/list?type=0';
+	}
+	function gohref(){
+		location.href = 'shop/list?type=1';
+	}
+</script>

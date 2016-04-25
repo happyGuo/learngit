@@ -1,0 +1,56 @@
+<div class="widget-content">
+<style type="text/css">
+.modal-body{padding-left: 0px;padding-right: 0px;}
+.nowarp{display: inline;width: 24%;}
+</style>
+<?php $unit_price = $this->mc->getPartnerSku($this->request->getQuery('id'))['unit_price']?>
+<form class="form-horizontal row-border" id="set_price_form" method="POST" action="" enctype="multipart/form-data">
+    <div class="form-group">
+        <label class="col-md-2 control-label">
+            商品名称：
+        </label>
+        <div class="col-md-4">
+            <?php echo $this->mc->getPartnerSku($this->request->getQuery('id'))['name']; ?>
+        </div>
+        <label class="col-md-2 control-label">
+            价格：
+        </label>
+        <div class="col-md-4">
+            <?php echo $unit_price; ?>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-md-2 control-label">
+            根据基础价格批量修改
+        </label>
+        <div class="col-md-10" id="div_price">
+            <select class="form-control nowarp" name="type" id="ajax_price_type">
+                <option value="4">统一价格</option>
+                <option value="1">增加</option>
+                <option value="2">减少</option>
+                <option value="3">设置折扣</option>
+            </select>
+            <input type="text" class="form-control nowarp" value="<?php echo $unit_price; ?>" id="ajax_price">
+            <input type="hidden" id="ajax_base_price" name="ajax_base_price" value="<?php echo $unit_price; ?>">
+            <input type="button" class="btn btn-primary nowarp btn_update" value="更新到列表">
+            <input type="reset" class="btn btn-notification nowarp" value="还原">
+        </div>
+    </div>
+    <table class="table table-hover table-striped table-checkable table-bordered table-highlight-head">
+        <thead>
+            <tr>
+                <th>客户名称</th>
+                <th>价格</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach($shop as $k=>$v): ?>
+            <tr>
+                <td><?php echo $v['name']; ?></td>
+                <td><input name="price[<?php echo $v['id']?>]" type="text" class="form-control txt_shop_price" style="width:80px;display:inline;" value="<?php echo isset($list[$v['id']]['price'])?$list[$v['id']]['price']:$unit_price?>"></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</form>
+</div>

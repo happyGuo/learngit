@@ -1,0 +1,62 @@
+<!--=== Page Content ===-->
+<script type="text/javascript">
+$(document).ready(function(){
+	$("#form-field-select-3").change(function(){
+		status = $(this).children('option:selected').val();
+		url = 'region/list?status='+status;
+		location.href = url;
+	});
+});
+</script>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i><?php echo $city->local_name; ?></h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>城市名称</th>
+						<th>英文名称</th>
+						<th>排序</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($regionlist as $k=>$v) { ?>
+					<tr>
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->local_name; ?></td>
+						<td><?php echo $v->en_name; ?></td>
+						<td><?php echo $v->sort;?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href="<?php echo $this->url->get('region/update',array('cityid'=>$v->id));?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+								<a href="javascript:;" onclick="deleteByID('<?php echo $this->url->get($this->dispatcher->getControllerName().'/delete') ?>','<?php echo $v->id ?>');" class="btn btn-xs bs-tooltip" title="删除">删除</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-6">
+
+					</div>
+					<div class="col-md-6">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

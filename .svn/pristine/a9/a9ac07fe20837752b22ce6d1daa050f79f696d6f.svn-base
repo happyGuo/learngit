@@ -1,0 +1,59 @@
+<?php
+
+namespace Modules\Backend\Controllers;
+
+class BackendController extends \Libs\ControllerBase
+{
+	public $open='';
+	public $currentUser;
+    public $userId;
+
+	public function initialize()
+    {
+		parent::initialize();
+
+		$module =1;
+        $this->view->setTemplateAfter('common');
+		$this->view->selectCity=array();
+        $this->view->isAdmin =0;
+		$this->view->current_user =$this->currentUser = $this->auth->getInfo();
+		if($this->currentUser){
+			if($this->hasRole('admin')){
+                $this->view->isAdmin =1;
+                $city='beijing';
+            }
+            else{
+                $city = $this->currentUser['city'];
+            }
+            if(!defined('CITY')){
+                define('CITY',$city);
+            }
+
+            $this->view->selectCity = $this->getModel('region')->find(array('status<>0 and region_grade=2','columns'=>array('en_name','local_name')))->toArray();
+            $this->userId = $this->currentUser['id'];
+		}
+		
+		
+		//设置导航
+		$m = $this->getModel('dict');
+		$return ='';
+		
+		$dict = $m::findFirst('code = "'.$this->currentAction.'" and module='.$module);
+		if(empty($dict)){
+			//exit('action['.$this->currentAction.'] not set in dict');
+		}
+		$dict = $dict->toArray();
+		$return = '<li class="current"><a href="javascript:void();" title="">'.$dict['name'].'</a></li>';
+		
+		$this->view->crumb ='<ul id="breadcrumbs" class="breadcrumb">'.$this->getCrumb($dict['parent_id']).$return.'</ul>';
+		
+		$this->view->nav = $this->getNav($module);
+		
+	}
+	
+
+	
+
+	
+
+}

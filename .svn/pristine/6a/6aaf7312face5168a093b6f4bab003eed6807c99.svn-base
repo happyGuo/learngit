@@ -1,0 +1,417 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class UserController extends BackendController
+{
+     public function initialize(){
+        parent::initialize();
+    }
+	/*
+    Function:显示用户列表
+    author：宿伟
+    date：2015/7/28
+    */
+    public function listAction(){
+
+        /* 搜索条件初始化 */
+        $condition="is_del = 0  and city='" . CITY . "'";
+
+        /* url初始化 */
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+
+
+        /* 排序 */
+        $order = 'ctime desc,id desc';
+
+        /* 搜索条件[ID] */
+        $id = $this->request->getQuery('id');
+        if(strlen(trim($id))){
+            $this->view->s_id = $id;
+            $condition .= " and id =$id";
+            $url .= '&id='.$id;
+        }
+
+        /* 搜索条件[账户名] */
+        $real_name = $this->request->getQuery('real_name','string','');
+        if(strlen(trim($real_name))){
+            $this->view->s_real_name = $real_name;
+            $condition .= " and real_name like '%$real_name%'";
+            $url .= '&real_name='.$real_name;
+        }
+
+        /* 搜索条件[手机号] */
+        $mobile = $this->request->getQuery('mobile','string','');
+        if(strlen(trim($mobile))){
+            $this->view->s_mobile = $mobile;
+            $condition .= " and mobile like '%$mobile%'";
+            $url .= '&mobile='.$mobile;
+        }
+
+        /* 搜索条件[账户状态] */
+        $freeze = $this->request->getQuery('freeze');
+        if(strlen(trim($freeze))){
+            $this->view->s_freeze = $freeze;
+            $condition .= " and freeze = $freeze";
+            $url .= '&freeze='.$freeze;
+        }
+
+        /* 搜索条件[用户来源] */
+        $platform = $this->request->getQuery('platform');
+        if(strlen(trim($platform))){
+            $this->view->s_platform = $platform;
+            $condition .= " and platform = '$platform'";
+            $url .= '&platform='.$platform;
+        }
+
+        /* 搜索条件[用户类型] */
+        $type = $this->request->getQuery('type');
+        if(strlen(trim($type))){
+            $this->view->s_type = $type;
+            $condition .= " and type = $type";
+            $url .= '&type='.$type;
+        }
+
+        $page = $this->request->getQuery('page','int',1);
+        // var_dump($condition);exit;
+
+        $this->view->page = $this->pagination($this->getModel('user')->count(array($condition)), 20, $page, $url);
+        $this->view->user = $this->getModel('user')->find(array($condition,'order'=>$order,'limit'=>20,'offset'=>$this->view->page['offset']));
+
+
+
+
+        // $select = $this->request->getQuery('select');
+        // $keyword = $this->request->getQuery('keyword');
+        // $is_del = $this->request->getQuery('is_del');
+        // $where = 'is_del=0 and city="'.CITY.'"' ;
+        // if($select == 'id' && is_numeric($keyword)){
+        //     $where .= ' and id = '.$keyword;
+        // }elseif($select == 'real_name'){
+        //     $where .= " and real_name like '%".$keyword."%'";
+        // }elseif($select == 'mobile'){
+        //      $where .= " and mobile = ".$keyword."";
+        // }elseif($select == 'free_d'){
+        //      $where .= " and freeze = 1";
+        // }elseif($select == 'free_j'){
+        //      $where .= " and freeze = 0";
+        // }
+        // $type = $this->request->getQuery('type') ? $this->request->getQuery('type') : 0;
+        // if($type){
+        //     $where .= ' and type= '.$type;
+        // }else{
+        //     $where .= ' and type = '.$type;
+        // }
+        // $user = $this->getModel('user')->find(array($where,"order"=>"id desc"));
+        // $total = $this->getModel('user')->count($where);
+        // $page = intval($this->request->getQuery('page'));
+        // $limit = 20;
+        // $url = 'user/list?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del.'&type='.$type;
+        // $pageary = $this->pagination($total, $limit, $page, $url);
+        // $pageactvt = $this->getModel('user')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        // $this->view->setVar("select", $select);
+        // $this->view->setVar("keyword", $keyword);
+        // $this->view->setVar("type", $type);
+        // $this->view->setVar("page", $pageary['html']);
+        // $this->view->type = $type;
+        // $this->view->user = $pageactvt;
+    }
+
+   /*
+    Function:删除用户(逻辑删除)
+    author：宿伟
+    date：2015/7/28
+    */
+    public function deleteAction(){
+        $uid = $this->request->getPost('userId');
+        $where = 'user_id ='.$uid.' and is_del = 0';
+        $shop = $this-> getModel('shop')->findFirst($where);
+        if($shop){
+            echo 2;die;
+        }
+        $res = $this->getModel('user')->deleteOne($uid);
+        if($res['error']) {
+            echo $res['error'];die;
+        }else{
+            echo 1;die;
+        }
+    }
+
+    /*
+    Function:修改用户信息
+    author：宿伟
+    date：2015/7/28
+    */
+    public function updateAction(){
+
+        //用户ID
+        $userid = $this->request->getQuery('userid','int',0);
+        //用户和类型
+        $this->view->user = $this->getModel('user')->findById($userid); 
+        $this->view->type = $this->request->getQuery('type');
+
+        //账期
+        $this->view->payDayList = $this->getModel('dict')->getListByCode('pay_day_id');
+
+        //销售人员信息
+        $this->view->sale = $this->getModel('admin')->findById($this->mc->getUser($userid)['sale_id']);
+
+
+        $this->view->messages = $message;
+
+        if($this->request->getPost('pay_day_id') !=0 && 0 == $this->request->getPost('credit_line'))
+            {
+                $messages = "账期用户的信用额度不能为0！";
+                $this->view->messages = $messages;
+                $this->view->pick('user/update');
+                return;
+            }
+        
+
+        //提交保存数据 
+        if($this->request->isPost()) {
+            if($this->request->getPost('pay_day_id') ==0 && $this->request->getPost('credit_line')>0)
+                {
+                    $messages = "现结用户不可有信用额度！";
+                    $this->view->messages = $messages;
+                    $this->view->pick('user/update');
+                    return;
+                }
+            //取值
+            $data['real_name'] = $this->request->getPost('real_name');
+            $data['mobile'] = $this->request->getPost('mobile');
+            $data['sex'] = $this->request->getPost('sex');
+            // $type = $this->request->getPOst('type');
+
+            // $where = 'id = '.$userid;
+            // $this->view->user = $this->getModel('user')->find(array($where,"limit"=>1));
+            // $this->view->type = $this->request->getQuery('type');
+
+            
+            if($type == 0){
+                $data['credit_line'] = $this->request->getPost('credit_line');
+                $data['pay_day_id'] = $this->request->getPost('pay_day_id');
+                $data['sale_id'] = $this->request->getPost('sale_id');
+            }
+            if($this->request->getPost('pwd')){
+                $data['before_pwd'] = $this->request->getPost('pwd');
+            }
+            $user_info = $this->getModel('user')->findById($this->request->getPost('id'));
+            //用户有欠款不能设置为账期用户
+            if($this->request->getPost('pay_day_id') != 0 && $user_info['balance'] < 0)
+            {
+                $message = "用户有欠款不能设置为账期用户";
+                $this->view->messages = $message;
+                $this->view->pick('user/update');
+                return;
+            }
+
+            $res = $this->getModel('user')->updateOne($this->request->getPost('id'),$data);
+            if($res['error']) {
+                $message = $res['error'];
+            }else{
+                if($type == 0){
+                    return $this->response->redirect("user/list?type=0"); 
+                }else{
+                    return $this->response->redirect("user/list?type=1"); 
+                }
+            }
+        }
+
+        
+    }
+
+    /*
+    function :查看用户详情
+    author：宿伟
+    date：2015/08/04
+    */
+
+    public function detailAction(){
+        $this->view->type = $this->request->getQuery('type');
+        $this->view->user = $this->getModel('user')->findById($this->request->getQuery('userid'));
+    }
+    
+
+    /*
+    function:查看已删除用户
+    author:宿伟
+    date:2015/08/20
+    */
+    public function catdeluserAction(){
+        $this->view->menu=array('user/list'=>'查看未删除用户');
+        $select = $this->request->getQuery('select');
+        $keyword = $this->request->getQuery('keyword');
+        $is_del = $this->request->getQuery('is_del');
+        $where = 'is_del=1';
+        if($select == 'id' && is_numeric($keyword)){
+            $where .= ' and id = '.$keyword;
+        }elseif($select == 'real_name'){
+            $where .= " and real_name like '%".$keyword."%'";
+        }elseif($select == 'mobile'){
+             $where .= " and mobile = ".$keyword."";
+        }
+        $user = $this->getModel('user')->find(array($where,"order"=>"id desc"));
+        $total = count($user);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/search?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('user')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        $this->view->setVar("select", $select);
+        $this->view->setVar("keyword", $keyword);
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->user = $pageactvt;
+    }
+    /*
+    function:恢复已删除用户
+    author:宿伟
+    date:2015/08/20
+    */
+    public function recoveruserAction(){
+        $res = $this->getModel('user')->updateOne($this->request->getPost('id'),array('is_del'=>0));
+        if($res['error']){
+            return $res['error'];
+        }else{
+            return true;
+        }
+    }
+
+    /*
+    Function:显示用户设备列表
+    author：宿伟
+    date：2015/08/10
+    */
+    public function deviceAction(){
+        //搜索条件初始化
+        $where = ' 1=1';
+        $search = $this->request->getQuery('search');
+        $select = $this->request->getQuery('select');
+         //查询条件
+        if($select == 'id' && is_numeric($search)){
+            $where .= ' and user_id = '.$search;
+        }elseif($select == 'mobile'){
+            $where .= " and mobile = '".$mobile."'";
+        }
+        if($this->request->getQuery('type')){
+            $where .= " and device_type = '".$this->request->getQuery('type')."'";
+        }
+        $device = $this->getModel('userDevice')->find(array($where));
+        $total = count($device);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/device';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('userDevice')->find(array($where,"limit"=>$limit, "offset"=>$pageary['offset'],'order'=>'utime desc'));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->setVar('search', $search);
+        $this->view->setVar('select', $select);
+        $this->view->item = $pageactvt;
+    }
+
+    /*
+    function:后台强制前台用户登出
+    author:宿伟
+    date:2015/08/10    
+     */
+     public function logoutAction(){
+        $data['access_token'] = '';
+        $res = $this->getModel('userDevice')->updateOne($this->request->getQuery('userid'),$data);
+        return $this->response->redirect("user/device");
+    }
+
+    /*
+    Function:显示推送列表
+    author：宿伟
+    date：2015/8/11
+    */
+    public function userpushAction(){
+        $userpush = $this->getModel('userPush')->find(array("order"=>"id desc"));
+        $total = count($userpush);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/userpush';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $where = ' 1=1';
+        $pageactvt = $this->getModel('userPush')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->userpush = $pageactvt;
+    }
+    /*
+    Function:冻结用户
+    author：cmz
+    date：2015/9/9
+    */
+    public function ajaxfrostAction(){
+        $id = intval($this->request->getPost('id'));
+        $user = $this->getModel('user')->findFirst($id);
+        $user->freeze = 1;
+        if($user->save()) {
+           echo 1;exit();
+        }else{
+           echo 2;exit();
+        }
+    }
+     /*
+    Function:解冻用户
+    author：cmz
+    date：2015/9/9
+    */
+    public function ajaxthawAction(){
+        $id = intval($this->request->getPost('id'));
+        $user = $this->getModel('user')->findFirst($id);
+        $user->freeze = 0;
+        if($user->save()) {
+           echo 1;exit();
+        }else{
+           echo 2;exit();
+        }
+    }
+    /*账单详情*/
+    public function billAction()
+    {
+        $uid=intval($this->request->getQuery('userid'));
+        $where="user_id=$uid";
+        $list=$this->getModel('UserBill')->find(array($where,'order'=>'id desc'))->toArray();
+        $this->view->list=$list;
+    }
+
+    //修改密码
+    public function changepwdAction(){
+
+        if($this->request->isPost()) {
+
+            //提交数据
+            $oldpwd = $this->request->getPost('oldpwd');
+            $pwd = $this->request->getPost('pwd');
+            $repwd = $this->request->getPost('repwd');
+
+            //用户信息  判断旧密码
+            $user = $this->getModel('admin')->findFirst($this->userId);
+            $userPwd = $this->auth->crypt->decryptBase64($user->pwd);
+            //旧密码
+            $oldpwd = $this->auth->crypt->decryptBase64($this->auth->crypt->encryptBase64($oldpwd));
+
+            //密码是否正常
+            if ($userPwd==$oldpwd) {
+
+                //新密码和确认密码是否一致
+                if ($pwd == $repwd) {
+
+                    //保存信息 返回结果 
+                    $user->before_pwd = $pwd;
+                    if($user->save()){
+
+                        $this->view->messages = '密码修改成功';
+                    }else{
+                        $this->view->messages = $user->getError();
+                    }
+                } else {
+                    $this->view->messages = '新密码和确认密码不一致';
+                }
+            } else {
+                $this->view->messages = '旧密码错误';
+            }
+            
+        }
+    } 
+}

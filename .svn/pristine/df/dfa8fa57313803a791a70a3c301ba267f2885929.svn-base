@@ -1,0 +1,31 @@
+<?php
+namespace Modules\App\Controllers;
+
+class IndexController extends AppController
+{
+    public function indexAction()
+    {
+        $controllerName = 'Index';
+        $actionName = 'test';
+        $params = array('a'=>122,'bb'=>333);
+        $controllerClass = '\Modules\Frontend\Controllers\\'.$controllerName . "Controller";
+
+        //Instantiating the controller class via autoloaders
+        $controller = new $controllerClass();
+        $this->dispatcher->setParams($params);
+
+        // Execute the action
+        $dd = call_user_func_array(array($controller, $actionName . "Action"), $params);
+        print_r($dd);exit;
+
+//        $e = strtotime(date("Y-m-d",time()))+ $this->mc->getDict(164)['code']*24*3600;
+//        echo date("Y-m-d",$e);exit;
+//        print_r($r);
+//        $r = $this->getModel('orderSku')->deleteAll('order_sn="150817141557494650"');
+//        $sku = $this->mc->getUser(83);
+//        print_r($output);
+//        return $this->renderJson(array('key'=>PHP_OS));
+    }
+
+}
+

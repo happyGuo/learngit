@@ -1,0 +1,378 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+class YOrderController extends YAppController
+{
+    // 创建订单
+    public function createAction()
+    {
+        error_reporting( E_ALL&~E_NOTICE );
+        $userId = $this->userId;
+        $userInfo = $this->getModel('user')->findById($userId);
+        $orderDetail = $this->request->getPost('order_detail');
+        $shopId = $this->request->getPost('shop_id');
+        $payType = $this->request->getPost('pay_type');
+        $remark = $this->request->getPost('remark');
+        $orderDetailArr = json_decode($orderDetail, 1);
+
+
+        //判断此shop_id是否为登录userId的店铺
+        $shop = $this->getModel('shop')->findFirst($shopId);
+        if ($shop->user_id != $userInfo['id']) {
+            $message = '您没有该店铺权限';
+            return $this->renderJson(array(), $message);
+        }
+        //根据用户类型 走订单流程
+        $data = $this->getModel('order')->createOrder($userId, $shopId, $orderDetailArr, $payType, $remark);
+
+
+        if ($data['error']) {
+            return $this->renderJson(array(), $data['error']);
+        } else {
+            return $this->renderJson(array('id' => $data['id']));
+        }
+
+
+    }
+
+    // 删除订单，非物理删除
+    public function deleteAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            $order_id = $this->request->getPost('order_id');
+            $userId = $this->userId;
+            $message = $this->getModel('order')->deleteOrder($order_id, $userId);
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    // 取消订单
+    public function cancleAction()
+    {
+        $message = "无效请求";
+        if ($this->request->isPost()) {
+
+            $order_id = $this->request->getPost('order_id');
+            $userId = $this->userId;
+            $message = $this->getModel('order')->cancleOrder($order_id, $userId);
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+    // 订单列表
+    public function listAction()
+    {
+        $message = '无效请求';
+
+        if ($this->request->isGet()) {
+            $userId = $this->userId;
+            $offset = $this->request->getQuery('offset');
+            $limit = $this->request->getQuery('limit');
+            $shop_id = $this->request->getQuery('shop_id');
+            $status = $this->request->getQuery('status');
+            $userInfo = $this->getModel('user')->findById($userId);
+            if ($shop_id) {
+                $shop = $this->getModel('shop')->findFirst($shop_id);
+                if ($shop->user_id != $userInfo['id']) {
+                    $message = '您没有该店铺权限';
+                    return $this->renderJson(array(), $message);
+                }
+            }else{
+                $shop_id = 0;
+            }
+            $list = $this->getModel('order')->getOrdersListByParams(0,$userId,$shop_id,null,$status,null,$limit,$offset,'ctime DESC');
+            if ($list) {
+                foreach ($list as $k => $v) {
+                    $list[$k]['sku_num'] = $this->getModel('orderSku')->count('is_del=0 and order_sn =' . $v['sn']);
+                    $list[$k]['shop_name'] = $this->getModel('shop')->findFirst($v['shop_id'])->name;
+                    unset($list[$k]['user_id']);
+                    unset($list[$k]['shop_id']);
+                    unset($list[$k]['utime']);
+                    unset($list[$k]['order_detail']);
+                    unset($list[$k]['is_del']);
+                    unset($list[$k]['pay_type']);
+                    $list[$k]['ctime'] = date('Y-m-d H:i:s', $v['ctime']);
+                }
+            }
+            $resArr = array();
+            $resArr['list'] = $list;
+            $resArr['num'] = $this->getModel('order')->getOrderCountByParam(0,$userId,$shop_id,$status);
+            $platform = \Libs\Util::getPlatform();
+            $this->renderJson($resArr);
+        }
+        $this->renderJson(array(), $message);
+    }
+
+    // 订单详情
+    public function detailAction()
+    {
+
+
+        $userId = $this->userId;
+        $result = array();
+
+        $order_id = $this->request->getQuery('order_id');
+
+        $order = $this->getModel('order')->findFirst($order_id);
+        if (!$order) {
+            $message = '该订单不存在';
+            return $this->renderJson(array(), $message);
+
+        }
+        if ($order->user_id != $userId) {
+            $message = '您没有权限查看该订单';
+            return $this->renderJson(array(), $message);
+        }
+
+        unset($order->order_detail);
+
+        $orderSku = $this->getModel('OrderSku')->find(array('is_del = 0 and order_id = ' . $order_id))->toArray();
+        $subcontract = array();
+        $skuNum = 0;
+        $skuNum = count($orderSku);
+        foreach ($orderSku as $k => $v) {
+            $sku = $this->getModel('partnerSku')->findById($orderSku[$k]['sku_id']);
+            //标签
+            $orderSku[$k]['tag'] = $sku['tag'];
+            unset($orderSku[$k]['id']);
+            unset($orderSku[$k]['order_id']);
+            unset($orderSku[$k]['user_id']);
+            unset($orderSku[$k]['utime']);
+            unset($orderSku[$k]['is_del']);
+            $orderSku[$k]['pay_amount'];
+
+            //计数单位
+            $unit = $this->dict($orderSku[$k]['unit_id']);
+            $orderSku[$k]['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+            unset($orderSku[$k]['unit_id']);
+
+            //计量单位
+            $measure = $this->dict($orderSku[$k]['measure_id']);
+            $orderSku[$k]['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+            unset($orderSku[$k]['measure_id']);
+            $partner = $this->mc->getPartner($orderSku[$k]['partner_id'])['company_name'];
+
+            if(!isset($subcontract[$v['subcontract']]['subcontract'])) {
+                $subcontract[$v['subcontract']]['subcontract'] = $v['subcontract'];
+                $sub = $this->getModel('OrderSubcontract')->findFirst('is_del = 0 and subcontract =  "'.$v['subcontract'] .'"');
+                $subcontract[$v['subcontract']]['status'] = $sub->status;
+                $subcontract[$v['subcontract']]['company_name'] = $partner ? $partner : '';
+            }
+            $subcontract[$v['subcontract']]['list'][] = $orderSku[$k];
+        }
+
+        $orderInfo = $order->toArray();
+        // 存入店铺名称及订单信息到返回数据中
+        $shop_name = $this->getModel('shop')->findFirst($order->shop_id)->name;
+        $orderInfo['skuNum'] = $skuNum;
+        $orderInfo['shop_name'] = $shop_name;
+        $orderInfo['ctime'] = date('Y-m-d H:i:s',$orderInfo['ctime']);
+        unset($orderInfo['shop_id']);
+        unset($orderInfo['utime']);
+        unset($orderInfo['is_del']);
+        unset($orderInfo['user_id']);
+        $result['order_info'] = $orderInfo;
+        $result['detail'] = array_values($subcontract);
+        $this->renderJson($result);
+
+    }
+
+
+
+    // 确认收货或拒绝收货
+    public function receiveAction()
+    {
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            $userId = $this->userId;
+            $subcontract = $this->request->getPost('subcontract');
+            $status = $this->request->getPost('status');
+            $message = $this->getModel('order')->receiveOrder($userId,$subcontract,$status);
+        }
+        $this->renderJson(array(), $message);
+    }
+
+    //订单评分
+    public function scoreAction()
+    {
+        $message = '';
+        if ($this->request->isPost()) {
+            $subcontract = $this->request->getPost('subcontract');
+            $usetime_score = abs(intval($this->request->getPost('usetime_score')));
+            $quality_score = abs(intval($this->request->getPost('quality_score')));
+            $attitude_score = abs(intval($this->request->getPost('attitude_score')));
+            if ($usetime_score > 5) {
+                $usetime_score = 5;
+            }
+            if ($quality_score > 5) {
+                $quality_score = 5;
+            }
+            if ($attitude_score > 5) {
+                $attitude_score = 5;
+            }
+
+            $userId = $this->userId;
+            $orderSubcontract = $this->getModel('orderSubcontract')->findFirst(array('is_del=0 and subcontract=' . $subcontract));
+
+            if (!$usetime_score) {
+                $message = '配送时间未评分';
+            } elseif (!$quality_score) {
+                $message = '菜品质量未评分';
+            } elseif (!$attitude_score) {
+                $message = '服务态度未评分';
+            } else {
+                if ($orderSubcontract->usetime_score && $orderSubcontract->quality_score && $orderSubcontract->attitude_score) {
+                    $message = '用户已评价';
+                } elseif ($orderSubcontract->status != 3) {
+                    $message = '用户未确认收货，无法评价';
+                } elseif ($userId != $orderSubcontract->user_id) {
+                    $message = '您没有权限评价该订单';
+                }
+                $orderSubcontract->usetime_score = $usetime_score;
+                $orderSubcontract->quality_score = $quality_score;
+                $orderSubcontract->attitude_score = $attitude_score;
+                $orderSubcontract->save();
+            }
+            $this->renderJson(array(), $message);
+        }
+    }
+
+    //获取评分
+    public function getscoreAction()
+    {
+        $userId = $this->userId;
+        $subcontract = $this->request->getQuery('subcontract');
+        $orderSubcontract = $this->getModel('orderSubcontract')->findFirst(array('is_del=0 and subcontract=' . $subcontract));
+        if ($userId != $orderSubcontract->user_id) {
+            $message = '用户未登录';
+            $this->renderJson(array(), $message);
+        }
+        if ($orderSubcontract) {
+            $data['usetime_score'] = $orderSubcontract->usetime_score;
+            $data['quality_score'] = $orderSubcontract->quality_score;
+            $data['attitude_score'] = $orderSubcontract->attitude_score;
+            $this->renderJson($data);
+        } else {
+            $message = '订单不存在';
+            $this->renderJson(array(), $message);
+        }
+    }
+
+    //订单争议
+    public function troversyAction()
+    {
+
+        $userId = $this->userId;
+        $subcontract = $this->request->getPost('subcontract');
+        $money = $this->request->getPost('money');
+        $dispute_amount = $this->request->getPost('dispute_amount');
+        if ($dispute_amount > $money) {
+            $message = '争议金额不能大于订单金额';
+            $this->renderJson(array(), $message);
+        }
+        $where = 'subcontract = ' . $subcontract . ' and result = 1';
+        $conditions = 'subcontract = ' . $subcontract . ' and result = 0';
+        $success = $this->getModel('OrderDispute')->findFirst($where);
+        $repeat = $this->getModel('OrderDispute')->findFirst($conditions);
+        if (!empty($success) || !empty($repeat)) {
+            $message = '已发起或已完成争议,不能再次发起争议';
+            $this->renderJson(array(), $message);
+        } else {
+            if ($this->request->isPost()) {
+                $orderdispute = $this->getModel('OrderDispute');
+                $orderdispute->creator_id = $userId;
+                $orderdispute->subcontract = $this->request->getPost('subcontract');
+                $orderdispute->dispute_amount = $this->request->getPost('dispute_amount');
+                $orderdispute->message = $this->request->getPost('message');
+                $orderdispute->partner_id = $this->request->getPost('partner_id',"int");
+                $orderdispute->type = 0;
+                $orderdispute->ctime = time();
+                $orderdispute->utime = time();
+                $orderdispute->is_del = 0;
+                if ($orderdispute->save()) {
+         
+                    return $this->renderJson(array());
+                } else {
+                    $messages = $orderdispute->getError();
+                    return $this->renderJson(array(), $messages);
+                }
+
+            }
+        }
+
+    }
+    //用户争议列表
+    public function usertroversyAction()
+    {
+        $subcontract = $this->request->getQuery('subcontract');
+        $where = 'is_del = 0 and subcontract ='.$subcontract;
+        $troversy = $this->getModel('OrderDispute')->find(array($where,"order"=>"id desc","limit"=>1))->toArray();
+        return $this->renderJson($troversy);
+    }
+    //同意配销商争议
+    public function agreeAction()
+    {
+        $uid = $this->userId;
+        $subcontract = $this->request->getPost('subcontract');
+        $partner_id = $this->request->getPost('partner_id');
+        $list = $this->getModel('OrderDispute')->findFirst('subcontract ='.$subcontract)->toArray(); 
+        $subcontract = $list['subcontract'];
+        $price = $list['dispute_amount'];
+        $data['type'] = 6;
+        $data['subcontract'] = $subcontract;
+        $data['creator_id'] = $uid;
+        $data['amount'] = $price;
+        $data['partner_id'] = $partner_id;
+        $data['user_id'] = $uid;
+        $mess = $this->getModel('balanceFlow')->createFlow($data);
+
+        $where = 'is_del = 0 and subcontract ='.$subcontract;
+        $troversy = $this->getModel('OrderDispute')->findFirst($where);
+        $troversy->confirm_id = $uid;
+        $troversy->type = 1;
+        $troversy->result = 1;
+        if($troversy->save()){
+             return $this->renderJson(array());
+        }
+    }
+     //拒绝配销商争议
+    public function refusedAction()
+    {
+        $uid = $this->userId;
+        $subcontract = $this->request->getPost('subcontract');
+        $list = $this->getModel('OrderDispute')->findFirst('subcontract ='.$subcontract)->toArray();     
+        $creator_id = $list['creator_id'];
+        $troversy = $this->getModel('OrderDispute');
+        $troversy->dispute_amount = $this->request->getPost('dispute_amount');
+        $troversy->message = $this->request->getPost('message');    
+        $troversy->partner_id = $this->request->getPost('partner_id');
+        $troversy->subcontract = $subcontract;
+        $troversy->creator_id = $uid;
+        $troversy->type = 0;
+        $troversy->result = 2;
+        $troversy->is_del = 0;
+        if($troversy->save()){
+             return $this->renderJson(array());
+        }
+    }
+
+    //下单验证
+    public function  validateAction(){
+        $uid = $this->userId;
+        $message = '无效请求';
+        if ($this->request->isPost()) {
+            $password = $this->request->getPost('pwd');
+            //通过id获取用户信息
+            $user = \Models\User::findFirst($uid);
+            if($this->auth->onlyVerify($password, $user)){
+                $this->successLogin($user->toArray());
+            }else{
+                $message = "密码输入错误";
+            }
+        }
+        return $this->renderJson(array(), $message);
+    }
+
+}

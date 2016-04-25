@@ -1,0 +1,83 @@
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 用户常用商品列表</h4>
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+
+                <form class="form-horizontal row-border" action="" method="get">
+                    <div class="form-group">
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <input type="text" name="user_id" placeholder="用户ID" class="form-control" value="<?php echo isset($s_user_id)?$s_user_id:''?>">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="text" name="sku_id" placeholder="商品ID" class="form-control" value="<?php echo isset($s_sku_id)?$s_sku_id:''?>">
+                                </div>
+
+                                <div class="col-md-1">
+                                    <input type="submit" value="搜索" class="btn btn-primary">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                    </div>
+                </form>
+
+                <table class="table table-hover table-striped table-bordered table-highlight-head">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户ID</th>
+                            <th>商品ID</th>
+                            <th>商品图片</th>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>商品总价</th>
+                            <th>显示单位</th>
+                            <th>计量单位</th>
+                            <th class="align-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($sku as $k=>$v) { ?>
+                        <tr>
+                            <td><?php echo $v->id; ?></td>
+                            <td><?php echo $v->user_id; ?></td>
+                            <td><?php echo $this->mc->getSku($v->sku_id)['id']; ?></td>
+                            <td><img style="height:80px;" src="<?php echo $this->img->getUrlById('sku',$v->sku_id) ?>"></td>
+                            <td><?php echo $this->mc->getSku($v->sku_id)['name']; ?><br /><?php echo $this->mc->getSku($v->sku_id)['remark']; ?></td>
+                            <td><?php echo $this->mc->getCategory($this->mc->getSku($v->sku_id)['category_id'])['name']; ?></td>
+                            <td><?php echo $this->mc->getSku($v->sku_id)['unit_price']; ?></td>
+                            <td><?php echo $this->mc->getDict($this->mc->getSku($v->sku_id)['unit_id'])['name']; ?></td>
+                            <td><?php echo $this->mc->getDict($this->mc->getSku($v->sku_id)['measure_id'])['name']; ?></td>
+                            <td class="align-center">
+                                <span class="btn-group">
+                                    <a href="javascript:;" class="btn btn-xs bs-tooltip" title="删除" onclick="deleteByID('<?php echo $this->url->get($this->dispatcher->getControllerName().'/delete') ?>','<?php echo $v->id ?>');">删除</a>
+                                </span>
+                            </td>
+                        </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+                <div class="row">
+                    <div class="table-footer">
+                        <div class="col-md-12">
+                            <?php echo $pagination['html'] ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

@@ -1,0 +1,64 @@
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 争议详情</h4>
+				<div class="toolbar no-padding">
+					<div class="btn-group">
+						<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+					</div>
+				</div>
+			</div>
+		<div class="widget-content">
+					<table class="table table-hover table-striped table-bordered table-highlight-head">
+						<thead>
+							<tr>
+								<th>ID</th>
+								<th>分组号</th>
+								<th>客户名</th>
+								<th>争议金额</th>
+								<th>争议内容</th>
+								<th>争议结果</th>
+								<th>争议时间</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach($troversy as $k=>$v) { ?>
+							<tr>
+								<td><?php echo $v['id']; ?></td>
+								<td><?php echo $v['subcontract']; ?></td>
+
+								<td><?php echo $username;?></td>
+								<td><?php echo $v['dispute_amount']; ?></td>
+								<td><?php echo $v['message']; ?></td>
+								<td><?php 
+										switch($v['result']){
+									      case 0:
+									       echo "待处理";
+									       break;
+									      case 1:
+									       echo "同意";
+									       break;
+									      case 2:
+									       echo "拒绝";
+									       break;
+									   }
+								 ?></td>
+								<td><?php echo date("Y-m-d h:i:s",$v['ctime'])?></td>	
+							</tr>
+							<?php } ?>
+
+						</tbody>
+					</table>
+				<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+					<div class="col-md-12">
+							<?php //echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+

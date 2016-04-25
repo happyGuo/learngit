@@ -1,0 +1,115 @@
+<script type="text/javascript">
+//$(function(){
+//    var manage = $('#role').val();
+//    if(manage !='city'){
+//        $('#city').hide();
+//    }
+//});
+function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+function manage(){
+    var manage = $('#role').val();
+    if(manage == 'admin' || manage == 'system'){
+        $('#city').hide();
+    }else{
+        $('#city').show();
+    }
+}
+</script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    创建后台用户
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" enctype="multipart/form-data" method="POST" action="" onsubmit="return checkform()">
+                    <?php if(isset($messages)) {?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?>  
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            登录名：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="login" class="form-control" type="text" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            真实名字：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="real_name" class="form-control" type="text" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group" id='city'>
+                        <label class="col-md-2 control-label">
+                            城市：
+                        </label>
+                        <div class="col-md-10">
+                            <select name='admin_city' class="form-control">
+                                <option>请选择</option>
+                                <?php
+                                foreach($region as $k=>$v) { ?>
+                                    <option value="<?php echo  $v['en_name']?>"><?php echo $v['local_name']?></option>
+                                <?php }?>
+                                <option value="">全国管理员</option>
+                            </select>
+                        </div>
+                    </div>
+<!--                     <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            角色：
+                        </label>
+                        <div class="col-md-10">
+                           <select name='role' id='role' onchange="manage()">
+                               <?php
+                                    switch ($role) {
+                                        case 'city':
+                                            echo "<option value='city' selected='selected'>城市管理员</option>";
+                                            break;
+                                        case 'admin':
+                                            echo "<option value='city'>城市管理员</option>";
+                                            echo "<option value='admin' selected='selected'>全国管理员</option>";
+                                            break;
+                                        case 'system':
+                                            echo "<option value='city'>城市管理员</option>";
+                                            echo "<option value='admin'>全国管理员</option>";
+                                            echo "<option value='system' selected='selected'>系统管理员</option>";
+                                            break;
+                                    }
+                                ?>
+                           </select>
+                        </div>
+                    </div>
+ -->                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="pwd" class="form-control" type="text" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <input class="btn btn-info btn-block" value="提交" type="submit">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

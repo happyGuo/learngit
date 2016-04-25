@@ -1,0 +1,119 @@
+<script type="text/javascript">
+function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+function manage(){
+    var manage = $('#role').val();
+    if(manage == 'admin' || manage == 'system'){
+        $('#city').hide();
+    }else{
+        $('#city').show();
+    }
+}
+});
+</script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改后台管理信息
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" onsubmit="return checkform()">
+                    <?php if(isset($messages)) {?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            真实姓名：
+                        </label>
+                        <?php foreach($admin as $v) { ?>
+                        <div class="col-md-10">
+                            <input name="real_name" class="form-control" onblur="checkrequired($(this))" type="text" value='<?php echo $v->real_name?>'>
+                        </div>
+                    </div>
+                    <input type="hidden" name="id" value="<?php echo $v->id; ?>">
+                    <!-- <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            角色：
+                        </label>
+                        <div class="col-md-10">
+                           <select name='role' id='role' onchange="manage()">
+                                <?php
+                                    switch ($v->role) {
+                                        case 'city':
+                                            echo "<option value='city' selected='selected'>城市管理员</option>";
+                                            break;
+                                        case 'admin':
+                                            echo "<option value='city'>城市管理员</option>";
+                                            echo "<option value='admin' selected='selected'>全国管理员</option>";
+                                            break;
+                                        case 'system':
+                                            echo "<option value='city'>城市管理员</option>";
+                                            echo "<option value='admin'>全国管理员</option>";
+                                            echo "<option value='system' selected='selected'>系统管理员</option>";
+                                            break;
+                                    }
+                                ?>
+                           </select>
+                        </div>
+                    </div> -->
+                       <div class="form-group" id='city'>
+                        <label class="col-md-2 control-label">
+                            城市：
+                        </label>
+                        <div class="col-md-10">
+                            <select name='admin_city' class="form-control">
+                                <option>请选择</option>
+                                <?php
+                                foreach($region as $k=>$v) { ?>
+                                    <option value="<?php echo  $v['en_name']?>"><?php echo $v['local_name']?></option>
+                                <?php }?>
+                                <option value="">全国管理员</option>
+                            </select>
+                        </div>
+                    </div>
+                     <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="pwd" class="form-control" type="text" />
+                        </div>
+                    </div>
+<!--
+                    <div class="form-group">
+						<label class="col-md-2 control-label">图片上传：</label>
+						<div class="col-md-10">
+							<div class="fileinput-holder input-group input-width-xlarge">
+								<div class="fileinput-preview uneditable-input form-control" style="cursor: text; text-overflow: ellipsis; ">未选择文件...
+								</div>
+								<div class="input-group-btn">
+									<span class="fileinput-btn btn" style="overflow: hidden; position: relative; cursor: pointer; ">浏览...<input style="position: absolute; top: 0px; right: 0px; margin: 0px; cursor: pointer; font-size: 99px; opacity: 0;" data-style="fileinput" type="file"></span>
+								</div>
+							</div>
+						</div>
+                    </div>
+                -->
+                        <?php } ?>
+                    <input class="btn btn-info btn-block" value="提交" type="submit">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

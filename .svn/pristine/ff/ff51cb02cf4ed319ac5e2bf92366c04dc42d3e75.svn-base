@@ -1,0 +1,10 @@
+<?php
+namespace Models;
+
+class CommonModel extends BaseModel
+{
+
+    public function getDb(){
+        return 'common';
+    }
+}

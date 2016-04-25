@@ -1,0 +1,66 @@
+<?php
+namespace Models;
+use Phalcon\Mvc\Model\Validator\Email as EmailValidator;
+class Admin extends CommonModel
+{
+
+    public function validation()
+    {
+       /* $this->validate(new \Phalcon\Mvc\Model\Validator\InclusionIn(
+            array(
+                "field"  => "role",
+                "domain" => array_keys(\Libs\Util::getRoleList()),
+                "message" =>"提交的身份不在指定范围内"
+            )
+        ));*/
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'real_name',
+            'message'=>'真实姓名不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'login',
+            'message'=>'登入名不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+                "field" => 'login',
+                'pattern' =>"/^[a-z]([a-z0-9]*[-_\.]?[a-z0-9]+)*@([a-z0-9]*[-_]?[a-z0-9]+)+[\.][a-z]{2,3}([\.][a-z]{2})?$/i",
+                'message' => '登入名必须为邮箱'
+
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Uniqueness(array(
+            'field' => 'login',
+            'message' => '登入名已占用'
+        )));
+
+        if(isset($this->before_pwd)){
+            $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+                'field' => 'before_pwd',
+                'max' => 20,
+                'min' => 6,
+                'messageMaximum' => '密码太长',
+                'messageMinimum' => '密码太短'
+            )));
+        }
+        
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    public function beforeCreate()
+    {
+        //Store the password hashed
+        $this->pwd=  $this->getDI()->getCrypt()->encryptBase64($this->before_pwd);
+    }
+
+    public function afterValidationOnUpdate(){
+        if(isset($this->before_pwd)){
+            $this -> pwd = $this->getDi()-> getCrypt() ->encryptBase64($this -> before_pwd);
+            unset($this->before_pwd);
+        }
+    }
+}

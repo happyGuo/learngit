@@ -1,0 +1,106 @@
+<?php $this->assets->addCss('assets/css/login.css');
+	  $this->assets->addJs('assets/js/login.js');
+	  ?>
+    <script>
+    $(document).ready(function(){
+        "use strict";
+
+        Login.init(); // Init login JavaScript
+    });
+    </script>
+</head>
+
+<body class="login">
+    <!-- Logo -->
+   <!-- <div class="logo">
+        <img src="assets/img/logo.png" alt="logo" />
+       链农后台
+    </div>-->
+    <!-- /Logo -->
+	<div id="h_layer" class="h_layer"></div> 
+
+    <!-- Login Box -->
+    <div class="box m_left">
+	  <div class="title">
+		<p class="title_p"><span>链农互动后台系统</span></p>
+	  </div>
+        <div class="content">
+            <!-- Login Formular -->
+            <form class="form-vertical login-form" action="" method="post">
+                <!-- Title
+                <h3 class="form-title">登入</h3>
+ -->
+                <!-- Error Message -->
+				<?php if($message){
+                echo '<div class="alert fade in alert-danger">
+                    <i class="icon-remove close" data-dismiss="alert"></i>'.$message.'</div>';
+					}
+				?>
+                <!-- Input Fields -->
+                <div class="form-group m_top">
+                    <!--<label for="username">Username:</label>-->
+                    <div class="input-icon">
+                        <i class="icon-user"></i>
+                        <input type="text" name="login" class="form-control" placeholder="登入名" autofocus="autofocus" data-rule-required="true" data-msg-required="请输入您的登入名." />
+                    </div>
+                </div>
+                <div class="form-group m_top">
+                    <!--<label for="password">Password:</label>-->
+                    <div class="input-icon">
+                        <i class="icon-lock"></i>
+                        <input type="password" name="pwd" class="form-control" placeholder="密码" data-rule-required="true" data-msg-required="请输入密码." />
+                    </div>
+                </div>
+                <!-- /Input Fields -->
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+<?php
+	$form = new \Phalcon\Forms\Form();
+	$form->add(new \Phalcon\Forms\Element\Hidden("csrf",array('name'=>$this->security->getTokenKey(),'value'=>$this->security->getToken())));
+	?>
+<?php echo $form->render("csrf"); ?>
+
+                    <!--<label class="checkbox pull-left"><input type="checkbox" class="uniform" name="remember"> 记住我</label>-->
+                    <button type="submit" class="submit btn btn-primary pull-right">
+                        登入 <i class="icon-angle-right"></i>
+                    </button>
+                </div>
+            </form>
+            <!-- /Login Formular -->
+
+
+        </div> <!-- /.content -->
+    <!-- /Login Box -->
+
+
+<script type="text/javascript">
+$(function(){
+					
+					});
+  $("#reg").click(function(){
+				  $.ajax({
+						 url: '/user/register',
+						 type: 'POST',
+						 dataType : 'json',
+						 data: {
+						 login: $('#reg_login').val(),
+						 real_name:$('#real_name').val(),
+						 pwd:$('#reg_pwd').val(),
+						 comfirm_pwd:$('#comfirm_pwd').val(),
+						 role :$('#role').val(),
+						 cert:$('#cert').val(),
+						 csrf:$('#csrf').val()
+						 }
+						 }).done(function(msg){
+								 if (msg.message=='') {
+								 alert('注册成功')
+								 location.reload()
+								 } else {
+								 alert(msg.message);
+								 }
+								 });
+				  });
+  
+  });
+</script>

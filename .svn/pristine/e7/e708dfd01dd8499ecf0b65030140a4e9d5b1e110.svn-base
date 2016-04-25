@@ -1,0 +1,42 @@
+<?php
+/**
+ *  用户收藏商品Model
+ *
+ *  保存用户收藏商品列表
+ * @author      zhangrg
+ * @version     20150801
+*/
+namespace Models;
+
+class UserFavor extends CityModel
+{
+    /* 验证 */
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'user_id',
+            'min' => 1,
+            'messageMinimum' => '用户ID不能为0'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'sku_id',
+            'message' => '商品ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+            'field' => 'sku_id',
+            'pattern' => '/^[1-9]\d*$/',
+            'message' => '商品ID必须大于1'
+        )));
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+}

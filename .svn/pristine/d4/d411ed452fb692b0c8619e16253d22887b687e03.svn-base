@@ -1,0 +1,167 @@
+<?php
+namespace Plugins;
+
+class Img extends \Phalcon\Mvc\User\Plugin
+{
+    public $host;
+    public $typeList = array('image/jpeg', 'image/pjpeg', 'image/png', 'image/x-png');
+    public $picType = array(1 => 'gif', 2 => 'jpg', 3 => 'png');
+    public $error;
+    public $type;
+
+    public function __construct($host)
+    {
+        $this->host = $host;
+    }
+
+    public function getUpload($key, $type = '')
+    {
+        $this->error = $this->type = '';
+        if ($this->request->hasFiles() == true) {
+            foreach ($this->request->getUploadedFiles() as $file) {
+                if ($key == $file->getKey()) {
+                    if ($file->getName()) {
+                        list($width, $height, $imageType, $attr) = getimagesize($file->getTempName());
+                        if (!array_key_exists($imageType, $this->picType)) {
+                            $this->error = '上传类型不符';
+                        } else {
+                            if ($type && $type != $imageType) {
+                                $this->error = '图片必须是' . $this->picType[$type];
+                            } else {
+                                $this->type = $this->picType[$imageType];
+                                return file_get_contents($file->getTempName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return '';
+    }
+
+    public function upload($key)
+    {
+        $content = $this->getUpload($key);
+
+        if ($content) {
+            $name = $this->createFileName($content);
+            $this->save('image', $name, $content);
+        } else {
+            $name = '';
+        }
+        return array('error' => $this->error, 'name' => $name);
+    }
+
+    /**
+     * 根据ID上传某类型图片
+     * $type = 'sku,user,partner_sku'
+     * $id为商品主键
+     * $ext 为文件后缀
+     * $content 为文件内容
+     */
+    public function uploadById($type, $id, $key)
+    {
+        $content = $this->getUpload($key, 2);
+
+        if ($content) {
+            $filename = $this->createName($type, $id);
+            $this->delete($filename,$type);
+            $this->save($type, $filename, $content);
+        } else {
+            $filename = '';
+        }
+        return array('error' => $this->error, 'name' => $filename);
+    }
+
+
+    public function save($type, $name, $content)
+    {
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+        $id = $gridfs->storeBytes($content, array('filename' => $name));
+    }
+
+    public function delete($name,$type='image')
+    {
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+        $gridfs->remove(array('filename' => $name));
+    }
+
+    public function getUrl($url)
+    {
+        return 'http://' . $this->host . '/image/' . $url;
+    }
+
+    /**
+     *  通过id获取图片地址
+     */
+    public function getUrlById($type, $id)
+    {
+        $this->type = 'jpg';
+        return 'http://' . $this->host . '/' . $type . '/' . $this->createName($type, $id);
+    }
+
+    public function createName($type, $id, $city = CITY)
+    {
+        if ($type != 'user') {
+            $sid = $city . '_' . $id;
+        } else {
+            $sid = $id;
+        }
+
+        return sha1(sha1($sid) . md5($id)) . '.' . $this->type;
+    }
+
+    public function createFileName($content)
+    {
+        return md5($content) . '.' . $this->type;
+    }
+
+    /* 拷贝图片到指定的城市 */
+    public function copyImageToCity($skuId, $city, $type = 'sku')
+    {
+
+        //初始化MongoDB
+        $db = $this->image_mongo->$type;
+        $gridfs = $db->getGridFS();
+
+        //老的文件内容
+        $tplFilename = $this->createName($type, $skuId, $city);
+        $fileContent = $gridfs->findOne(['filename' => $tplFilename]);
+
+
+        //生成新的文件ID
+        $newFilename = $this->createName($type, $skuId, $city);
+
+        //保存内容
+        if ($fileContent) $gridfs->storeBytes($fileContent->getBytes(), array('filename' => $newFilename));
+    }
+
+    /* 拷贝图片到指定的配销商 */
+    public function copyImageToPartner($skuId, $newSkuId, $city = CITY)
+    {
+
+        //初始化MongoDB
+        ini_set('mongo.long_as_object', 1);
+        $db = $this->image_mongo->sku;
+        $gridfs = $db->getGridFS();
+
+        //老的文件内容
+        $this->type = 'jpg';
+        $tplFilename = $this->createName('sku', $skuId, $city);
+        $fileContent = $gridfs->findOne(['filename' => $tplFilename]);
+
+        //生成新的文件ID
+        $newFilename = $this->createName('partner_sku', $newSkuId, $city);
+        $this->delete($newFilename,'partner_sku');
+        
+        //初始化MongoDB
+        $newDb = $this->image_mongo->partner_sku;
+        $newGridfs = $newDb->getGridFS();
+
+        //保存内容
+        if (isset($fileContent->file)) $newGridfs->storeBytes($fileContent->getBytes(), array('filename' => $newFilename));
+    }
+
+}

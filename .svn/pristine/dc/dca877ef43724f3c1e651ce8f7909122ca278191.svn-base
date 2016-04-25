@@ -1,0 +1,79 @@
+<?php
+/*
+author:宿伟
+function:获取消息列表
+date:
+*/
+namespace Modules\App\Controllers;
+class CMessageController extends CAppController{
+    
+    //获取消息列表
+    public function listAction(){
+        //接收值
+        $access_token = $this->request->getQuery('access_token');
+
+        $offset = $this->request->getQuery('offset') ? $this->request->getQuery('offset') : 0;
+        $limit = $this->request->getQuery('limit') ? $this->request->getQuery('limit') : 10;
+        //通过access_tioken 查找用户id
+        $where = "access_token = '".$access_token."' and platform = 'app_liannong'";
+        $userDevice = $this->getModel('userDevice')->findFirst($where)->toArray();
+
+        //获取该用户的消息列表
+        $userpush = $this->getModel('userPush')->find(
+                array(
+                    'user_id='.$userDevice['user_id'],
+                    'offset'=>$offset,
+                    'limit'=>$limit,
+                    'order'=>'ctime desc'
+                )
+            )->toArray();
+        
+        //统计消息个数
+        $userinfo = $this->getModel('userPush')->find(
+                array(
+                    'user_id='.$userDevice['user_id'],
+                )
+            )->toArray();
+        $count = count($userinfo);
+
+        //循环将每条数据中的content取出放入新数组中
+        $message = [];
+        foreach($userpush as $k=>$v){
+            $message[] = json_decode($userpush[$k]['content']);
+        }
+
+        $list = array(
+            'count'=>$count,
+            'messages'=>$message
+        );
+
+        //添加用户最近阅读消息列表时间
+        $user = $this->getModel('user')->findFirst('id='.$userDevice['user_id']);
+        $user -> read_message_time = time();
+        $user -> save();
+        
+        return $this->renderJson($list);
+    }
+
+    //获取未读条数
+    public function countAction(){
+         //接收值
+        $access_token = $this->request->getQuery('access_token');
+        //通过access_tioken 查找用户id
+        $where = "access_token = '".$access_token."' and platform = 'app_liannong'";
+        $userDevice = $this->getModel('userDevice')->findFirst($where)->toArray(); 
+        //通过用户id查询该用户最近读消息列表的时间
+        $userinfo = $this->getModel('user')->findById($userDevice['user_id']);
+        $read_message_time = $userinfo['read_message_time'];
+         //获取该用户的消息列表
+        $where = 'user_id ='.$userDevice['user_id'].' and ctime between '.$read_message_time.' and '.time();
+        $userpush = $this->getModel('userPush')->find($where)->toArray();
+        
+        //定义返回结构体
+        $list = array(
+            'succeed'=>1,
+            'count'=>count($userpush)
+        );
+         return $this->renderJson($list);
+    }
+}

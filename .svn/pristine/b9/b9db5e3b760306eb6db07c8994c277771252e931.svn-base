@@ -1,0 +1,158 @@
+<script type="text/javascript">
+	var order_source = function(source){
+		if(source == ''){
+			return false;
+		}
+		var url = 'order/send?source='+source;
+		window.location.href=url;
+	}
+</script>
+<div class="tabbable tabbable-custom tabbable-full-width">
+	<ul class="nav nav-tabs">
+		<li class=""><a data-toggle="tab" onclick="gohref('order/list')" href="javascript:void(0)">新订单<span>(<?=$order_list_count?>)</span></a></li>
+		<li class=""><a onclick="gohref('order/ready')"  data-toggle="tab" href="javascript:void(0)">已接单<span>(<?=$order_ready_count?>)</span></a></li>
+		<li class="active"><a onclick="gohref('order/send')" data-toggle="tab" href="javascript:void(0)">已发货</a></li>
+	</ul>
+<div class="tab-content row">
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<div class="page-header"></div>
+			<div class="page-header"></div>
+			<div class="form-group">
+					<div class="row">
+						<form  method="post" class="form-horizontal row-border">
+					<div class="col-md-2">
+						订单来源：
+					 	<a title="" class="btn btn-xs bs-tooltip" href="order/send?source=all" <?php if($source=='all'){?>style="color:red" <?php } ?> data-original-title="全部">全部</a>
+					</div>
+					 <div class="col-md-1">
+					 <a title="" class="btn btn-xs bs-tooltip" href="order/send?source=app" <?php if($source=='app'){?>style="color:red" <?php } ?> data-original-title="下发订单">下发订单 </a>
+					 </div>
+					 <div class="col-md-2">
+					 	<a title="" class="btn btn-xs bs-tooltip" href="order/send?source=self" <?php if($source=='self'){?>style="color:red" <?php } ?> data-original-title="自助订单">自助订单</a>
+					</div>
+					<div class="col-md-2">
+						<input type="text" class="form-control" value="" id="order_sn"   placeholder="订单编号" name="order_sn">
+					</div>
+					<div class="col-md-2">
+						<input type="button"  onclick="search()" value="搜索" class="btn btn-info btn-block">
+					</div>
+				</form>
+				</div> <!--.row -->
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<tr>
+					<td>订单总数：&nbsp;&nbsp;&nbsp;<?=$order_count?></td>
+					
+					<td>订单总额：&nbsp;&nbsp;&nbsp;<?=$order_sum?></td>
+					
+				</tr>
+
+			</table>
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th style="word-break : break-all; ">订单号</th>
+						<th>下单时间</th>
+						<th>商家名</th>
+						<th>订单来源</th>
+						<th style="word-break : break-all; ">订单金额</th>
+						<th>订单状态</th>
+						<th>操作</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ($orderList as $key => $value):?>
+					<input type='hidden' name='id' value='<?=$value['id']?>'>
+					<tr>
+						<td style="word-break : break-all; ">
+							<a title="" href="order/sendinfo?id=<?=$value['id']?>&source=<?=$value['order_type']?>">
+								<?=$value['subcontract']?>
+							</a>
+						</td>
+						<td><?=$value['ctime']?></td>
+						<td><a href="order/shopInfo?shop_id=<?=$value['shop_id']?>&order_type=<?=$value['order_type']?>"><?=$value['shop_name']?></a></td>
+						<td><?=$value['order_type_key']?></td>
+						<td style="word-break : break-all; "><?=$value['buy_amount']?></td>
+						<td><?=$value['status_key']?></td>
+						<td>
+							<?php if($value['status'] == 2){?>
+						    <a title="" class="btn btn-xs bs-tooltip" href="order/sendinfo?id=<?=$value['id']?>&source=<?=$value['order_type']?>" data-original-title="修改数量">修改数量</a>
+						   <?php }else{ ?>
+						    <a title="" class="btn btn-xs bs-tooltip" href="order/sendinfo?id=<?=$value['id']?>&source=<?=$value['order_type']?>" data-original-title="详情">详情</a>
+						   <?php } ?>
+						    <a target="_blank" class="btn btn-xs bs-tooltip" href="order/print?subcontract=<?=$value['subcontract']?>&order_id=<?=$value['order_id']?>&order_type=<?=$value['order_type']?>" data-original-title="打印">打印</a>
+						    <?php if($value['pic_url']){?>
+						    <a  class="btn btn-xs bs-tooltip" href="order/psc?id=<?=$value['id']?>" data-original-title="图片">图片</a>
+						    <?php } ?>
+						</td>	
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+</div>
+<script type="text/javascript">
+      //全选 
+	 function selectall(){
+	 	//alert(1);return false;
+		var check_all = document.getElementById('check_all');
+		var select_all = document.getElementsByName('select_all');
+		for (var i=0;i<select_all.length ;i++ ){
+			select_all[i].checked=check_all.checked;
+		}
+	}
+
+	var change_status = function(status, order_id, source){
+        bootbox.confirm("确认操作",function(confirmed){
+	        if(confirmed){
+				var data = "status="+status+"&order_id="+order_id+"&source="+source;
+		        $.ajax({
+		            type:'POST', 
+		            url:"order/changeorderstatus",
+		            dataType:'json',
+		            data:data, 
+		            async:false,
+		            success:function(result)
+		            {
+		            	if(result.data == 0){
+		            		alert(result.errmsg);
+		            	}else{
+		            		window.location.href=window.location.href;
+		            	}
+		            }
+		        });
+	        }
+        });	
+	}
+
+	var search = function()
+	{
+		var order_sn = $('#order_sn').val();
+		if(order_sn == ''){
+			alert('订单编号不能为空');
+			return false;
+		}
+
+		var url = 'order/send?order_sn='+order_sn;
+		window.location.href=url;
+	}
+
+	var gohref = function(href)
+	{
+		window.location.href=href;
+	}
+</script>

@@ -1,0 +1,38 @@
+<?php
+namespace Models;
+use Phalcon\Mvc\Model\Validator\Email as EmailValidator;
+
+class UserBankcard extends CommonModel
+{
+    public function validation()
+	{
+        if(isset($this->bankcard) && !empty($this->bankcard)){
+            $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+                'field' => 'bankcard',
+                'max' => 19,
+                'min' => 16,
+                'messageMaximum' => '银行卡输入长度有误',
+                'messageMinimum' => '银行卡输入长度有误'
+            )));
+        }
+        if(isset($this->bankcard) && !empty($this->bankcard)){
+            $this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+                "field" => 'bankcard',
+                'pattern' => '/^\d{1,}$/',
+                'message' => '银行卡无效,请输入正确银行卡号'
+
+            )));
+        }
+
+       /* if(isset($this->bankcard) && !empty($this->bankcard)){
+            $this->validate(new \Phalcon\Mvc\Model\Validator\Uniqueness(array(
+                'field' => 'bankcard',
+                'message' => '银行卡已占用'
+            )));
+        }*/
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+}

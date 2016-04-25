@@ -1,0 +1,481 @@
+var errorClass="has-error";
+var validClass="has-success";
+
+function checkrequired(element){
+    var tip = element.parent().prev().html().replace('<span class="required" style="font-size:18px !important">*</span>','').replace('：','');
+    if(element.val()==""){
+        element.closest("div").addClass(errorClass).removeClass(validClass);
+        //element.focus();
+        showtip(tip+"不能为空",2);
+        element.attr("check",'0');return false;
+    }else{
+        element.closest("div").addClass(validClass).removeClass(errorClass);
+        //showtip(tip+"正确",1);
+    }
+    element.attr("check",'1');
+}
+function checkminlength(element){
+    var tip = element.parent().prev().html().replace('<span class="required" style="font-size:18px !important">*</span>','').replace('：','');
+
+    if(element.val()==""){
+        element.closest("div").addClass(errorClass).removeClass(validClass);
+        //element.focus();
+        showtip(tip+"不能为空",2);
+        element.attr("check",'0');return false;
+    }else if(element.val().length<$(this).attr("minlength")){
+        element.closest("div").addClass(errorClass).removeClass(validClass);
+        //element.focus();
+        showtip(tip+"的最小长度是"+$(this).attr("minlength"),2);
+        element.attr("check",'0');return false;
+    }else{
+        element.closest("div").addClass(validClass).removeClass(errorClass);
+        //showtip(tip+"正确",1);
+    }
+    element.attr("check",'1');
+}
+function checkcompare(element){
+    var tip=element.parent().prev().html().replace('<span class="required" style="font-size:18px !important">*</span>','').replace('：','');
+    if(element.val()==""){
+        element.closest("div").addClass(errorClass).removeClass(validClass);
+        //element.focus();
+        showtip(tip+"不能为空",2);
+        element.attr("check",'0');return false;
+    }else if(element.val()!=$("input[name="+element.attr("to")+"]").val()){
+        element.closest("div").addClass(errorClass).removeClass(validClass);
+        //element.focus();
+        showtip(tip+"输入不一致",2);
+        element.attr("check",'0');return false;
+    }else{
+        element.closest("div").addClass(validClass).removeClass(errorClass);
+        //showtip(tip+"正确",1);
+    }
+    element.attr("check",'1');
+}
+
+function checkidcardnum(element){
+    if(element.val().trim().length>0){
+        
+       // 身份证号码为15位或者18位，15位时全为数字，18位前17位为数字，最后一位是校验位，可能为数字或字符X
+       var reg = /(^\d{15}$)|(^\d{18}$)|(^\d{17}(\d|X|x)$)/;
+       if(reg.test(element.val())){
+           element.closest("div").addClass(validClass).removeClass(errorClass);
+       }else{
+           element.closest("div").addClass(errorClass).removeClass(validClass);
+           showtip(element.parent().prev().html()+"格式错误",2);
+           element.attr("check",'0');return false;
+       }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkqq(element){
+    if(element.val().trim().length>0){
+        var reg = /^\d{5,10}$/;
+        if(reg.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式错误",2);
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkpassportno(element){
+    if(element.val().trim().length>0){
+        
+        var reg =/(P\d{7})|(G\d{8})/;
+        if(reg.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式错误",2);
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checktel(element){
+    if(element.val().trim().length>0){
+        var a=/^0?(13[0-9]|15[012356789]|18[0-9]|14[57]|17[0-9])[0-9]{8}$/;
+        
+        if(a.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式错误",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkpostcode(element){
+    if(element.val().trim().length>0){
+        var re= /^[1-9][0-9]{5}$/;
+        
+        if(re.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式错误(六位,开头不为0)",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkbesttranstime(element){
+    if(element.val().trim().length>0){
+        var re= /^\d{1,2}:\d{1,2}\-\d{1,2}:\d{1,2}$/;
+        
+        if(re.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式错误 例 10:00-12:00",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkemail(element){
+    if(element.val().trim().length>0){
+        var re= /\w@\w*\.\w/;
+        
+        if(re.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式不正确",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+function checkdate(element){
+    if(element.val().trim().length>0){
+        if(element.val().length==16)element.val(element.val()+':00');
+        var regexp = /^((((1[6-9]|[2-9]\d)\d{2})-(0?[13578]|1[02])-(0?[1-9]|[12]\d|3[01]))|(((1[6-9]|[2-9]\d)\d{2})-(0?[13456789]|1[012])-(0?[1-9]|[12]\d|30))|(((1[6-9]|[2-9]\d)\d{2})-0?2-(0?[1-9]|1\d|2[0-8]))|(((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))-0?2-29-)) (20|21|22|23|[0-1]?\d):[0-5]?\d:[0-5]?\d$/ ; 
+
+        if(regexp.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"格式不正确",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+//验证非负浮点数
+function checkfloat(element){
+    if(element.val().trim().length>0){
+        var regexp = /^[0-9]+(.[0-9]{0,2})?$/ ; 
+
+        if(regexp.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"请输入大于零的数字且小数点后最多两位",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+
+//验证非负整数
+function checkint(element){
+    if(element.val().trim().length>0){
+        var regexp = /^([1-9]\d*|0)$/;
+
+        if(regexp.test(element.val())){
+            element.closest("div").addClass(validClass).removeClass(errorClass);
+            //showtip(element.parent().prev().html()+"正确",1);
+        }else{
+            element.closest("div").addClass(errorClass).removeClass(validClass);
+            showtip(element.parent().prev().html()+"请输入整型数字",2);
+            //element.focus();
+            element.attr("check",'0');return false;
+        }
+    }else{
+        element.closest("div").removeClass(validClass).removeClass(errorClass);
+    }
+    element.attr("check",'1');
+}
+
+function showtip(message,typeid){
+    var type = 'success';
+    if(typeid==2)type="error";
+    if(typeid==3)type="information";
+    noty({
+        text: message,
+        type: type,
+        layout: "top",
+        timeout: 2000
+    });
+}
+
+function deleteByID(url,id){
+    if(id=='' || url=='')return;
+    bootbox.confirm("确认删除记录吗?",function(confirmed){
+        if(confirmed){
+            $.post(url, { id: id }, function(data){
+                if(data.errno == 0){
+                    window.location.reload();
+                }else{
+                    showtip('删除失败',2);
+                }
+            },'json');
+        }
+    });
+}
+
+function deleteSku(url,id,is_del){
+    if(id=='' || url=='')return;
+    var str = is_del==1 ?'上架':'下架';
+    bootbox.confirm("确认商品"+str+"吗?",function(confirmed){
+        if(confirmed){
+            $.post(url, { id: id ,is_del:is_del}, function(data){
+                if(data.errno == 0){
+                    window.location.reload();
+                }else{
+                    showtip('下架失败',2);
+                }
+            },'json');
+        }
+    });
+}
+
+$(function(){
+    $("form *[onblur*=required]").parent().prev().append('<span class="required" style="font-size:18px !important">*</span>');
+    $(".datepicker").datepicker();
+    $("#pic_url").after("<span>请上传.jpg,.png,.gif类型的文件</span>");
+    $("#pic_url1").after("<span>请上传.jpg类型的文件,宽高比尽量一致的正方形图片</span>");
+});
+
+function checkImg(img){
+    var fileName=$("#"+img).val();
+
+    if(fileName==''||fileName==undefined)return true;
+    var ext = fileName.substr(fileName.lastIndexOf('.')+1).toLowerCase();
+
+    if(ext!= "jpg" && ext!= "png" && ext!= "gif"){
+    	showtip('文件类型不正确,请上传.jpg,.png,.gif类型的文件',2);
+    	$("#"+img).closest("div").addClass(errorClass).removeClass(validClass);
+        return false;  
+    }
+    return true;  
+}
+
+function checkImgJpg(img){
+    var fileName=$("#"+img).val();
+
+    if(fileName==''||fileName==undefined)return true;
+    var ext = fileName.substr(fileName.lastIndexOf('.')+1).toLowerCase();
+
+    if(ext!= "jpg"){
+        showtip('文件类型不正确,请上传.jpg类型的文件',2);
+        $("#"+img).closest("div").addClass(errorClass).removeClass(validClass);
+        return false;  
+    }
+    return true;  
+}
+
+
+
+function setPriceBySku(id){
+    var url='/partnersku/setpricebysku?id='+id;
+    $.get(url,function(message){
+        bootbox.hideAll();
+        bootbox.dialog({
+          message: message,
+          title: "设置价格",
+          onEscape: function() {},
+          show: true,
+          backdrop: true,
+          size: 'large',
+          animate: true,
+          className: "my-modal",
+          buttons: {
+            success: {
+              label: "保存",
+              className: "btn-success",
+              callback: function() {
+                $.post(url,$("#set_price_form").serialize(),
+                    function(data){
+                        return false;
+                    },'json');
+              }
+            },
+            "取消": {
+              className: "btn-danger",
+            }
+          }
+        });
+
+        setTimeout(function() {
+            $(".btn_update").bind('click',function(){
+                var ajax_price = parseFloat($("#ajax_price").val()).toFixed(2);
+                if(isNaN(ajax_price)){
+                    showtip('请输入数值',2);
+                    return false;
+                }
+                var ajax_base_price = parseFloat($("#ajax_base_price").val()).toFixed(2);
+
+                if($("#ajax_price_type").val()==1){
+                    $("input[name^=price]").each(function(){
+                        $(this).val(FloatCalFun.floatAdd(ajax_price,ajax_base_price));
+                    });
+                }else if($("#ajax_price_type").val()==2){
+                    $("input[name^=price]").each(function(){
+                        $(this).val(FloatCalFun.floatSubtract(ajax_base_price,ajax_price));
+                    });
+                }else if($("#ajax_price_type").val()==3){
+                    $("input[name^=price]").each(function(){
+                        $(this).val(FloatCalFun.floatMulti(ajax_base_price,ajax_price).toFixed(2));
+                    });
+                }else if($("#ajax_price_type").val()==4){
+                    $("input[name^=price]").each(function(){
+                        $(this).val(ajax_price);
+                    });
+                }
+            });
+            $("#ajax_price_type").bind("change",function(){
+                if($(this).val()==1){
+                    $("#ajax_price").val('0.00');
+                }else if($(this).val()==2){
+                    $("#ajax_price").val('0.00');
+                }else if($(this).val()==3){
+                    $("#ajax_price").val('0.95');
+                }else if($(this).val()==4){
+                    $("#ajax_price").val($("#ajax_base_price").val());
+                }
+                $("#ajax_price").trigger('focus');
+            });
+            $(".txt_shop_price").bind('keyup',function(e){
+                if(e.which == 13){
+                    var isNext = $(this).parent().parent().next().find("input").eq(0);
+                    if(isNext.length==1){
+                        isNext.focus().select();
+                    }
+                }
+            });
+        }, 200);
+    });
+}
+
+var FloatCalFun=new Object();
+//获取参数精度，如果为整数则精度为0
+FloatCalFun._getPrecision=function(arg){
+if(arg.toString().indexOf(".")==-1){
+ return 0;
+}else{
+ return arg.toString().split(".")[1].length;
+}
+
+}
+//获取小数的整数形式
+FloatCalFun._getIntFromFloat=function(arg){
+if(arg.toString().indexOf(".")==-1){
+ return arg;
+}else{
+ return Number(arg.toString().replace(".",""));
+}
+}
+//乘法
+FloatCalFun.floatMulti=function(arg1,arg2){
+ var precision1=this._getPrecision(arg1);
+ var precision2=this._getPrecision(arg2);
+ var tempPrecision=0;
+
+ tempPrecision+=precision1;
+ tempPrecision+=precision2;
+ var int1=this._getIntFromFloat(arg1);
+ var int2=this._getIntFromFloat(arg2);
+ return (int1*int2)*Math.pow(10,-tempPrecision);
+}
+//加法
+FloatCalFun.floatAdd=function(arg1,arg2){
+ var precision1=this._getPrecision(arg1);
+ var precision2=this._getPrecision(arg2);
+ var temp=Math.pow(10,Math.max(precision1,precision2));
+ return (this.floatMulti(arg1,temp)+this.floatMulti(arg2,temp))/temp;
+}
+//减法
+//arg1 被减数
+//arg2 减数
+FloatCalFun.floatSubtract=function(arg1,arg2){
+ var precision1=this._getPrecision(arg1);
+ var precision2=this._getPrecision(arg2);
+ var temp=Math.pow(10,Math.max(precision1,precision2));
+ return (this.floatMulti(arg1,temp)-this.floatMulti(arg2,temp))/temp;
+}
+////除法
+//arg1 被除数
+//arg2 除数
+FloatCalFun.floatDiv=function(arg1,arg2){
+ var precision1=this._getPrecision(arg1); 
+ var precision2=this._getPrecision(arg2); 
+ var int1=this._getIntFromFloat(arg1); 
+ var int2=this._getIntFromFloat(arg2); 
+ var result=(int1/int2)*Math.pow(10,precision2-precision1); 
+ return result; 
+}
+////比较
+//arg1 比较数1
+//arg2 比较数2
+FloatCalFun.floatCompare=function(arg1,arg2){
+ var precision1=this._getPrecision(arg1); 
+ var precision2=this._getPrecision(arg2); 
+ var temp=Math.pow(10,Math.max(precision1,precision2));
+ return this.floatMulti(arg1,temp) > this.floatMulti(arg2,temp);
+}
+
+Number.prototype.toFixed = function(s)
+{
+changenum=(parseInt(this * Math.pow( 10, s ) + 0.5)/ Math.pow( 10, s )).toString();
+index=changenum.indexOf(".");
+if(index<0&&s>0){
+changenum=changenum+".";
+for(i=0;i<s;i++){
+changenum=changenum+"0";
+}
+   
+   }else {
+index=changenum.length-index;
+for(i=0;i<(s-index)+1;i++){
+ changenum=changenum+"0";
+}
+  
+   }
+  
+    return  changenum;
+} 

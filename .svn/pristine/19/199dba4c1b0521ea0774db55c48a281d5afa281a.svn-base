@@ -1,0 +1,61 @@
+<script type="text/javascript">
+function checkform(){
+    var checkflag=true;
+    $("input[onblur],select[onblur],textarea[onblur]").each(function(){
+        this.onblur();
+        if($(this).attr("check")==0)checkflag=false;
+    });
+
+    return checkflag;
+}
+</script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改配销商密码
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" onsubmit="return checkform();">
+                    <?php if(isset($messages)) {?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?>
+                     <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            原密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="old_pwd" class="form-control" type="password" onblur="checkrequired($(this))"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            新密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="new_pwd" class="form-control" type="password" onblur="checkrequired($(this))"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            确认密码：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="confirm_pwd" class="form-control" type="password" onblur="checkrequired($(this))"/>
+                        </div>
+                    </div>                    
+                    <input class="btn btn-info btn-block" value="提交" type="submit">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

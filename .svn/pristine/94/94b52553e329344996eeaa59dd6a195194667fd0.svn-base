@@ -1,0 +1,136 @@
+<?php
+namespace Models;
+class Shop extends CityModel
+{
+	public function validation(){
+		//收获地址
+		if(isset($this->address)){
+			$this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+				'field' => 'address',
+				'max' => 255,
+				'min' => 1,
+				'messageMaximum' => '收货地址格式不正确，不得大于255个字节',
+				'messageMinimum' => '收货地址格式不正确，不得小于一个字节'
+			)));
+		}
+		//联系人
+		if(isset($this->contact_name)){
+		$this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'contact_name',
+            'max' => 255,
+            'min' => 1,
+            'messageMaximum' => '联系人格式不正确，不得大于255个字节',
+            'messageMinimum' => '联系人格式不正确，不得小于一个字节'
+        )));
+		}
+		//商铺名称
+		if(isset($this->name)){
+		$this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'name',
+            'max' => 255,
+            'min' => 1,
+            'messageMaximum' => '商铺名称格式不正确，不得大于255个字节',
+            'messageMinimum' => '商铺名称格式不正确，不得小于一个字节'
+        )));
+		}
+		if(isset($this->contact_mobile)){
+			$this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+			 "field" => 'contact_mobile',
+			 'pattern' => '/^0?(13[0-9]|15[012356789]|18[0-9]|14[57]|17[0-9])[0-9]{8}$/',
+			 'message' => '手机号无效'
+			 
+			 )));
+		}
+		
+		$this->validate(new \Phalcon\Mvc\Model\Validator\Uniqueness(array(
+	    'field' => 'name',
+	    'message' => '此店铺已被占用，请联系客服人员：400-600-2584'
+	    )));
+
+		
+		if ($this->validationHasFailed() == true) {
+			return false;
+		}
+	}
+
+    //获取用户底下所有店铺
+    function getListByUserId($userId,$type = 0){
+        $where  = "is_del = 0 and user_id=$userId and type=$type and status=1";
+
+        $return = [];
+        if($this->count($where)){
+            $list = $this->find($where)->toArray();
+            foreach ($list as $key => $val) {
+                $userInfo = $this->mc->getUser($val['user_id']);
+                if(isset($userInfo['id']) && $userInfo['freeze']==0 && $userInfo['payment_freeze']==0){
+
+                    $return[] = $val;
+                }
+            }
+        }
+        return $return;
+    }
+    public function afterCreate(){
+        parent::afterCreate();
+        $data = $this->toArray();
+        $this->getModel('partnerOperateLog')->shopCreate($data);  
+    }
+
+    // 添加店铺
+    public function createShopByMobile($mobile,$arr,$type = 0){
+
+        //检查店铺名
+        $isHave = $this->getModel('shop')->count("name='{$arr['name']}'");
+        if($isHave){
+            return array('id' => '', 'error' => '此店铺已被占用，请联系客服人员：400-600-2584');
+        }
+
+        //检查手机号
+        $user = [];
+        $where = "mobile='{$arr['contact_mobile']}'";
+        $isHave = $this->getModel('user')->count($where);
+        if($isHave && $type==0){
+            $user = $this->getModel('user')->findFirst($where)->toArray();
+        }else{
+            //添加用户
+            $userArr = ['mobile'=>$arr['contact_mobile'],'city'=>CITY,'before_pwd'=>'12345678','type'=>$type];
+            $userResult = $this->createModel('user')->createOne($userArr);
+            
+            //添加用户是否成功
+            if($userResult['id']){
+            $msg = "尊敬的客户，您的链农账号已创建。账户名为：".$mobile."，初始密码为：12345678，请您尽快修改您的登录初始密码，给您造成的不便敬请谅解。";
+            \Libs\Util::sendSms($mobile,$msg);
+                $user = $this->mc->getUser($userResult['id']);
+            }else{
+                return array('id' => '', 'error' => $userResult['error']);
+            }
+        }
+
+        //添加店铺
+        $shopArr = ['name'=>$arr['name'],'user_id'=>$user['id'],'address'=>$arr['address'],'contact_name'=>$arr['contact_name'],'contact_mobile'=>$arr['contact_mobile'],'creator_id'=>$arr['creator_id'],'type'=>$type,'status'=>$type,'best_time'=>$arr['best_time']];
+
+        $shop = $this->createOne($shopArr);
+
+        //配销商添加店铺 - 绑定配销商
+        $partner_id = isset($arr['partner_id'])?$arr['partner_id']:$arr['creator_id'];
+        if($type==1 && $partner_id){
+            //更新配销商
+            $categoryArr = $this->getModel('category')->getList($this->mc->getPartner($partner_id)['category']);
+            foreach ($categoryArr as $key => $val) {
+                $this->createModel('shopSku')->createOne(['shop_id'=>$shop['id'],'partner_id'=>$partner_id,'category_id'=>$val['id'],'type'=>1]);
+            }
+        }
+
+        //保存数据
+        return $shop;
+
+    }
+    public function beforeUpdate(){
+        $before=  $this->findById($this->id);
+        $after = $this->toArray();
+        $this->getModel('partnerOperateLog')->shopUpdate($before,$after);
+
+
+    }
+}
+?>

@@ -1,0 +1,29 @@
+<h1>登入!</h1>
+<?php
+$form = new \Phalcon\Forms\Form();
+
+$form->add(new \Phalcon\Forms\Element\Text("login",array('maxlength'=>20)));
+
+$form->add(new \Phalcon\Forms\Element\Password("pwd"));
+$form->add(new \Phalcon\Forms\Element\Submit("提交"));
+$form->add(new \Phalcon\Forms\Element\Hidden("csrf",array('value'=>$this->security->getToken())));
+?>
+<form method="post">
+    <p>
+        <label>登入名</label>
+        <?php echo $form->render("login"); ?>
+    </p>
+
+    <p>
+        <label>密码</label>
+        <?php echo $form->render("pwd"); ?>
+    </p>
+    <p>
+        <?php echo $form->render("csrf"); ?>
+    <p>
+        <?php echo $form->render('提交'); ?>
+        <a href="<?php echo $this -> url -> get('user/register');?>">注册</a>
+    </p>
+    
+
+</form>

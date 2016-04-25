@@ -1,0 +1,152 @@
+<?php $this->assets->addCss('assets/css/login.css');
+	  $this->assets->addJs('assets/js/login.js');
+	  ?>
+    <script>
+    $(document).ready(function(){
+        "use strict";
+
+        Login.init(); // Init login JavaScript
+    });
+    </script>
+</head>
+
+<body class="login">
+    <!-- Logo -->
+   <!-- <div class="logo">
+        <img src="assets/img/logo.png" alt="logo" />
+       链农后台
+    </div>-->
+    <!-- /Logo -->
+	<div id="h_layer" class="h_layer"></div> 
+	
+	<div id="page_foot" style="top:550px;" class="page_foot">
+	<div id="foot_header">
+	<h2 style="font-size:22px;"><b>扫二维码关注/下载</b></h2>	
+	</div>
+	
+	<div id="foot_content" style="margin-top:40px;">
+	
+	<div style="float:left;">
+	<img src="image/we_about.png"/>
+	<h2 style="font-size:20px;"><b>微信公众平台</b></h2>
+	</div>
+	
+	<div style="float:left; margin-left:40px;">
+	<img src="image/ln.png"/>
+	<h3 style="font-size:20px;"><b>链农客户端</b></h3>
+	</div>
+	
+	<div style="float:left; margin-left:40px;">
+	<img src="image/ln_vip.png"/>
+	<h3 style="font-size:20px;"><b>链农定制客户端</b></h3>
+	</div>
+	
+	<div style="float:left; margin-left:40px;">
+	<img src="image/server_client.png"/>
+	<h3 style="font-size:20px;"><b>服务商客户端</b></h3>
+	</div>
+	<div style="float:left; margin-left:60px;">
+	<img src="image/line.png"/>
+	</div>
+	
+	
+	<div style="float:left; margin-left:50px; margin-top:-85px;">
+	<h2 style="font-size:22px; margin-bottom:40px;"><b>联系我们</b></h2>
+	<p style="color:#4d7496; font-size:14px;"><b>客服电话(TEL):</b></p>
+	<P style="color:#4d7496; font-size:20px; font-family:'微软雅黑'">400-600-2584</P>
+	<img src="image/more.png" style="margin-top:30px;"/>
+	</div> 
+	
+	
+	</div>
+	
+	<div id="foot_foot" style="position:absolute; top:280px;">
+		<p style="font-size:14px; color:#666666">Copyright@2015 FARMLINK 京ICP备15008167号-1</p>
+	</div>
+	</div><!--page_foot_end-->
+
+    <!-- Login Box -->
+    <div class="box m_left">
+	  <div class="title">
+		<p class="title_p"><span>链农互动后台系统</span></p>
+	  </div>
+        <div class="content">
+            <!-- Login Formular -->
+            <form class="form-vertical login-form" action="" method="post">
+                <!-- Title
+                <h3 class="form-title">登入</h3>
+ -->
+                <!-- Error Message -->
+				<?php if($message){
+                echo '<div class="alert fade in alert-danger">
+                    <i class="icon-remove close" data-dismiss="alert"></i>'.$message.'</div>';
+					}
+				?>
+                <!-- Input Fields -->
+                <div class="form-group m_top">
+                    <!--<label for="username">Username:</label>-->
+                    <div class="input-icon">
+                        <i class="icon-user"></i>
+                        <input type="text" name="login" class="form-control" placeholder="登入名" autofocus="autofocus" data-rule-required="true" data-msg-required="请输入您的登入名." />
+                    </div>
+                </div>
+                <div class="form-group m_top">
+                    <!--<label for="password">Password:</label>-->
+                    <div class="input-icon">
+                        <i class="icon-lock"></i>
+                        <input type="password" name="pwd" class="form-control" placeholder="密码" data-rule-required="true" data-msg-required="请输入密码." />
+                    </div>
+                </div>
+                <!-- /Input Fields -->
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+<?php
+	$form = new \Phalcon\Forms\Form();
+	$form->add(new \Phalcon\Forms\Element\Hidden("csrf",array('name'=>$this->security->getTokenKey(),'value'=>$this->security->getToken())));
+	?>
+<?php echo $form->render("csrf"); ?>
+
+                    <!--<label class="checkbox pull-left"><input type="checkbox" class="uniform" name="remember"> 记住我</label>-->
+                    <button type="submit" class="submit btn btn-primary pull-right">
+                        登入 <i class="icon-angle-right"></i>
+                    </button>
+                </div>
+            </form>
+            <!-- /Login Formular -->
+
+
+        </div> <!-- /.content -->
+    <!-- /Login Box -->
+
+
+<script type="text/javascript">
+$(function(){
+					
+					});
+  $("#reg").click(function(){
+				  $.ajax({
+						 url: '/user/register',
+						 type: 'POST',
+						 dataType : 'json',
+						 data: {
+						 login: $('#reg_login').val(),
+						 real_name:$('#real_name').val(),
+						 pwd:$('#reg_pwd').val(),
+						 comfirm_pwd:$('#comfirm_pwd').val(),
+						 role :$('#role').val(),
+						 cert:$('#cert').val(),
+						 csrf:$('#csrf').val()
+						 }
+						 }).done(function(msg){
+								 if (msg.message=='') {
+								 alert('注册成功')
+								 location.reload()
+								 } else {
+								 alert(msg.message);
+								 }
+								 });
+				  });
+  
+  });
+</script>

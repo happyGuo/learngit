@@ -1,0 +1,96 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+class CAppController extends AppController
+{
+
+    public $clientKey = 'liannong';
+    //需登入ACTION
+    public static $loginAction = array('c_user/perfect',
+        'c_user/editpwd',
+        'c_user/paymessagenotify',
+        'c_shop/list',
+        'c_shop/create',
+        'c_shop/delete',
+        'c_shop/update',
+        'c_order/troversy',
+        'c_order/create',
+        'c_shop/updatedefault',
+        'c_message/list',
+        'c_shop/updatedefault',
+        'c_sku/listfavor',
+        'c_sku/addfavor',
+        'c_sku/delfavor',
+        'c_message/count',
+        'c_user/addRecharge',
+        'c_user/getrechargelist',
+    );
+    //需审核ACTION
+    public static $authAction = array('c_order/create',
+        'c_order/list',
+        'c_order/delete',
+        'c_order/cancle',
+        'c_order/detail',
+        'c_order/receive',
+        'c_order/pay',
+        'c_order/score',
+        'c_order/getscore',
+        'c_sku/listfavor',
+        'c_sku/addfavor',
+        'c_sku/delfavor',
+        'c_user/addRecharge',
+    );
+
+    public function initialize()
+    {
+        parent::initialize();
+        $this->appName = 'liannong';
+        define('APP_NAME',$this->appName);
+
+        $query = $this->request->getQuery();
+
+        $post = $this->request->getPost();
+        $query = array_merge($query, $post);
+        if(isset($query['ver']))
+            $this->ver = $query['ver'];
+        $current = $this->dispatcher->getControllerName() . '/' . $this->dispatcher->getActionName();
+
+        if (!isset($query['access_token']) || empty($query['access_token'])) {
+            $this->userId = 0;
+            //判断当前操作是否必须登入
+            if (in_array($current, array_merge(self::$loginAction, self::$authAction))) {
+                $this->renderJson(array(), '您尚未登入',2);
+            }
+        } else {
+            $this->accessToken = $query['access_token'];
+            //根据token获取当前登入人
+            $device = \Models\UserDevice::findFirst('access_token="' . $this->accessToken . '"');
+
+            if ($device == false) {
+                $this->access_token = '';
+                return $this->renderJson(array(), '登入失败，请重新登入',2);
+            } else {
+                $this->userId = $device->user_id;
+                $userInfo = $this->getModel('user')->findById($this->userId);
+                if ($userInfo['is_del']) {
+                    $this->renderJson(array(), '该用户已删除');
+                }
+                $this->userInfo = $userInfo;
+                $this->deviceToken = $device->device_token;
+                $this->deviceType = $device->device_type;
+
+                //判断是否必须认证用户权限
+                if (in_array($current, self::$authAction)) {
+                    $shop = $this->getModel('shop')->find('is_del =0 and status =1 and user_id=' . $this->userId);
+                    if (empty($shop)) {
+                        $this->renderJson(array(), '您的账号尚未通过审核');
+                    }
+                }
+            }
+        }
+
+    }
+	
+	
+}

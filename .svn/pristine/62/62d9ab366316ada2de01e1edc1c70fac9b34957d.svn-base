@@ -1,0 +1,88 @@
+
+<div class="row">
+    <div class="col-md-10">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    添加活动
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" enctype="multipart/form-data" method="POST" action="">
+                    <?php foreach($messages as $message ) {?>
+                    <div class="alert alert-danger fade in">
+                        <i class="icon-remove close" data-dismiss="alert"></i>
+                        <?php echo $message ?>
+                    </div>
+                    <?php }?>
+
+                    <input type="hidden" name="id" value="<?php echo $activity->id; ?>">
+                    
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            活动名称：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this))" name="name" class="form-control" type="text" value="<?php echo $activity->name; ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            活动URL：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this))" name="url" class="form-control" type="text" value="<?php echo $activity->url; ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-4">
+                            <?php
+                                if($activity->pic_url){
+                                $pic = $this->img->getUrl($activity->pic_url);
+                                echo '<img width="400" height="200" src="'.$pic.'">';
+                                }
+                            ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">活动图片：</label>
+                        <div class="col-md-4">
+                            <input name="pic_url" class="form-control" type="file">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            排序：
+                        </label>
+                        <div class="col-md-4">
+                            <input name="sort" class="form-control" type="text" value="<?php echo $activity->sort; ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-md-4"></div>
+                        <div class="col-md-2">
+                            <input class="btn btn-info btn-block" value="提交" type="submit">
+                        </div>
+                    </div>
+                    
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $("form").submit(function(e){
+    var url_val=$("input[name='url']").val();
+    
+    var reg = new RegExp();
+    reg.compile("^[A-Za-z]+://[A-Za-z0-9-_]+\\.[A-Za-z0-9-_%&\?\/.=]+$");//jihua.cnblogs.com 
+    if(!reg.test(url_val)){
+         e.preventDefault();
+         alert("活动URL不正确!");
+     }
+});
+</script>

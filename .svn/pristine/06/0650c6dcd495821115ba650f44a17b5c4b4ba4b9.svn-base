@@ -1,0 +1,62 @@
+
+<div class="row">
+    <div class="col-md-10">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    配销商提现
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" >
+                    <?php if(isset($messages)){?>
+                    <div class="alert <?php if($messages==''){?> alert-success<?php }else{?> alert-danger <?php }?> fade in">
+                        <i class="icon-remove close" data-dismiss="alert"></i>
+                        <?php echo $messages ? $messages :'已申请'; ?>
+                    </div>
+                    <?php } ?>
+
+                    <input type="hidden" name="partnerid" value="<?php echo $partnerid; ?>">
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                         可用余额：
+                        </label>
+                        <div class="col-md-4">
+                            <label class="col-md-4 control-label">
+                                <?php echo $withdraw_balance; ?>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                        提现金额：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this));checkfloat($(this))" name="amount" class="form-control" type="text">
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            管理员密码：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this));" name="pwd" class="form-control" type="password">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-md-4">
+                        </div>
+                        <div class="col-md-2">
+                            <input class="btn btn-info btn-block" value="提现" type="submit">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

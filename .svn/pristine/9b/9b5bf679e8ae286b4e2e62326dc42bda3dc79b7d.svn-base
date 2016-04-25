@@ -1,0 +1,15 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class AsynController extends ComplexController
+{
+    public function initialize()
+    {
+        parent::initialize();
+        if(\Libs\Util::getIp()!='127.0.0.1'){
+            exit('not local request');
+        }
+    }
+
+}
+

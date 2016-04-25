@@ -1,0 +1,121 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class CategoryController extends BackendController
+{
+
+    public function initialize(){
+        parent::initialize();
+
+        $this->view->menu=array('category/add'=>'分类添加','category/list'=>'分类列表');
+    }
+
+	//显示分类列表
+    public function listAction()
+    {
+
+        //一级分类
+        $condition = 'is_del = 0 and parent_id = 0';
+        $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+        $list = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns))->toArray();
+
+        foreach ($list as $key => $val) {
+            //查询子分类
+            $condition = 'is_del = 0 and parent_id = '.$val['id'];
+
+            $abc = $this->getModel('category')->find([$condition,'order'=>'sort asc,id asc','columns'=>$columns])->toArray();
+            $list[$key]['subs'] = $abc;
+
+        }
+
+        $this->view->setVar('list',$list);
+    }
+
+    //添加分类
+    public function addAction()
+    {
+    	if($this->request->isPost()) {
+    		$category = $this->createModel('Category');
+    		$category->name = $this->request->getPost('name');
+            $category->parent_id = $this->request->getPost('parent_id');
+            $category->code = $this->request->getPost('code');
+    		$category->usetag = $this->request->getPost('usetag');
+            $category->sort = $this->request->getPost('sort');
+            $category->pic_url = $this->img->upload('pic_url');
+
+            //图片 
+            $category->pic_url = $this->img->upload('pic_url');
+
+            if($category->save()) {
+    			return $this->response->redirect("category/add");
+    		}else{
+                $this->view->messages = $category->getError();
+            }
+    	}
+
+        //一级分类
+        $condition = 'is_del = 0 and parent_id = 0';
+        $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+        $list = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns));
+
+        $this->view->setVar('categoryArr',$list);
+    }
+
+    //修改分类
+    public function updateAction()
+    {
+    	if($this->request->isPost()) {
+    		$category = $this->createModel('Category')->findFirst($this->request->getPost('id'));
+
+    		$category->name = $this->request->getPost('name');
+            $category->code = $this->request->getPost('code');
+    		$category->usetag = $this->request->getPost('usetag');
+            //图片 
+            $img = $this->img->upload('pic_url');
+            if($img['name'])$category->pic_url = $img;
+    		$category->sort = $this->request->getPost('sort');
+
+    		if($category->save()) {
+    			return $this->response->redirect("category/list");
+    		}
+    	}
+
+        //一级分类
+        $condition = 'is_del = 0 and parent_id = 0';
+        $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+        $this->view->categoryArr = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns));
+
+		$categoryid = intval($this->request->getQuery('id'));
+		$where = 'id = '.$categoryid;
+		$this->view->category = $this->getModel('Category')->findFirst(array($where,"limit"=>1))->toArray();
+    	
+    }
+
+    //删除分类
+    public function deleteAction()
+    {
+    	$category = $this->getModel('Category')->findFirst($this->request->getQuery('id'));
+
+    	$category->is_del = 1;
+    	if($category->save()) {
+    		return $this->response->redirect("category/list");
+    	}
+    }
+
+    public function getAction(){
+        if($this->request->isAjax()){
+            $parent_id = $this->request->getQuery('parent_id');
+
+            if(intval($parent_id)==0)$this->renderJson([]);
+
+            //一级分类
+            $condition = 'is_del = 0 and parent_id = '.intval($parent_id);
+            $columns = ['id','name','parent_id','code','pic_url','sort','usetag'];
+            $list = $this->getModel('category')->find(array($condition,'order'=>'sort asc','columns'=>$columns))->toArray();
+
+            $this->renderJson($list);
+        }
+    }
+
+}
+

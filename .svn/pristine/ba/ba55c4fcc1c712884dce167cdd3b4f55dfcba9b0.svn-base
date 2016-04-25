@@ -1,0 +1,43 @@
+<?php
+namespace  Modules\Backend\Libs;
+
+class DbListener
+{
+    protected $_profiler;
+    protected $_logger;
+
+    public function __construct()
+    {
+        $this->_logger = new \Phalcon\Logger\Adapter\File("../apps/logs/db.log");
+        $this->_profiler = new \Phalcon\Db\Profiler();
+    }
+
+    public function afterConnect()
+    {
+
+    }
+
+    public function beforeQuery($event, $connection)
+    {
+        $this->_profiler->startProfile($connection->getSQLStatement());
+    }
+
+
+
+    public function afterQuery($event, $connection)
+    {
+        $this->_logger->log($connection->getSQLStatement(), \Phalcon\Logger::INFO);
+        $this->_profiler->stopProfile();
+        foreach($this->_profiler->getProfiles() as $profile){
+            $sum = $profile->getTotalElapsedSeconds();
+            if($sum>0){
+                $this->_logger->log( "SQL Statement: ". $profile->getSQLStatement());
+                $this->_logger->log( "Start Time: ".$profile->getInitialTime());
+                $this->_logger->log("Final Time: ".$profile->getFinalTime());
+                $this->_logger->log("Total Elapsed Time: ".$sum);
+            }
+        }
+    }
+	
+
+}

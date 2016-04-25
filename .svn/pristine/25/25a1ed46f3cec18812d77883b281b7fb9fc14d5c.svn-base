@@ -1,0 +1,74 @@
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 后台操作日志列表</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form class="form-horizontal row-border" action="" method="get"
+                  style="border-bottom:1px solid #ccc; margin-bottom: 10px;">
+                <div class="form-group">
+                    <div class="col-md-10">
+                        <div class="row">
+                            <div class="col-md-2">
+                                类型： <input type="text" name="s_type" placeholder="类型" class="form-control"
+                                            value="<?php echo isset($s_type) ? $s_type : '' ?>">
+                            </div>
+
+                            <div class="col-md-1">
+                                <input type="submit" value="搜索" class="btn btn-primary" style="margin-top:18px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>类型</th>
+                    <th>请求信息</th>
+                    <th>返回信息</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php if ($logs) {
+                    foreach ($logs as $k => $v) { ?>
+                        <tr>
+                            <td><?php echo isset($v->type) ? $v->type : ''; ?></td>
+                            <td style="WORD-BREAK: break-all; WORD-WRAP: break-word; width:30%;"><?php echo isset($v->request) ? (is_array($v->request) ? json_encode($v->request,JSON_UNESCAPED_UNICODE): $v->request) : ''; ?></td>
+                            <td style="WORD-BREAK: break-all; WORD-WRAP: break-word; width:30%;"><?php echo isset($v->response) ? (is_array($v->response) ? json_encode($v->response,JSON_UNESCAPED_UNICODE): $v->response) : ''; ?></td>
+                            <td><?php echo $v->success == 1 ? '成功': '失败'; ?></td>
+                            <td><?php echo isset($v->ctime) ? $v->ctime : ''; ?></td>
+                        </tr>
+                    <?php }
+                } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+
+<script type="text/javascript">
+    $(".toggle-data").click(function () {
+        var obj = $(this).parent().next('div');
+        obj.toggle();
+
+    });
+</script>

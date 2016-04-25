@@ -1,0 +1,17 @@
+<?php
+namespace Models;
+class PartnerOperateLog extends CityModel
+{
+	public function beforeValidationOnCreate()
+    {
+        $this->ctime = time();
+        $this->platform = \Libs\Util::getPlatform();
+        $this->is_del = 0;
+    }
+    public function createLog($data){
+    	$this->getModel('partnerOperateLog')->createOne($data); 
+    }
+    
+
+}
+?>

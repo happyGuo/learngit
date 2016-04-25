@@ -1,0 +1,43 @@
+<?php
+namespace Models;
+class OrderDispute extends CityModel
+{
+    public function beforeValidationOnReply()
+    {
+        $this->ctime = time();
+        $this->utime = time();
+    }
+    public function beforeValidationOnTroversy()
+    {
+        $this->ctime = time();
+        $this->utime = time();
+    }
+  public function validation(){
+
+    //争议内容
+    if(isset($this->message)){
+    $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'message',
+            'max' => 255,
+            'min' => 1,
+            'messageMaximum' => '争议内容格式不正确，不得大于255个字节',
+            'messageMinimum' => '争议内容格式不正确，不得小于一个字节'
+        )));
+    }
+    //商铺名称
+    if(isset($this->subcontract)){
+    $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'subcontract',
+            'max' => 255,
+            'min' => 1,
+            'messageMaximum' => '分单号格式不正确，不得大于255个字节',
+            'messageMinimum' => '分单号格式不正确，不得小于一个字节'
+        )));
+    }
+    
+    if ($this->validationHasFailed() == true) {
+      return false;
+    }
+  }
+}
+?>

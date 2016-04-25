@@ -1,0 +1,13 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: zyf
+ * Date: 15-3-26
+ * Time: 下午4:44
+ */
+namespace Apis;
+class Third extends BaseApi {
+
+    public function test(){
+    }
+}

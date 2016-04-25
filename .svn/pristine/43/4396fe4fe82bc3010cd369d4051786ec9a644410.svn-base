@@ -1,0 +1,101 @@
+<!--=== Page Content ===-->
+<script type="text/javascript">
+$(document).ready(function(){
+	$("#form-field-select-3").change(function(){
+		status = $(this).children('option:selected').val();
+		if(status==''){
+			url = 'region/list';
+		} else {
+			url = 'region/list?status='+status;
+		}
+		location.href = url;
+	});
+});
+</script>
+
+<fieldset>
+<legend>检索</legend>
+<select class="width-80 chosen-select" id="form-field-select-3" name="status">
+	<option value="" <?php if(is_null($status)){echo "selected";} ?>>请选择</option>
+	<option value="0" <?php if($status===0){echo "selected";} ?>>未开通城市</option>
+	<option value="1" <?php if($status===1){echo "selected";} ?>>后台开通城市</option>
+	<option value="2" <?php if($status===2){echo "selected";} ?>>前台开通城市</option>
+</select>
+
+<hr>
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i>城市列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>城市名称</th>                                             
+						<th>英文名称</th>
+                                                <th>区号</th> 
+						<th>开通状态</th>
+						<th>排序</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($citylist as $k=>$v) { ?>
+					<tr>
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->local_name; ?></td>
+						<td><?php echo $v->en_name; ?></td>
+                                                <td><?php echo $v->zip; ?></td>
+						<td>
+							<?php
+							switch ($v->status) {
+							 	case 0:
+							 		$status = '未开通';
+							 		break;
+							 	case 1:
+							 		$status = '后台开通';
+							 		break;
+							 	case 2:
+							 		$status = '前台开通';
+							 		break;
+							 	
+							 	default:
+							 		# code...
+							 		break;
+							 } 
+							echo $status; 
+							?>
+						</td>
+						<td><?php echo $v->sort; ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href="<?php echo $this->url->get('region/update',array('cityid'=>$v->id));?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+								<a href="javascript:;" onclick="deleteByID('<?php echo $this->url->get($this->dispatcher->getControllerName().'/delete') ?>','<?php echo $v->id ?>');" class="btn btn-xs bs-tooltip" title="删除">删除</a>
+								<a href="<?php echo $this->url->get('region/sublist',array('cityid'=>$v->id));?>" class="btn btn-xs bs-tooltip" title="地区列表">地区列表</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+
+
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

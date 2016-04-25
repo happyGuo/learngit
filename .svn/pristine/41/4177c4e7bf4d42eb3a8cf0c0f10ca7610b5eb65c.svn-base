@@ -1,0 +1,36 @@
+<?php
+/**
+ *  用户搜索记录Model
+ *
+ * @author      zhangrg
+ * @version     20150801
+ */
+
+namespace Models;
+
+class UserSearch extends CityModel
+{
+    public function updateuserSearch($keyword,$userId,$platform){
+        $keyword = trim($keyword);
+        $device = $this->findFirst('user_id = '.$userId.'  and is_del = 0 and platform = "'.$platform.'"');
+        $data = [];
+        $message = '';
+        if ($device == false) {
+            $data['user_id'] = $userId;
+            $data['id_del'] = 0;
+            $data['keyword'] = $keyword;
+            $data['platform'] = $platform;
+            $data['ctime'] = time();
+            $data['utime'] = time();
+            $res = $this->createOne($data);
+            if ($res['error']) {
+                $message =  $res['error'];
+            }
+        } else {
+            $data['utime'] = time();
+            $this->updateOne($device->id, $data);
+        }
+        return $message;
+
+    }
+}

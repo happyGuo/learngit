@@ -1,0 +1,269 @@
+<div class="tabbable tabbable-custom tabbable-full-width">
+<ul class="nav nav-tabs">
+	<?php if(isset($flag)){?>
+	<li class=""><a data-toggle="tab" onclick="gohre()" href="javascript:void(0)">待审核<span></span></a></li>
+	<li class="active"><a onclick="gohref()"  data-toggle="tab" href="javascript:void(0)">已审核<span></span></a></li>
+	<?php
+	}else{
+	?>
+		<li class="active"><a data-toggle="tab" onclick="gohre()" href="javascript:void(0)">待审核<span></span></a></li>
+		<li class=""><a onclick="gohref()"  data-toggle="tab" href="javascript:void(0)">已审核<span></span></a></li>
+	<?php
+	}
+	?>
+</ul>
+
+<div class="tab-content row">
+<form class="form-horizontal row-border" method="get" action="">
+	<?php if(isset($flag)){
+	?>
+		<input type="hidden" value="<?php echo $flag;?>" name="flag">
+	<?php
+	}
+	?>
+
+<div class="col-md-5">
+	<label class="col-md-4 control-label">日期：</label>
+
+	<div class="col-md-8">
+		<div class="row">
+			<div class="col-md-6">
+				<input type="text" name="start_time" readonly class="form-control datepicker" placeholder="起始日期" value="<?php echo isset($start_time)?$start_time:'';?>">
+			</div>
+			<div class="col-md-6">
+				<input type="text" name="end_time" readonly class="form-control datepicker" placeholder="结束日期" value="<?php echo isset($end_time)?$end_time:'';?>">
+			</div>
+		</div>
+	</div>
+</div>
+
+	<?php if(isset($flag)){?>
+				<label class="col-md-2 control-label" style="font-size:20px">状态索引</label>
+				<div class="col-md-3">
+					<select class="form-control" name="check"<!--onchange="select_comfirm(this.value)" -->>
+						<option value=1>审核成功</option>
+						<option value=2>审核失败</option>
+					</select>
+				</div>
+	<?php } ?>
+	<div class="col-md-1">
+		<input class="btn btn-info btn-block" value="搜索" type="submit">
+	</div>
+</form>
+	</di>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 确认充值列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">流水号</th>
+						<th class="align-center">充值类型</th>
+						<th class="align-center">充值金额</th>
+						<th class="align-center">充值用户</th>
+						<th class="align-center">商家名称</th>
+						<th class="align-center">备注</th>
+						<th class="align-center">状态</th>
+						<th class="align-center">确认备注</th>
+						<th class="align-center">创建时间</th>
+						<?php if(isset($flag)){
+						?>
+							<th class="align-center">确认人</th>
+							<th class="align-center">更新时间</th>
+
+						<?php
+						}
+						?>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($recharge as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->recharge_sn; ?></td>
+						<td><?php
+							switch($v->type) {
+								case 0:
+									echo '支付宝充值';
+									break;
+								case 1:
+									echo '银行转账';
+									break;
+							}
+							?></td>
+						<td><?php echo $v->amount; ?></td>
+						<td><?php echo $this->mc->getUser($v->user_id)['real_name']  ?></td>
+						<td><?php echo $this->mc->getShop($v->user_id)['name'] ?></td>
+						<td><?php echo $v->remark; ?></td>
+						<td><?php
+							switch($v->status) {
+								case 0:
+									echo '待确认';
+									break;
+								case 1:
+									echo '已确认';
+									break;
+								case 2:
+									echo '确认失败';
+									break;
+							}
+							?></td>
+						<td><?php echo $v->comfirm_remark; ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<?php if(isset($flag)){
+						?>
+						<td><?php echo $this->mc->getAdmin($v->comfirm_id)['real_name'] ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->utime); ?></td>
+						<?php } ?>
+						<td class="align-center">
+								<?php if($v->status == 0){ ?>
+								<span class="btn-group">
+									<a onclick="comfrim(1,<?php echo $v->id;?>,<?php echo $v->user_id?>)" class="btn btn-xs bs-tooltip" title="审核成功">审核成功</a>
+									<a onclick="comfrim(2,<?php echo $v->id;?>,<?php echo $v->user_id?>)" class="btn btn-xs bs-tooltip" title="审核失败">审核失败</a>
+								</span>
+								<?php } ?>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+		<div id="message" style="display: none;"><input class="form-control" type='text' name='comfirm_remark'></div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function comfrim(status,id,uid) {
+	 if (status == 1) {
+	// 	 $.post('<?php echo $this->url->get('recharge/confirm')?>', {status: status, id: id,uid:uid}, function (data) {
+	// 		alert(data);
+	// 		 data = eval('('+ data +")");
+	// 		 if (data.errno == 0) {
+	// 		 	alert('已确认！');
+	// 		 	window.location.href = '<?php echo $this->url->get('verification/confirm?id=');?>'+data.data.id;
+	// 		 } else {
+	// 		 	alert(data.errmsg);
+	// 		 	window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+	// 		 }
+	// 	});
+		 var html = "<h3><span>审核人：</span><?php echo $adminUser;?></h3><br/><span>备&nbsp;&nbsp;&nbsp;注：</span><input type='text' id='comfirm_remark' width='50'><font style='color:red'>输入银行流水号</font>";
+		 bootbox.dialog({
+			 message  : html,
+			 title    : "审核页面",
+			 onEscape : function () {
+			 },
+			 show     : true,
+			 backdrop : true,
+			 size     : 'large',
+			 animate  : true,
+			 className: "my-modal",
+			 buttons  : {
+				 success: {
+					 label    : "确认",
+					 className: "btn-success",
+					 callback : function () {
+						 var comfirm_remark = $("#comfirm_remark").val();
+//						 var length = comfirm_remark.length;
+//						 if(length<5){
+//							 alert('长度必须大于5字');
+//							 return false;
+//						 }
+						 $.ajaxSetup({async: false});
+						 $.post('recharge/confirm', {status: status, id: id,uid:uid,comfirm_remark: comfirm_remark},
+							 function (data) {
+								 if(data == 1){
+									 window.location.href = '<?php echo $this->url->get('recharge/account?uid=');?>'+uid;
+								 }else{
+									 window.location.href = '<?php echo $this->url->get('user/list');?>';
+								 }
+							 }, 'text');
+					 }
+				 },
+				 "取消"   : {
+					 className: "btn-danger",
+				 }
+			 }
+		 });
+	} else {
+		var html = "<input class='form-control' type='text' id='comfirm_remark'>";
+		bootbox.dialog({
+			message  : html,
+			title    : "审核页面",
+			onEscape : function () {
+			},
+			show     : true,
+			backdrop : true,
+			size     : 'large',
+			animate  : true,
+			className: "my-modal",
+			buttons  : {
+				success: {
+					label    : "确认",
+					className: "btn-success",
+					callback : function () {
+						var comfirm_remark = $("#comfirm_remark").val();
+						$.ajaxSetup({async: false});
+						$.post('recharge/noconfirm', {status: status, id: id, comfirm_remark: comfirm_remark},
+							function (data) {
+								if(data){
+									window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+								}else{
+									alert(data['error']);
+								}
+							}, 'text');
+					}
+				},
+				"取消"   : {
+					className: "btn-danger",
+				}
+			}
+		});
+	}
+}
+function select_comfirm(value) {
+	if(value == 1){
+		window.location.href = '<?php echo $this->url->get('recharge/confirmed');?>';
+	}
+	if(value == 2){
+		window.location.href = '<?php echo $this->url->get('recharge/unconfirmed');?>';
+	}
+	if(value == 0){
+		window.location.href = '<?php echo $this->url->get('recharge/list');?>';
+	}
+}
+function gohre(){
+	location.href = 'recharge/list';
+}
+function gohref(){
+	location.href = 'recharge/list?flag=1';
+}
+$("form").submit(function(e){
+	var start_val=$("input[name='start_time']").val();
+	var end_val=$("input[name='end_time']").val();
+
+	if(start_val>end_val){
+		e.preventDefault();
+		alert("结束日期必须大于开始日期!");
+	}
+});
+</script>

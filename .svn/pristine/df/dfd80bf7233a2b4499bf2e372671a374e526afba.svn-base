@@ -1,0 +1,126 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+class AppController extends \Libs\ControllerBase
+{
+    public $ver=0;
+    public $appName;
+    public $deviceToken;
+    public $accessToken;
+    public $accessTokenData;
+    public $userId;
+    public $deviceType;  //设备类型   android    ios winphone
+    public $userInfo = array();
+
+    public function initialize()
+    {
+        parent::initialize();
+    }
+
+
+    public function getToken()
+    {
+        $rand = 'S' . rand(0, 999999999999) . time();
+        $this->accessToken = sha1(sha1($this->clientKey) . $rand);
+    }
+
+    //TODO 数据校验
+    public static function authRequest($apiRoute) {
+        if (!PhoneAuthRequest) {
+            return 200;
+            exit;
+        }
+        if (Yii::app()->getRequest()->getRequestType()=='POST') {
+            $params = $_POST;
+            if (count($params) == 0) {
+                $raw_input = file_get_contents("php://input");
+                $params = array();
+                parse_str($raw_input, $params);
+                $_POST = $params;
+                $_REQUEST = array_merge($_POST, $_REQUEST);
+            }
+
+        }
+        else {
+            $params = $_REQUEST;
+        }
+        if (!isset($params['sign'])) {	//参数不对
+            return 40306;
+        }
+        else {
+            $sign = $params['sign']; unset($params['sign']);
+            $secret='';
+
+            //print_r(self::$accessTokenData);
+            //新版认证签名
+            if(isset(self::$accessTokenData['udid'])){
+                if(isset(self::$accessTokenData['secretToken'])){
+                    $params['secretToken']=self::$accessTokenData['secretToken'];
+                }
+                else
+                    return 403082;
+            }
+            elseif($apiRoute=='phone/default/auth2'){
+                //如果是auth请求
+                $params['secretToken']=self::$accessTokenData['clientSecret'];
+            }
+
+            //TODO:追加用户登入认证
+
+
+            $timestamp = $params['timestamp'];
+            if ($sign != sha1(sha1(urldecode(http_build_query($params))).$timestamp)) {	//参数不对
+                return 40307;
+            }
+
+        }
+        unset($_REQUEST['sign']);
+        unset($_REQUEST['timestamp']);
+        unset($_REQUEST['accessToken']);
+        return 200;
+    }
+
+    public function logoutAction()
+    {
+        //token清除
+        if ($this->userId) {
+            $find = 'user_id=' . $this->userId . ' and platform="'.\Libs\Util::getPlatform().'" and device_token="' . $this->deviceToken . '"';
+            $r = $this->getModel('userDevice')->updateOne($find, array('access_token' => 0));
+            $message = $r['error'];
+        } else {
+            $message = '尚未登入';
+        }
+        return $this->renderJson([], $message);
+    }
+
+
+    public function successLogin($user)
+    {
+        //登入成功
+        $this->getToken();
+        $device = $this->getModel('UserDevice')->findFirst('device_token="' . $this->request->getPost('device_token') . '" and platform="'.\Libs\Util::getPlatform().'" and user_id=' . $user['id']);
+        $data = [];
+        if ($device == false) {
+
+            $data['access_token'] = $this->accessToken;
+            $data['user_id'] = $user['id'];
+            $data['ver'] = $this->ver;
+            $data['platform'] = \Libs\Util::getPlatform();
+            $data['device_token'] = $this->request->getPost('device_token');
+            $data['device_type'] = $this->request->getPost('device_type');
+            $res = $this->getModel('UserDevice')->createOne($data);
+            if ($res['error']) {
+                return $this->renderJson(array(), $res['error']);
+            }
+
+        } else {
+            $data['access_token'] = $this->accessToken;
+            $this->getModel('userDevice')->updateOne($device->id, $data);
+        }
+        $user =$this->getModel('user')->findById($user['id']);
+        unset($user['pwd']);
+        return $this->renderJson(array('info' => $user, 'access_token' => $this->accessToken));
+    }
+
+}

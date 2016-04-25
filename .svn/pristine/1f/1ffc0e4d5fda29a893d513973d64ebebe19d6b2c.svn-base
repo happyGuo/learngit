@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!-- saved from url=(0072)http://admin.farmlink.cn/distribution/pici/picibhcgd?pici_id=688&wh_id=1 -->
+<html lang="en">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta charset="UTF-8">
+        <title>今日采购分拣单</title>
+        <style>
+            *{ margin: 0; padding: 0; }
+            table{ border: 1px solid #333; width: 100%; font-size:12px}
+            table td,
+            table th{ border: 1px solid #333; padding: 0 0.5em;}
+            table th{ font-weight: bold;}
+            table caption{ padding: 1em 0;}
+            /**
+             * table tr td:nth-child(1){ border-right: none;}
+             *
+             * 
+            **/
+            table tr td:nth-child(2){ border-left: none;}
+
+        </style>
+        <script>
+            window.onload=function(){
+                
+                document.body.innerHTML=document.getElementById('print_div').innerHTML;
+                
+                window.print(document.body.innerHTML);
+            };
+        </script>
+    </head>
+
+    <body>
+        <div id='print_div' style="page-break-before:auto; page-break-after:always; ">
+            <table cellpadding="0" cellspacing="0">
+                <?php if ($print == '1') { ?>
+                    <caption>采购单-<?php echo $sdatetime; ?>至<?php echo $edatetime; ?></caption>
+                    <thead>
+                        <tr>
+                            <th>品类</th>
+                            <th>品名</th>
+                            <th>采购数</th>
+                            <th>单位</th>
+    <!-- 		        <th>售价</th>
+                    <th>备注</th> -->
+    <!-- 		        <th>明细</th> -->
+                        </tr>
+                    </thead> 
+                    <tbody>
+                        <?php foreach ($purchase as $k => $v) { ?>
+                            <tr>
+                                    <!--<td><?php echo $v['category_name']; ?></td>
+                                    <td><?php echo $v['sku_name']; ?></td>
+                                    <td><?php echo $v['partner_name']; ?></td>
+                                    <td><?php echo $v['purchase_num']; ?></td>
+                                    <td><?php echo $v['measure']; ?></td>echo $this->mc->getPartner($v['partner_id'])['role']; -->
+
+                                <td><?php echo $this->mc->getCategory($this->mc->getSku($v['sku_id'])['category_id'])['name']; ?></td>
+                                <td><?php echo $v['sku_name']; ?></td>
+                                <td><?php echo $v['nums']; ?></td>
+                                <td><?php echo $this->mc->getDict($v['unit_id'])['name']; ?></td>
+
+                <!-- 		    		<td>
+                                <?php
+                                if ($print == '2') {
+                                    foreach ($alldetail[$v['id']][$v['sku_type']] as $key => $val) {
+                                        echo '{' . $key . ',' . $val['buy_number'] . '}';
+                                    }
+                                }
+                                ?>
+                </td> -->
+                <!-- 		    		<td><?php //echo $v['unit_price'];   ?>元</td> -->
+                            </tr>
+                        <?php } ?>
+                    </tbody>
+                <?php } else { ?>
+                    <caption>采购分拣单-<?php echo $sdatetime; ?>至<?php echo $edatetime; ?></caption>
+                    <thead>
+                       <!-- <tr>
+                           <th width="10%">商品分类</th>
+                           <th width="16%">商品名称</th>
+                           <th width="16%">规格</th>
+                           <th width="8%">数量</th>
+                           <th width="8%">单位</th>
+                           <th width="10%">售价</th>
+                           <th width="10%">总价</th>
+                           <th width="22%" class="align-center">明细</th>
+                        </tr>-->
+                        <tr>
+                           <th>商品分类</th>
+                           <th>商品名称</th>
+                           <th>规格</th>
+                           <th>数量</th>
+                           <th>单位</th>
+                           <th>售价</th>
+                           <th>总价</th>
+                           <th class="align-center">明细</th>
+                        </tr>
+                    </thead>
+                    <?php
+                    if (empty($purchase)) {
+                        echo '暂无数据';
+                        return;
+                    }
+                    foreach ($purchase as $v) {
+                        $cid = $v['category_id'];
+                        $purchaset[$cid][] = $v;
+                    }
+
+                    foreach ($purchaset as $k => $v) {
+                        ?>
+                        <?php foreach ($v as $k1 => $v1) { ?>
+                            <tr>
+                                <?php if ($k1 == 0) { ?>
+                                    <td style="text-align:center;vertical-align:middle;" rowspan=<?php echo count($v); ?>><?php echo $this->mc->getCategory($k)['name']; ?></td>
+                                <?php } ?>
+                                <td><?php echo $v1['sku_name']; ?></td>
+                                <td>
+                                    <?php
+                                    //echo $v1['spec'] . '&nbsp' . $v1['remark'];
+                                    echo $v1['spec'];
+                                    ?>
+                                </td>
+                                <td><?php echo $v1['nums']; ?></td>
+                                <td><?php echo $this->mc->getDict($v1['unit_id'])['name']; ?></td>
+                                <td><?php echo $v1['unit_price']; ?>元</td>
+                                <td><?php echo $v1['pay_amount']; ?>元</td>
+                                <td>
+                                    <?php
+                                    $buy_numbers = explode(',', $v1['buy_numbers']);
+                                    $user_remarks = explode(',', $v1['user_remarks']);
+                                    //$types = explode(',', $v1['types']);
+                                    $shopList = array();
+                                    ?>
+                                    <?php
+                                    foreach (explode(',', $v1['shop_ids']) as $k => $val) {
+
+                                        $shopList[$val]['name'] = $this->mc->getShop($val)['name'];
+
+                                        if ($k != '0')
+                                            echo ',';
+                                        echo '[' . $shopList[$val]['name'] . '&nbsp' . $buy_numbers[$k] . '' . $this->mc->getDict($v1['unit_id'])['name'] . ']';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php } ?>
+
+                    <?php } ?>
+                    <tr>
+                        <td class="align-center">小计</td>
+                        <td style="border-right:0;" colspan="5"></td>
+                        <td style="border-left:0;border-right:0;"><?php echo $sum.'元';?></td>
+                        <td style="border-left:0;"></td>
+                    </tr>
+                    </tbody>
+                <?php } ?>
+
+            </table>
+        </div>
+    </body>

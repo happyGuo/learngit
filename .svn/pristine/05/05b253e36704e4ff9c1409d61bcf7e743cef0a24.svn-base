@@ -1,0 +1,76 @@
+<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value="id">用户id</option>
+				<!-- <option value="mobile">手机号</option> -->
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="search" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<select class="form-control" name='type'>
+				<option value=''>请选择设备类型</option>
+				<option value='ios'>Ios</option>
+				<option value='android'>Android</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 设备列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">用户ID</th>
+						<th class="align-center">手机号</th>
+						<th class="align-center">设备类型</th>	
+						<th class="align-center">设备token</th>
+						<th class="align-center">access_token</th>
+						<th class="align-center">更新时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($item as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->user_id; ?></td>
+						<td><?php echo $this->mc->getUser($v->user_id)['mobile']; ?></td>
+						<td><?php echo $v->device_type; ?></td>
+						<td><?php echo $v->device_token; ?></td>
+						<td><?php echo $v->access_token; ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->utime); ?></td>
+						<td><a href="user/logout?userid=<?php echo $v->id; ?>" class="btn btn-xs bs-tooltip">登出</a></td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>

@@ -1,0 +1,44 @@
+<div class="widget-content">
+    <form class="form-horizontal row-border" method="POST" action="" enctype="multipart/form-data">
+        <div class="form-group">
+            <label class="col-md-3 control-label">
+                客户名称：
+            </label>
+            <div class="col-md-8">
+                <input id="ajax_shop_name" class="form-control" type="text"><small>必填,不能小于一个字符</small>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-md-3 control-label">
+                地址：
+            </label>
+            <div class="col-md-8">
+                <input id="ajax_shop_address" class="form-control" type="text"><small>必填,不能小于一个字符</small>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-md-3 control-label">
+                联系人：
+            </label>
+            <div class="col-md-8">
+                <input id="ajax_shop_contact_name" class="form-control" type="text"><small>必填,不能小于一个字符</small>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-md-3 control-label">
+                联系人电话：
+            </label>
+            <div class="col-md-8">
+                <input id="ajax_shop_contact_mobile" class="form-control" type="text"><small>必填,手机号</small>
+            </div>
+        </div>
+         <div class="form-group">
+            <label class="col-md-3 control-label">
+                最佳送货时间：
+            </label>
+            <div class="col-md-8">
+                <input id="ajax_shop_best_time" class="form-control" type="text"><small>选填,格式示例 10:00-12:00</small>
+            </div>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,144 @@
+<?php
+/*
+ * author: 柯茂
+ * description: 活动管理
+ * 
+*/
+namespace Modules\Backend\Controllers;
+
+class ActivityController extends BackendController
+{
+    public function initialize(){
+        parent::initialize();
+        $this->view->menu=array('activity/add'=>'添加活动','activity/list'=>'活动列表');
+    }
+
+	//显示活动列表
+    public function listAction()
+    {
+        $page = intval($this->request->getQuery('page'));
+        $limit = 10;
+        //根据不同条件显示查询结果
+        if ($this->request->getQuery('id')) {
+            //显示使用id为查询条件的查询结果
+            $name = '';
+            $id = intval($this->request->getQuery('id'));
+            $col = 'id';
+            $kw = $id;
+            $where = 'id='.$id.' and is_del=0';
+            $url = 'activity/list?id='.$id;
+        } elseif ($this->request->getQuery('name')) {
+            //显示使用名称为查询条件的查询结果
+            $name = $this->request->getQuery('name');
+            $id = '';
+            $col = 'name';
+            $kw = $name;
+            $where = 'is_del=0 and name like \'%'.$name.'%\'';
+            $url = 'activity/list?name='.$name;
+        } else {
+            //默认无搜索列表
+            $name = '';
+            $id = '';
+            $col = '';
+            $kw = '';
+            $where = 'is_del = 0';
+            $url = 'activity/list';
+        }
+        //分页显示结果
+        $activity = $this->getModel('activity')->find(array($where, "order"=>"sort desc"));
+        $total = count($activity);
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('activity')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"sort desc"));
+        
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->activity = $pageactvt;
+        $this->view->setVar("name", $name);
+        $this->view->setVar("id", $id);
+        $this->view->setVar("col", $col);
+        $this->view->setVar("kw", $kw); 
+    }
+
+    //添加活动
+    public function addAction()
+    {
+    	if($this->request->isPost()) {
+    		$activity = $this->getModel('activity');
+    		$activity->name = $this->request->getPost('name');
+    		$activity->url = $this->request->getPost('url');
+			
+    		//$activity->pic_url = $this->img->upload('pic_url');
+            $res = $this->img->upload('pic_url');
+            if (!$res['error']) {
+                $activity->pic_url = $res['name'];
+            }
+
+    		$activity->sort = $this->request->getPost('sort');
+            $activity->creator_id = $this->userId;
+    		if($activity->save()) {
+    			return $this->response->redirect("activity/list");
+    		} else {
+                $this->view->messages = $activity->getMessages();
+            }
+    	} else {
+            $this->view->messages = array();
+        }
+    }
+
+    //修改活动
+    public function  updateAction()
+    {
+        $activityid = intval($this->request->getQuery('activityid'));
+        $activity = $this->getModel('activity')->findById($activityid, false);
+        $this->view->activity = $activity;
+
+
+    	if($this->request->isPost()) {
+            //提交修改
+    		$actvty = $this->getModel('activity')->findFirst($this->request->getPost('id'));
+    		$actvty->name = $this->request->getPost('name');
+    		$actvty->url = $this->request->getPost('url');
+            // $pic = $this->img->upload('pic_url');
+            //if(strlen($pic)!=0){
+                $res = $this->img->upload('pic_url');
+                if (!$res['error']) {
+                    if ($res['name']){
+                        $this->img->delete($activity->pic_url);
+                        $actvty->pic_url = $res['name'];
+                    }
+                } else {
+                    $this->view->messages = array($res['error']);
+                    return;
+                }
+            //}
+            
+    		$actvty->sort = $this->request->getPost('sort');
+    		if($actvty->save()) {
+    			return $this->response->redirect("activity/list");
+    		} else {
+                $this->view->messages = $actvty->getMessages();
+            }
+    	} else {
+            //显示信息
+    		$activityid = intval($this->request->getQuery('activityid'));
+            $activity = $this->getModel('activity')->findById($activityid, false);
+            $this->view->messages = array();
+    		$this->view->activity = $activity;
+    	}
+    	
+    }
+
+    //删除活动
+    public function deleteAction()
+    {
+        $activity = $this->getModel('activity')->findFirst($this->request->getPost('id'));
+        $activity->is_del = 1;
+
+    	if($activity->save()) { 
+    		$this->renderJson($activity);
+    	} else {
+            $this->renderJson('',$activity->getMessages());
+        }
+        $this->img->delete($activity->pic_url);
+    }
+}
+

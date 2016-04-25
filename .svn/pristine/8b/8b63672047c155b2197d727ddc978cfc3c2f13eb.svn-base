@@ -1,0 +1,7 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class ComplexController extends \Libs\ControllerBase
+{
+
+}

@@ -1,0 +1,127 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class RechargeController extends BackendController
+{
+	/*
+	 * function：显示银行卡信息
+	 * author：宿伟
+	 * date：2015/08/26
+	 */
+	 public function listAction()
+	 {
+		 $where = 'is_del=0 and status = 0';
+		 $recharge = $this->getModel('recharge')->find(array($where,"order"=>"id desc"));
+		 $total = count($recharge);
+		 $page = intval($this->request->getQuery('page'));
+		 $limit = 20;
+		 //$url = 'user/list?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del;
+		 $url = 'recharge/list';
+		 $pageary = $this->pagination($total, $limit, $page, $url);
+		 $pageactvt = $this->getModel('recharge')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+		 //$this->view->setVar("select", $select);
+		 //$this->view->setVar("keyword", $keyword);
+		 $this->view->setVar("page", $pageary['html']);
+		 $this->view->recharge = $pageactvt;
+	 }
+
+	/*
+	 * function：审核成功
+	 * author：宿伟
+	 * date：2015.08.27
+	 * */
+	public function confirmAction() {
+		$data['status'] = $this->request->getQuery('status');
+		$res = $this->getModel('recharge')->updateOne($this->request->getQuery('id'),$data);
+		if($res['error']) {
+			$this->renderJson(null,$res['error']);
+		}else{
+			$recharge = $this->getModel('recharge')->findById($this->request->getQuery('id'));
+			$data1['amount'] = $recharge['amount'];
+			$data1['user_id'] = $recharge['user_id'];
+			$data1['type'] = 0;
+			$data1['remark'] = '充值的用户ID为：'.$this->request->getQuery('uid'); 
+			$balanceFlow = $this->getModel('balanceFlow')->createFlow($data1);
+			$count = $this->getModel('orderSubcontract')->count("is_del =0 and status in (3,5) and pay_amount!=confirm_amount and user_id=".$data1['user_id']);
+			if($count>0){
+				return $this->response->redirect('recharge/account?uid='.$data1['user_id']);
+			}else{
+				return $this->response->redirect('user/list');
+			}
+
+		}
+	}
+	/*
+	 * function:用户充值未核销列表
+	 * author:宿伟
+	 * date:2015/9/15
+	 * */
+	public function accountAction(){
+		if($this->request->getQuery('uid')){
+			$uid = $this->request->getQuery('uid');
+			$where = "is_del = 0 and status=0 and type=0 and user_id=".$uid;
+		}else{
+			$where = 'is_del = 0 and status=0 and type=0';
+		}
+
+		$res = $this->getModel('balanceFlow')->find(array($where,'order'=>'ctime desc'));
+		$this->view->recharge = $res;
+	}
+	/*
+	 *function：审核失败
+	 * author：宿伟
+	 * data：2015.08.27
+	 */
+	public function noconfirmAction() {
+		$data['status'] = $this->request->getPost('status');
+		$data['comfirm_remark'] = $this->request->getPost('comfirm_remark');
+		$res = $this->getModel('recharge')->updateOne($this->request->getPost('id'),$data);
+		if($res['res']) {
+			echo $res['res'];
+		}else{
+			echo true;
+		}
+	}
+
+	/*
+	 * function：已确认页面
+	 * author： 宿伟
+	 * date:2015.08.27
+	 */
+	public function confirmedAction() {
+		$where = 'is_del=0 and status = 1';
+		$recharge = $this->getModel('recharge')->find(array($where,"order"=>"id desc"));
+		$total = count($recharge);
+		$page = intval($this->request->getQuery('page'));
+		$limit = 20;
+		//$url = 'user/list?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del;
+		$url = 'recharge/list';
+		$pageary = $this->pagination($total, $limit, $page, $url);
+		$pageactvt = $this->getModel('recharge')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+		//$this->view->setVar("select", $select);
+		//$this->view->setVar("keyword", $keyword);
+		$this->view->setVar("page", $pageary['html']);
+		$this->view->recharge = $pageactvt;
+	}
+
+	/*
+	 * function：未确认页面
+	 * author： 宿伟
+	 * date:2015.08.27
+	 */
+	public function unconfirmedAction() {
+		$where = 'is_del=0 and status = 2';
+		$recharge = $this->getModel('recharge')->find(array($where,"order"=>"id desc"));
+		$total = count($recharge);
+		$page = intval($this->request->getQuery('page'));
+		$limit = 20;
+		//$url = 'user/list?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del;
+		$url = 'recharge/list';
+		$pageary = $this->pagination($total, $limit, $page, $url);
+		$pageactvt = $this->getModel('recharge')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+		//$this->view->setVar("select", $select);
+		//$this->view->setVar("keyword", $keyword);
+		$this->view->setVar("page", $pageary['html']);
+		$this->view->recharge = $pageactvt;
+	}
+}

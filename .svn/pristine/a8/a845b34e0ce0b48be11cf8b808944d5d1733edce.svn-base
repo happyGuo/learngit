@@ -1,0 +1,25 @@
+<?php
+namespace Modules\App\Controllers;
+
+/**
+ * 默认只对内网访问 ，本地api
+ * Class NativeController
+ * @package Modules\App\Controllers
+ */
+class NativeController extends ApiController
+{
+    public function initialize()
+    {
+        parent::initialize();
+        if(\Libs\Util::getIp()!='127.0.0.1'){
+            exit('not local request');
+        }
+    }
+
+    public function dealorderAction(){
+        $orderId = $this->request->getPost('order_id');
+        $message = $this->getModel('order')->dealSubOrder($orderId);
+        $this->renderJson(array(),$message);
+    }
+
+}

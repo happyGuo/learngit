@@ -1,0 +1,292 @@
+<?php
+$loader = new \Phalcon\Loader();
+
+$loader->registerNamespaces(array(
+    'Plugins' => __DIR__ . '/../plugins/',
+    'Models' => __DIR__ . '/../models/',
+    'Libs' => __DIR__ . '/../libs/',
+    'Apis' => __DIR__ . '/../apis/',
+    'Tasks' => __DIR__ . '/../tasks/',
+    'Modules\Complex\Controllers' => __DIR__ . '/../complex/controllers/',
+))->register();
+
+$di->set('common_config', $config);
+
+
+$di->set('fl_db', function ($city) use ($config) {
+    $city = $city . '_db';
+    return new \Phalcon\Db\Adapter\Pdo\Mysql(array(
+        "host" => $config->$city->host,
+        "username" => $config->$city->username,
+        "password" => $config->$city->password,
+        "dbname" => $config->$city->name
+    ));
+});
+
+$di->set('image_mongo', function () use ($config) {
+    $mongo = new MongoClient($config->mongo->host);
+    return $mongo;
+}, true);
+
+$di->set('fl_mongo', function () use ($config) {
+    $mongo = new MongoClient($config->mongo->host);
+    return $mongo->selectDB('fl');
+}, true);
+
+$di->set('collectionManager', function () {
+
+    $eventsManager = new Phalcon\Events\Manager();
+
+    // Attach an anonymous function as a listener for "model" events
+    // $eventsManager->attach('collection', function($event, $model) {
+    //                        if (get_class($model) == 'Robots') {
+    //                        if ($event->getType() == 'beforeSave') {
+    //                        if ($model->name == 'Scooby Doo') {
+    //                        echo "Scooby Doo isn't a robot!";
+    //                        return false;
+    //                        }
+    //                        }
+    //                        }
+    //                        return true;
+    //                        });
+
+    // Setting a default EventsManager
+    $modelsManager = new Phalcon\Mvc\Collection\Manager();
+    $modelsManager->setEventsManager($eventsManager);
+    return $modelsManager;
+
+}, true);
+
+//Register a namespaced controller as a service
+$di->set('App\Controllers\NController', function () {
+    exit('fff');
+    $component = new Component();
+    return $component;
+});
+
+$di->set('log', function () {
+    return new \Plugins\Log;
+});
+
+/**
+ * Registering a router
+ */
+if (defined('MODULE') && MODULE != 'console') {
+    $di->set('router', function () {
+        $router = new \Phalcon\Mvc\Router();
+        $router->setDefaultModule(MODULE);
+        return $router;
+    });
+}
+
+/**
+ * The URL component is used to generate all kind of urls in the application
+ */
+$di->set('url', function () {
+    $url = new \Phalcon\Mvc\Url();
+    $url->setBaseUri('/');
+    return $url;
+}, true);
+
+if (MODULE != 'console') {
+    $di->set('dispatcher', function () use ($di) {
+
+        //Create/Get an EventManager
+        $eventsManager = $di->getShared('eventsManager');
+        //Attach a listener
+//    $con = $di['city_db'];
+        //Listen all the database events
+//            $eventsManager->attach('db', function($event, $con) {
+//
+//                if ($event->getType() == 'afterQuery') {
+//                    //echo $con->getSQLStatement();
+//                }
+//            });
+
+        //$eventsManager->attach('city_db',new \Modules\Backend\Libs\DbListener);
+        //$eventsManager->attach('dispatch', new \Plugins\ViewCache);
+
+//    $eventsManager->attach('db', new \Plugins\DbListener($di));
+        $eventsManager->attach('dispatch', new \Plugins\Security($di));
+        $eventsManager->attach("dispatch", function ($event, $dispatcher, $exception) {
+
+            //The controller exists but the action not
+            if ($event->getType() == 'beforeNotFoundAction') {
+                $dispatcher->forward(array(
+                    'controller' => 'error',
+                    'action' => 'show404'
+                ));
+                return false;
+            }
+
+            //Alternative way, controller or action doesn't exist
+            if ($event->getType() == 'beforeException') {
+                switch ($exception->getCode()) {
+                    case \Phalcon\Dispatcher::EXCEPTION_HANDLER_NOT_FOUND:
+                    case \Phalcon\Dispatcher::EXCEPTION_ACTION_NOT_FOUND:
+                        $dispatcher->forward(array(
+                            'controller' => 'error',
+                            'action' => 'show404'
+                        ));
+                        return false;
+                }
+            }
+
+        });
+
+        $dispatcher = new \Phalcon\Mvc\Dispatcher();
+        $dispatcher->setDefaultNamespace("Modules\\" . ucfirst(MODULE) . "\\Controllers");
+        //Bind the EventsManager to the dispatcher
+        $dispatcher->setEventsManager($eventsManager);
+//    $con->setEventsManager($eventsManager);
+        //  print_r($dispatcher);
+        return $dispatcher;
+    }, true);
+}
+
+/**
+ * Start the session the first time some component request the session service
+ */
+$di->setShared('session', function () {
+    $session = new \Phalcon\Session\Adapter\Files();
+    $session->start();
+    return $session;
+});
+
+
+$di->set('cache', function () use ($config) {
+    //Cache data for one hour
+    $frontCache = new \Phalcon\Cache\Frontend\Data(array(
+        "lifetime" => 3600
+    ));
+    // Create the component that will cache "Data" to a "Memcached" backend
+    // Memcached connection settings
+
+    $cache = new \Phalcon\Cache\Backend\Memcache($frontCache, array(
+        "host" => $config->memcache->host,
+        "port" => $config->memcache->port
+    ));
+    return $cache;
+
+}, true);
+
+
+$di->set('modelsCache', function () use ($config) {
+    //Cache data for one hour
+    $frontCache = new \Phalcon\Cache\Frontend\Data(array(
+        "lifetime" => 3600
+    ));
+
+
+    $cache = new \Phalcon\Cache\Backend\Memcache($frontCache, array(
+        "host" => $config->model_memcache->host,
+        "port" => $config->model_memcache->port
+    ));
+    return $cache;
+
+
+}, true);
+
+/**
+ * View cache
+ */
+$di->setShared(
+    'viewCache',
+    function () use ($config) {
+        if (DEBUG) {
+            $frontCache = new \Phalcon\Cache\Frontend\None();
+            return new \Phalcon\Cache\Backend\Memory($frontCache);
+
+        } else {
+            //Cache data for one hour
+            $frontCache = new \Phalcon\Cache\Frontend\Data(array(
+                "lifetime" => 3600
+            ));
+            // Create the component that will cache "Data" to a "Memcached" backend
+            // Memcached connection settings
+
+            $cache = new \Phalcon\Cache\Backend\Memcache($frontCache, array(
+                "host" => $config->memcache->host,
+                "port" => $config->memcache->port
+            ));
+
+            return $cache;
+        }
+    });
+
+
+$di->set('modelsMetadata', function () use ($config) {
+        if (DEBUG) {
+            return new \Phalcon\Mvc\Model\Metadata\Memory();
+        }
+
+        return new \Phalcon\Mvc\Model\Metadata\Memcache(array(
+            "host" => $config->memcache->host,
+            "port" => $config->memcache->port
+        ));
+//        return new \Phalcon\Mvc\Model\Metadata\Files(array(
+//            'metaDataDir' => __DIR__ . '/../cache/metaData/'
+//        ));
+    },
+    true
+);
+
+$di->set('crypt', function () {
+
+    $crypt = new \Phalcon\Crypt();
+
+    //设置全局加密密钥
+    $crypt->setKey('%31.1e$i86e$f!7.');
+
+    return $crypt;
+}, true);
+
+//Set up the flash service
+$di->set('flash', function () {
+    return new \Phalcon\Flash\Direct();
+}, true);
+
+$di->set('security', function () {
+
+    $security = new \Phalcon\Security();
+
+    //Set the password hashing factor to 12 rounds
+    $security->setWorkFactor(12);
+
+    return $security;
+}, true);
+
+$di->set('mc', function () {
+    return new \Plugins\ModelCache;
+}, true);
+
+$di->set('dbListener', function () use ($di) {
+    return new \Plugins\DbListener($di);
+}, true);
+
+$di->set('api', function ()use ($di) {
+    return new \Plugins\Api($di);
+}, true);
+
+$di->set('complex', function ()use ($di) {
+    return new \Plugins\Complex($di);
+}, true);
+
+$di->set('img', function () use ($config) {
+    return new \Plugins\Img($config->img_server);
+}, true);
+
+
+$di->set('auth', function () {
+    return new \Plugins\Auth();
+}, true);
+
+$di->set('util', function () use ($di) {
+    return new \Plugins\Util($di);
+});
+
+$di->set('cookies', function () {
+    $cookies = new \Phalcon\Http\Response\Cookies();
+    $cookies->useEncryption(false);
+    return $cookies;
+}, true);

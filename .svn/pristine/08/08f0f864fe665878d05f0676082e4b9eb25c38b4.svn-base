@@ -1,0 +1,52 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: feihide
+ * Date: 15-3-12
+ * Time: 下午5:11
+ */
+namespace Plugins;
+/**
+ * 为视图启动缓存，如果被执行的action带有@Cache 注释单元。
+ *
+ */
+class ViewCache extends \Phalcon\Mvc\User\Plugin
+{
+
+    /**
+     * 这个事件在dispatcher中的每个路由被执行前执行
+     *
+     * @Cache(key="my-key", lifetime=86400)
+     */
+
+    public function beforeExecuteRoute($event, $dispatcher)
+    {
+
+        //解析目前访问的控制的方法的注释
+        $annotations = $this->annotations->getMethod(
+            get_class($dispatcher->getActiveController()),
+            $dispatcher->getActiveMethod()
+        );
+
+        //检查是否方法中带有注释名称‘Cache’的注释单元
+        if ($annotations->has('Cache')) {
+
+            //这个方法带有‘Cache’注释单元
+            $annotation = $annotations->get('Cache');
+
+            //获取注释单元的‘lifetime’参数
+            $lifetime = $annotation->getNamedArgument('lifetime');
+
+            $options = array('lifetime' => $lifetime);
+
+            //检查注释单元中是否有用户定义的‘key’参数
+            if ($annotation->hasArgument('key')) {
+                $options['key'] = $annotation->getNamedArgument('key');
+            }
+            //为当前dispatcher访问的方法开启cache
+            $this->view->cache($options);
+        }
+
+    }
+
+}

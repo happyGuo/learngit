@@ -1,0 +1,87 @@
+<?php
+/**
+ * 支付控制器
+ * User: xiaochuan
+ * Date: 2015/8/21
+ * Time: 14:09
+ */
+
+namespace Modules\App\Controllers;
+
+
+class PayController extends ApiController
+{
+    /**
+     * 支付宝 支付通知Action
+     */
+    public function aliNotifyAction(){
+        $fun = function($msg,$post){
+            if($msg == 'success'){
+                 //商户订单号
+                $out_trade_no = $post['out_trade_no'];
+                //支付宝交易号
+                $trade_no = $post['trade_no'];
+                //交易状态
+                $trade_status = $post['trade_status'];
+
+                if($trade_status == 'TRADE_FINISHED' || $trade_status == 'TRADE_SUCCESS') {
+                    //判断该笔订单是否在商户网站中已经做过处理
+                    //如果没有做过处理，根据订单号（out_trade_no）在商户网站的订单系统中查到该笔订单的详细，并执行商户的业务程序
+                    //如果有做过处理，不执行商户的业务程序
+                    list($type, $id) = explode("_", $out_trade_no);
+                    if (strtoupper($type) == 'U') {
+                        $tradeObj = $this->getModel('recharge')->findFirst(array('recharge_sn' => $trade_no));
+                        if (!$tradeObj || $tradeObj->id == 0) {
+                            $recharge = array();
+                            $recharge['recharge_sn'] = $trade_no;
+                            $recharge['type'] = 0;
+                            $recharge['amount'] = $post['total_fee'];//交易总金额
+                            $recharge['user_id'] = $id;
+                            $recharge['remark'] = "支付宝在线充值";
+                            $this->getModel('recharge')->createOne($recharge);
+                        }
+                    }
+                    //注意：
+                    //退款日期超过可退款期限后（如三个月可退款），支付宝系统发送该交易状态通知
+                }
+            }
+            echo $msg;exit;
+        };
+        $this->mobileAlipay->notify($fun);
+    }
+
+    /**
+     *支付宝 支付返回Action
+     */
+    public function aliReturnAction(){
+        $fun = function($msg,$get){
+            if($msg == 'success'){
+                //验证成功
+                /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                //——请根据您的业务逻辑来编写程序（以下代码仅作参考）——
+                //获取支付宝的通知返回参数，可参考技术文档中页面跳转同步通知参数列表
+
+                //商户订单号
+                $out_trade_no = $get['out_trade_no'];
+
+                //支付宝交易号
+                $trade_no = $get['trade_no'];
+
+                //交易状态
+                $trade_status = $get['trade_status'];
+
+                if($get['trade_status'] == 'TRADE_FINISHED' || $get['trade_status'] == 'TRADE_SUCCESS') {
+                    //判断该笔订单是否在商户网站中已经做过处理
+                    //如果没有做过处理，根据订单号（out_trade_no）在商户网站的订单系统中查到该笔订单的详细，并执行商户的业务程序
+                    //如果有做过处理，不执行商户的业务程序
+                }
+                else {
+                    echo "trade_status=".$get['trade_status'];
+                }
+            }else{
+                //验证失败
+            }
+        };
+        $this->mobileAlipay->returnFun($fun);
+    }
+}

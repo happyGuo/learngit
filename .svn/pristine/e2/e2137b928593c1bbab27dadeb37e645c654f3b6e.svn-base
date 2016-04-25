@@ -1,0 +1,95 @@
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 用户核销列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">充值流水ID</th>
+						<th class="align-center">订单批次号</th>
+						<th class="align-center">状态</th>
+						<th class="align-center">类型</th>
+						<th class="align-center">订单金额</th>
+						<th class="align-center">已核销金额</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+				<form action='verification/list' method='post'>
+				<?php foreach($orderList as $key => $val){?>
+					<tr  class="align-center">
+						<td><?php echo $val->id;?></td>
+						<td><?php echo $val->relation_id; ?></td>
+						<td><?php echo $val->order_sn; ?></td>
+						<td><?php echo $val->status == 0 ? '未审核':'审核通过';?></td>
+						<td><?php echo $val->type == 8 ? '系统自动核销':'人工核销'; ?></td>
+						<td><?php echo $val->amount;?></td>
+						<td><?php echo $val->amount;?></td>
+						<td>
+							<span class="btn-group">
+								<?php if($val->status == 0) {?>
+							<!-- <a href="javascript:verify(<?php echo $val->id;?>)" class="btn btn-xs bs-tooltip"
+   title="审核通过">审核通过</a> -->
+   <a class="btn btn-xs bs-tooltip" title="删除" onclick="ajaxdelete(<?php echo $val->id; ?>,<?php echo $val->relation_id?>)">删除</a>
+								<?php }?>
+							</span>
+						</td>
+				</tr>
+				<?php } ?>
+				</tbody>
+			</table>
+			<input type="hidden" value="<?php echo $relation_id;?>" name="relation_id">
+			<input type="submit" class="btn btn-info btn-block" value="审核通过">
+			</from>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+	<?php if (isset($messages)) { ?>
+
+	showtip("<?=$messages['info']?>", "<?=$messages['type']?>");
+
+	<?php }?>
+function verify(id){
+		$.post('<?php echo $this->url->get('verification/verify')?>', {id:id}, function (data) {
+			data = eval('('+ data +')');
+			if (data.code ==1) {
+				alert('审核成功');
+			} else {
+				alert(data.msg);
+			}
+			window.location.href = '<?php echo $this->url->get('verification/list');?>';
+		});
+}
+
+function ajaxdelete(id,relation_id) {
+            if (confirm('确定删除订单吗?')) {
+                $.post('<?php echo $this->url->get('verification/ajaxdelete')?>', {id: id}, function (data) {
+                    if (data ==1) {
+                        alert('删除成功！');
+                    } else {
+                        alert(data);
+                    }
+                    window.location.href = '<?php echo $this->url->get('verification/list?relation_id=');?>'+relation_id;
+                });
+            }
+        }
+</script>

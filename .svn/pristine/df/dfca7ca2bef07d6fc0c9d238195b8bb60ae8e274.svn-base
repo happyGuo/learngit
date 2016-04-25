@@ -1,0 +1,10 @@
+<?php
+namespace Models;
+
+class ErrorLog extends BaseCollection
+{
+    public function getSource()
+    {
+        return "error_log";
+    }
+}

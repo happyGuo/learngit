@@ -1,0 +1,11 @@
+<?php
+namespace Models;
+    
+class OrderLog extends \Phalcon\Mvc\Collection
+{
+
+    public function getSource()
+    {
+        return "order_log";
+    }
+}

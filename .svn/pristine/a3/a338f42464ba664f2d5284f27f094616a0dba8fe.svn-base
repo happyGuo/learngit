@@ -1,0 +1,47 @@
+<?php
+/**
+ *  用户常用商品Model
+ *
+ *  用于客户下单保存常用商品
+ *  user_id为0的为未登录状态显示的常用列表
+ * @author      zhangrg
+ * @version     20150801
+*/
+
+namespace Models;
+
+class UserSku extends CityModel
+{
+    /* 验证 */
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'sku_id',
+            'message' => '商品ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\Regex(array(
+            'field' => 'sku_id',
+            'pattern' => '/^[1-9]\d*$/',
+            'message' => '商品ID必须大于1'
+        )));
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    //获得常购列表 最多20条
+    public function getList($userId = 0,$platform = 'backend',$limit = 20){
+        $return = [];
+
+        $where = "user_id=$userId and platform='$platform' and is_del=0";
+
+        return $this->count($where)?$this->find([$where,'order'=>'ctime desc','limit'=>$limit,'group'=>'sku_id']):[];
+    }
+}

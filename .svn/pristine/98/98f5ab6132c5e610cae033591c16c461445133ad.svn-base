@@ -1,0 +1,418 @@
+<?php
+
+namespace Modules\Backend\Controllers;
+
+class PartnerController extends BackendController {
+    /*
+      Function:显示配送商列表
+      author：宿伟
+      date：2015/7/29
+     */
+
+    public function listAction() {
+        $this->view->menu = array('partner/add' => '添加配销商');
+        //根据不同条件显示查询结果
+        $where = 'is_del = 0';
+        $page = $this->request->getQuery('page');
+        $col = $this->request->getQuery('col');
+        $kw = $this->request->getQuery('keyword');
+        if ($col == 'id') {
+            $kw = intval($kw);
+            $where = 'id = ' . $kw;
+        } elseif ($col == 'name') {
+            $where = 'company_name like \'%' . $kw . '%\'';
+        }
+        $partner = $this->getModel('partner')->find(array($where));
+        $total = count($partner);
+        $limit = 20;
+        $page = $this->request->getQuery('page');
+        $url = 'partner/list?col=' . $col . '&keyword=' . $kw;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('partner')->find(array($where, "limit" => $limit, "offset" => $pageary['offset'], "order" => "id desc"));
+        $this->view->setVar("col", $col);
+        $this->view->setVar("keyword", $kw);
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->pageactvt = $pageactvt;
+    }
+
+    /*
+      Function:删除配送商(逻辑删除)
+      author：宿伟
+      date：2015/7/29
+     */
+
+    public function deleteAction() {
+        $data['is_del'] = 1;
+        $res = $this->getModel('partner')->updateOne($this->request->getPost('partnerid'), $data);
+        if ($res['error']) {
+            return $res['error'];
+        } else {
+            return true;
+        }
+    }
+
+    /*
+      function:添加配送商
+      author：宿伟
+      date:2015/7/29
+     */
+
+    public function addAction() {
+        if ($this->request->isPost()) {
+            $data['mobile'] = $this->request->getPost('mobile');
+            $data['contact_name'] = $this->request->getPost('contact_name');
+            $data['company_name'] = $this->request->getPost('company_name');
+            $data['before_pwd'] = $this->request->getPost('pwd');
+            $data['address'] = $this->request->getPost('address');
+            $data['role'] = $this->request->getPost('role');
+            $data['bankcard'] = $this->request->getPost('bankcard');
+            $data['pay_day_id'] = $this->request->getPost('pay_day_id');
+            $data['creator_id'] = $this->currentUser['id'];
+            $category = $this->request->getPost('category');
+            $category = implode(',', $category);
+            $data['category'] = $category;
+            $res = $this->getModel('partner')->createOne($data);
+            if ($res['error']) {
+                $message = $res['error'];
+            } else {
+                return $this->response->redirect("partner/list");
+            }
+        }
+        $where = ' parent_id=0 and is_del = 0';
+        $this->view->category = $this->getModel('category')->find(array($where));
+        $this->view->messages = $message;
+    }
+
+    /*
+      Function:修改配送商信息
+      author：宿伟
+      date：2015/7/28
+     */
+
+    public function updateAction() {
+        if ($this->request->isPost()) {
+            $data['contact_name'] = $this->request->getPost('contact_name');
+            $data['company_name'] = $this->request->getPost('company_name');
+            $data['address'] = $this->request->getPost('address');
+            $data['role'] = $this->request->getPost('role');
+            $data['mobile'] = $this->request->getPost('mobile');
+            $data['pay_day_id'] = $this->request->getPost('pay_day_id');
+            $data['bankcard'] = $this->request->getPost('bankcard');
+            if ($this->request->getPost('pwd')) {
+                $data['before_pwd'] = $this->request->getPost('pwd');
+            }
+            $res = $this->getModel('partner')->updateOne($this->request->getPost('id'), $data);
+            if ($res['error']) {
+                $message = $res['error'];
+            } else {
+                return $this->response->redirect("partner/list");
+            }
+        }
+        $partnerid = intval($this->request->getQuery('partnerid'));
+        $where = 'id = ' . $partnerid;
+        $this->view->partner = $this->getModel('partner')->find(array($where, "limit" => 1));
+        $this->view->messages = $message;
+    }
+
+    /*
+      Function:添加分类
+      author：宿伟
+      date：2015/7/30
+     */
+
+    public function addcateAction() {
+        $partnerId = $this->request->getQuery('partnerid');
+        if ($this->request->isPost()) {
+            $partner = $this->getModel('partner')->findFirst($partnerId);
+            $category = $this->request->getPost('category');
+            $h_category = $this->request->getPost('h_cate');
+            $category = implode(',', $category);
+            $category .= ','.$h_category;
+            $data['category'] = $category;
+            $res = $this->getModel('partner')->updateOne($partnerId, $data);
+            if ($res['error']) {
+                $message = $res['error'];
+            } else {
+                return $this->response->redirect("partner/list");
+            }
+        }
+
+        $where = ' parent_id=0 and is_del = 0';
+        $this->view->category = $this->getModel('category')->find(array($where));
+        $partner = $this->getModel('partner')->findFirst($partnerId);
+        $this->view->h_category = $partner->category;
+        $this->view->partner = explode(',', $partner->category);
+        $this->view->messages = $message;
+    }
+
+    /**
+     * @function 日期间隔内获取配销商收入明细报表
+     * @author chuan
+     * @date：2015/7/30
+     */
+    public function incomelistAction() {
+        $partnerId = $this->request->getQuery('partnerid');
+
+        $ntype = $this->request->getQuery('ntype');
+        $type = $this->request->getQuery('type');
+        $print = $this->request->getQuery('print');
+        $start_time = $this->request->getQuery('start_time');
+        $end_time = $this->request->getQuery('end_time');
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?partnerid='.$partnerId;
+        if (is_numeric($partnerId)) {
+            $partner=$this->mc->getPartner($partnerId)['mobile'];
+            
+            $condition = ' is_del=0 and partner_id=' . $partnerId;
+
+            if ($start_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $start_time)) {
+                $url.='&start_time=' . $start_time;
+                $condition.=" and ctime>= " . strtotime($start_time);
+                $this->view->setVar('start_time', $start_time);
+            }
+            if ($end_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $end_time)) {
+                $url.='&end_time=' . $end_time;
+                $condition.=" and ctime<= " . strtotime($end_time);
+                $this->view->setVar('end_time', $end_time);
+            }
+            if (is_numeric($type)) {
+                //$type = join(',', $type);
+                //$condition.=" and type in($type) ";
+                $url.='&type=' . $type;
+                $condition.=" and type = $type ";
+            } else {
+                $condition.=" and type in (2,3,7,8,9) ";
+            }
+            if ($ntype) {
+                $url.='&ntype=' . $ntype;
+                if ($ntype == '1') {
+                    $condition.=" and FROM_UNIXTIME( ctime, '%Y-%m-%d' ) = date_format(now(),'%Y-%m-%d') ";
+                } elseif ($ntype == '2') {
+                    $condition.=" and  yearweek(FROM_UNIXTIME( ctime-24*3600, '%Y-%m-%d' )) =yearweek(FROM_UNIXTIME(unix_timestamp(now())-24*3600),'%Y-%m-%d') ";
+                    //$condition.=" and yearweek(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=yearweek(now())";
+                } elseif ($ntype == '3') {
+                    $condition.=" and  FROM_UNIXTIME( ctime, '%Y-%m' ) =date_format(now(),'%Y-%m')";
+                } elseif ($ntype == '4') {
+                    $condition.=" and  YEAR(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=YEAR(now())";
+                }
+            }
+
+            $total = $this->getModel('BalanceFlow')->count($condition); //总数量
+
+            //$sum1 = $this->getModel('BalanceFlow')->sum(array('column' => 'amount', $condition . ' and type!=2'));
+            //$sum2 = $this->getModel('BalanceFlow')->sum(array('column' => 'amount', $condition . ' and type=2'));
+
+            $pageary = $this->pagination($total, $limit, $page, $url);
+            $pageary['offset'] = isset($pageary['offset']) ? $pageary['offset'] : 0;
+            if ($print) {
+                $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc'))->toArray();
+            } else {
+                $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc', 'limit' => $limit, 'offset' => $pageary['offset']))->toArray();
+            }
+            //$list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc', 'limit' => $limit, 'offset' => $pageary['offset']))->toArray();
+            if ($print) {
+                $head = array('ID', '流水号', '批次', '类型', '状态', '已核销金额', '未核销金额', '时间', '备注');
+                $lists = array();
+                foreach ($list as $k => $v) {
+                    if ($v['type'] == 0) {
+                        $lx = '充值';
+                    } elseif ($v['type'] == 1) {
+                        $lx = '冻结资金';
+                    } elseif ($v['type'] == 2) {
+                        $lx = '余额支付确认收货';
+                    } elseif ($v['type'] == 3) {
+                        $lx = '提现';
+                    } elseif ($v['type'] == 4) {
+                        $lx = '拒收解冻资金';
+                    } elseif ($v['type'] == 5) {
+                        $lx = '订单取消解冻资金';
+                    } elseif ($v['type'] == 6) {
+                        $lx = '争议退款';
+                    } elseif ($v['type'] == 7) {
+                        $lx = '货到付款已到账';
+                    } elseif ($v['type'] == 8) {
+                        $lx = '系统自动核销';
+                    } elseif ($v['type'] == 9) {
+                        $lx = '人工审核核销';
+                    }
+                    $status = ($v['status'] == 0) ? '待审核' : '已审核';
+                    $lists[$k]['k'] = $k + 1;
+                    $lists[$k]['sn'] = $v['sn'];
+                    $lists[$k]['subcontract'] = $v['subcontract'];
+                    $lists[$k]['type'] = $lx;
+                    $lists[$k]['status'] = $status;
+                    $lists[$k]['amount1'] = ($v['type'] != 2) ? '+' . $v['amount'] : '';
+                    $lists[$k]['amount2'] = ($v['type'] == 2) ? '-' . $v['amount'] : '';
+                    $lists[$k]['ctime'] = isset($v['ctime']) ? date('Y-m-d H:i:s', $v['ctime']) : '';
+                    $lists[$k]['remark'] = $v['remark'];
+                }
+                $fname = '收入明细';
+                \Libs\Util::getPhpExcel($fname, $head, $lists);
+                exit;
+            }
+            //$this->view->setVar('sum1', $sum1);
+            //$this->view->setVar('sum2', $sum2);
+            $this->view->setVar('partner', $partner);
+            $this->view->setVar('page', $pageary['html']);
+        }else{
+            $list=array();
+        }
+
+        $ntype = isset($ntype) ? $ntype : '';
+        $type = isset($type) ? $type : '';
+        $this->view->setVar('type', $type);
+        $this->view->setVar('ntype', $ntype);
+        $this->view->setVar('partnerId', $partnerId);
+        $this->view->list = $list;
+    }
+
+    public function withdrawAction() {
+        $page = $this->request->getQuery('page');
+        $page = intval($page) ? intval($page) : 1;
+        $startTime = $this->request->getQuery('start_time');
+        $endTime = $this->request->getQuery('end_time');
+        $status = $this->request->getQuery('status') ? $this->request->getQuery('status') : 0;
+        $condition = array();
+        if ($endTime) {
+            $endTime = strtotime($endTime . " 23:59:59");
+        } else {
+            $endTime = strtotime(date('Y-m-d', time()) . ' 23:59:59');
+        }
+        $condition['conditions'] .= "ctime <='" . $endTime . "'";
+
+        if ($startTime) {
+            $startTime = strtotime($startTime . " 00:00:00");
+            $condition['conditions'] .= " and ctime >='" . $startTime . "'";
+        } else {
+            $startTime = NULL;
+        }
+        $condition['order'] = 'id desc';
+        $partnerWithdraw = $this->getModel('partnerWithdraw');
+        $url = $this->url->get($this->currentAction, array("start_time" => date('Y-m-d', $startTime), "end_time" => date('Y-m-d', $endTime), "status" => $status));
+        $count = $partnerWithdraw->getCount($condition, $status, NULL);
+        $limit = 20;
+        $pageary = $this->pagination($count, $limit, $page, $url);
+        $condition['limit'] = $limit;
+        $condition['offset'] = $pageary['offset'];
+        $list = $partnerWithdraw->getList($condition, $status, NULL);
+        $this->view->list = $list;
+        $this->view->startTime = date('Y-m-d', $startTime);
+        $this->view->endTime = date('Y-m-d', $endTime);
+        $this->view->status = $status;
+        $this->view->page = $pageary['html'];
+    }
+
+    public function confirmwithdrawAction() {
+        if ($this->request->isPost()) {
+            $id = $this->request->getPost('id');
+            $paySn = $this->request->getPost('pay_sn');
+            $opId = $this->currentUser['id'];
+            $success = $this->getModel('PartnerWithdraw')->confirm($id, $paySn, $opId);
+            $this->renderJson($success['id'], $success['message']);
+        } else {
+            $this->renderJson('0', 'Method does not allow');
+        }
+    }
+
+    public function rejectedwithdrawAction() {
+        if ($this->request->isPost()) {
+            $id = $this->request->getPost('id');
+            $remark = $this->request->getPost('remark');
+            $opId = $this->currentUser['id'];
+            $success = $this->getModel('PartnerWithdraw')->rejected($id, $remark, $opId);
+            $this->renderJson($success['id'], $success['message']);
+        } else {
+            $this->renderJson('0', 'Method does not allow');
+        }
+    }
+
+    /*
+      Function:货到付款的批次资金到账确认列表
+      author：宿伟
+      date：2015/9/1
+     */
+
+    public function paymentAction() {
+        $state=$this->request->getQuery('state');//1:待审核，2：已审核
+        $state=!empty($state)?$state:1;
+        $start_time=$this->request->getQuery('start_time');
+        $end_time=$this->request->getQuery('end_time');
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = $this->currentAction . '?state='.$state;
+        if($state==1){
+           $where = " is_del=0 and status=3 and pay_type=1 and confirm_status =0 and user_type=0 and platform in ('app_liannong','backend')"; 
+        }else{
+           //$where = " is_del=0 and status=3 and pay_type=1 and confirm_status =1 and user_type=0 and platform in ('app_liannong','backend')";
+           $where = " is_del=0 and status=7 and pay_type=1 and user_type=0 and platform in ('app_liannong','backend')";
+        }
+        if($start_time){
+            $url.="&start_time=".$start_time;
+            $where.=" and confirm_time>=".  strtotime($start_time);
+        }
+        if($end_time){
+            $url.="&end_time=".$end_time;
+            $where.=" and confirm_time<=".  strtotime($end_time);
+        }
+       
+        $total = $this->getModel('orderSubcontract')->count(array($where, "order" => "id desc"));
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('orderSubcontract')->find(array($where, "limit" => $limit, "offset" => $pageary['offset'], "order" => "id desc"));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->setVar("state",$state);
+        $this->view->setVar("start_time",$start_time);
+        $this->view->setVar("end_time",$end_time);
+        $this->view->orderSubcontract = $pageactvt;
+    }
+
+    /*
+      function：已到账
+      author：宿伟
+      date:2015/9/1
+     */
+
+    public function confirmAction() {
+        $orderSubcontract = $this->getModel('orderSubcontract')->findById($this->request->getPost('id'));
+        $data['status'] = 7;
+        $this->getModel('orderSubcontract')->updateOne($this->request->getPost('id'), $data);
+        $data['remark'] = $this->request->getPost('remark');
+        $data['order_sn'] = $orderSubcontract['order_sn'];
+        $data['order_id'] = $orderSubcontract['order_id'];
+        $data['user_id'] = $orderSubcontract['user_id'];
+        $data['subcontract'] = $orderSubcontract['subcontract'];
+        $data['partner_id'] = $orderSubcontract['partner_id'];
+        $data['order_sn'] = $orderSubcontract['order_sn'];
+        $data['amount'] = $orderSubcontract['pay_amount'];
+        $data['type'] = 7;
+        $data['creator_id'] = $this->currentUser['id'];
+        $data['shop_id'] = $orderSubcontract['shop_id'];
+        $res = $this->getModel('balanceFlow')->createFlow($data);
+        if ($res['error']) {
+            return $res['error'];
+        } else {
+            return true;
+        }
+    }
+
+    /*
+      Function:配销商操作日志
+      author：cmz
+      date：2015/9/6
+     */
+
+    public function logsAction() {
+        $pid = $this->request->getQuery('partnerid');
+        $where = 'is_del = 0 and partner_id =' . $pid;
+        $total = $this->getModel('partnerOperateLog')->count(array($where, "order" => "id desc"));
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'partner/logs?partnerid=' . $pid;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $logs = $this->getModel('partnerOperateLog')->find(array($where, "limit" => $limit, "offset" => $pageary['offset'], "order" => "id desc"));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->logs = $logs;
+    }
+
+}

@@ -1,0 +1,228 @@
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 用户列表</h4>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form class="form-horizontal row-border" action="" method="get">
+                <div class="form-group">
+                    <div class="col-md-1">
+                        <input type="text" name="id" placeholder="用户ID" class="form-control" value="<?php echo isset($s_id)?$s_id:''?>">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="real_name" placeholder="账户名" class="form-control" value="<?php echo isset($s_real_name)?$s_real_name:''?>">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="mobile" placeholder="手机号" class="form-control" value="<?php echo isset($s_mobile)?$s_mobile:''?>">
+                    </div>
+                    <div class="col-md-2">
+                        <select name="freeze" class="form-control">
+                            <option value="">用户状态</option>
+                            <option <?php echo isset($s_freeze)?($s_freeze==0?' selected':''):''; ?> value="0">正常</option>
+                            <option <?php echo isset($s_freeze)?($s_freeze==1?' selected':''):''; ?> value="1">冻结</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="type" class="form-control">
+                            <option value="">用户类型</option>
+                            <option<?php echo isset($s_type)&&$s_type==0?" selected":''?> value="0">平台用户</option>
+                            <option<?php echo isset($s_type)&&$s_type==1?" selected":''?> value="1">配销商用户</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="platform" class="form-control">
+                            <option value="">用户来源</option>
+                            <?php foreach (\Libs\Util::getPlatformList() as $key => $val): ?>
+                            <?php $selected = isset($s_platform)?($key==$s_platform?' selected':''):''; ?>
+                            <option <?php echo $selected ?> value="<?php echo $key?>"><?php echo $val?></option>
+                           	<?php endforeach; ?> 
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <input type="submit" value="搜索" class="btn btn-primary">
+                    </div>
+                </div>
+                <div class="form-group">
+                </div>
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                    <tr>
+                        <th class="align-center">ID</th>
+                        <th class="align-center">账户名</th>
+                        <th class="align-center">手机号</th>
+                        <th class="align-center">性别</th>
+                        <th class="align-center">城市</th>
+                        <th class="align-center">来源</th>
+                        <th class="align-center">余额</th>
+                        <th class="align-center">账期</th>
+                        <th class="align-center">创建时间</th>
+                        <th class="align-center">更新时间</th>
+                        <th class="align-center">账户状态</th>
+                        <th class="align-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach($user as $key=>$val) { ?>
+                    <tr class="align-center">
+                        <td><?php echo $val->id; ?></td>
+                        <td><?php echo $val->real_name;?></td>
+                        <td><?php echo $val->mobile; ?></td>
+                        <td><?php echo \Libs\Util::getSexName($val->sex)?></td>
+                        <td><?php echo $val->city; ?></td>
+                        <td><?php echo \Libs\Util::getPlatformName($val->platform); ?></td>
+                        <td><?php echo $val->balance; ?></td>
+                        <td><?php echo intval($val->pay_day_id)<1?'现结':$this->mc->getDict($val->pay_day_id)['name']; ?></td>
+                        <td><?php echo date('Y-m-d H:i:s',$val->ctime); ?></td>
+                        <td><?php echo date('Y-m-d H:i:s',$val->utime); ?></td>
+                        <td><?php echo \Libs\Util::getFreezeName($val->freeze); ?></td>
+                        <td class="align-center">
+                            <span class="btn-group">
+                                <?php
+                                    switch($val->type){
+                                        case 0:
+                                ?>
+                            <?php    if($val->freeze == 0 && $val->payment_freeze == 0) { ?>
+                                        <a href="<?php echo $this->url->get('order/create',array('userid'=>$val->id)); ?>" class="btn btn-xs bs-tooltip" title="创建订单">创建订单</a>
+                            <?php    } ?>
+                                        <a href="<?php echo $this->url->get('user/detail',array('userid'=>$val->id,'type'=>0));?>" class="btn btn-xs bs-tooltip" title="查看详情">查看详情</a>
+                                        <a href="balance/recharge?userid=<?php echo $val->id; ?>" class="btn btn-xs bs-tooltip" title="充值">充值</a>
+                                        <a href="<?php echo $this->url->get('user/update',array('userid'=>$val->id,'type'=>0));?>" class="btn btn-xs bs-tooltip" title="编辑">编辑</a>
+                                        <?php
+                                            if($val->freeze == 0){?>
+                                                <!-- <a onclick="deleteuser(<?php echo $val->id?>)" class="btn btn-xs bs-tooltip" title="删除">删除</a> -->
+                                            <?php    }
+                                            ?>
+                                        <?php
+                                            if($val->freeze == 0){?>
+                                                <a onclick="ajaxfrost(<?php echo $val->id?>,0)" class="btn btn-xs bs-tooltip" title="冻结">冻结</a>
+                                            <?php    }
+                                            ?>
+                                        <?php
+                                            if($val->freeze == 1){?>
+                                                <a onclick="ajaxthaw(<?php echo $val->id?>,0)" class="btn btn-xs bs-tooltip" title="解冻">解冻</a>
+                                            <?php    }
+                                            ?>
+                                        <?php
+                                            if($val->pay_day_id !=0){?>
+                                                <a href='<?php echo $this->url->get('bankcard/list',array('userid'=>$val->id));?>' class="btn btn-xs bs-tooltip" title="银行卡信息">银行卡信息</a>
+                                                <?php
+                                            }
+                                            ?>
+                                            <?php
+                                                if($val->pay_day_id>0){?>
+                                                    <a href="<?php echo $this->url->get('user/bill',array('userid'=>$val->id));?>" class="btn btn-xs bs-tooltip" title="用户账单">用户账单</a>
+                                              <?php  }
+                                            ?>
+                                            
+                                        <?php
+                                            break;
+                                        case 1:
+                                        ?>
+                                            <a href="<?php echo $this->url->get('user/detail',array('userid'=>$val->id,'type'=>1));?>" class="btn btn-xs bs-tooltip" title="查看详情">查看详情</a>
+                                            <a href="<?php echo $this->url->get('user/update',array('userid'=>$val->id,'type'=>1));?>" class="btn btn-xs bs-tooltip" title="编辑">编辑</a>
+                                            <?php
+                                            if($val->freeze == 0){?>
+                                                <a onclick="ajaxfrost(<?php echo $val->id?>,1)" class="btn btn-xs bs-tooltip" title="冻结">冻结</a>
+                                            <?php    }
+                                            ?>
+                                        <?php
+                                            if($val->freeze == 1){?>
+                                                <a onclick="ajaxthaw(<?php echo $val->id?>,1)" class="btn btn-xs bs-tooltip" title="解冻">解冻</a>
+                                            <?php    }
+                                            ?>
+
+                                        <?php
+                                            break;
+                                        }
+                                    ?>
+                                                                                
+                            </span>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page['html']; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> <!-- /Table with Footer -->
+<!-- /Page Content -->
+<script type="text/javascript">
+function deleteuser(userId){
+    if(confirm('确定删除该用户吗?')){
+        $.post('<?php echo $this->url->get('user/delete')?>',{userId:userId,},function(data){
+            if(data == 1){
+                alert('删除成功！');
+            }else if(data==2){
+                alert('删除失败，该用户有店铺！');
+            }else{
+                alert(data);
+            }
+            window.location.href = '<?php echo $this->url->get('user/list');?>';
+        });
+    }
+}
+function ajaxfrost(id,type){
+    var data = 'id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"user/ajaxfrost",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+                if (result == 1) {
+                    alert("冻结成功");
+                }
+                if (result == 2) {
+                    alert("冻结失败");
+                }
+                if(type==0){
+                    window.location.href = '<?php echo $this->url->get('user/list');?>';
+                }else if(type==1){
+                    window.location.href = '<?php echo $this->url->get('user/list?type=1');?>';
+                }
+
+            }
+        });    
+}
+function ajaxthaw(id,type){
+    var data = 'id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"user/ajaxthaw",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+                if (result == 1) {
+                    alert("解冻成功");
+                }
+                if (result == 2) {
+                    alert("解冻失败");
+                }
+                if(type==0){
+                    window.location.href = '<?php echo $this->url->get('user/list');?>';
+                }else if(type==1){
+                    window.location.href = '<?php echo $this->url->get('user/list?type=1');?>';
+                }
+            }
+        });    
+}
+</script>

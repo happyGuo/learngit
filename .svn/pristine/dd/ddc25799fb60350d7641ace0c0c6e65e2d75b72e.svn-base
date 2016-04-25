@@ -1,0 +1,211 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class VerificationController extends BackendController
+{
+    public function initialize()
+    {
+        parent::initialize();
+    }
+
+    /*
+     * 确认核销列表
+     * author:Suwei
+     * date:2015/9/14
+     */
+    /*    public function confirmAction()
+        {
+            $id = $this->request->getQuery('id');
+            //查询充值的记录
+            $recharge = $this->getModel('balanceFlow')->findById($id);
+            $accountLogCount = $this->getModel('balanceFlow')->count("is_del=0 and status=0 and type=9 and relation_id=" . $id);
+            if ($accountLogCount > 0) {
+                //跳转到对应的核销列表
+                return $this->response->redirect("verification/list?relation_id=" . $id);
+            }
+            //查询用户的订单详情
+            $where = "user_id = {$recharge['user_id']} and is_del = 0 and confirm_status = 0 and status=3";
+            $orderList = $this->getModel('orderSubcontract')->find($where);
+            $res = $orderList->toArray();
+            if (!$res) {
+                $this->getModel('balanceFlow')->updateOne($id, array('status' => 1));
+                return $this->response->redirect("recharge/list");
+            }
+            $this->view->orderList = $orderList;
+            $this->view->recharge_id = $recharge['id'];
+            $this->view->recharge = $recharge;
+
+            if ($this->request->isPost()) {
+                $recharge_id = $this->request->getPost('recharge_id');
+                $recharge = $this->getModel('balanceFlow')->findById($recharge_id);
+                $check = $this->request->getPost('check');
+                $data = array();
+                $sum = 0;
+                if ($check) {
+                    foreach ($check as $one) {
+                        $arr = array();
+                        $arr['id'] = $one;
+                        $arr['money'] = $this->request->getPost($one . '-hexiao');
+                        $sum += $arr['money'];
+                        $data[] = $arr;
+                    }
+                } else {
+                    $this->view->messages = '请选择核销订单';
+                    return;
+                }
+                if ($recharge['amount'] < $sum) {
+                    $this->view->messages = '核销的金额大于充值的金额';
+                    return;
+                }
+                $res = $this->getModel('balanceFlow')->manAccount($recharge_id, $data);
+                if (empty($res)) {
+                    return $this->response->redirect("verification/list?relation_id=" . $recharge_id);
+                } else {
+                    $this->view->messages = $res;
+                    return;
+                }
+            }
+        }*/
+
+    /*
+     * function：核销列表
+     * author：宿伟
+     * date：2015/9/14
+     */
+    public function listAction()
+    {
+        if ($this->request->isPost()) {
+            //获取金额流水记录ID数组
+            $ids = $this->request->getPost('ids');
+            if (!$ids) {
+                $message['type'] = 1;
+                $messages['info'] = "请选择核销记录";
+            }
+            foreach ($ids as $id) {
+                $res = $this->getModel('balanceFlow')->confirmAccount($id);
+                if ($res) {
+                    $messages['info'] = $res;
+                }
+            }
+            //跳转
+            return $this->response->redirect("recharge/account");
+        }
+        $type = $this->request->getQuery('type');
+        $id = $this->request->getQuery('id');
+        if ($type == 0) {
+            $where = "type = 8 and is_del = 0 and status=0 and relation_id = $id"; // $id 为充值流水的ID
+        } elseif ($type == 1) {
+            $where = "type = 8 and is_del = 0 and status=0 and relation_id = 0 and subcontract= '" . $id . "'"; // $id 为订单批次号
+        }
+        $orderList = $this->getModel('balanceFlow')->find(array('conditions' => $where, 'order' => 'ctime desc'));
+        if (count($orderList) > 0) {
+            $subcontract = '';
+            $lastSub = '';
+            foreach ($orderList as $key => $val) {
+                if ($val->subcontract != $lastSub) {
+                    $lastSub = $val->subcontract;
+                    $subcontract .= ",'$lastSub'";
+                }
+            }
+            $list = array();
+            $subcontract = trim($subcontract, ',');
+            $arr = $this->getModel('orderSubcontract')->find("subcontract in ($subcontract)");
+            foreach ($arr as $k => $v) {
+                $list[$v->subcontract] = $v;
+            }
+        }
+        $this->view->orderList = $orderList;
+        $this->view->list = $list;
+        $this->view->type = $type;
+        //$this->view->relation_id = $relation_id;
+    }
+
+    /**
+     * 修改核销金额
+     */
+    public function update()
+    {
+
+    }
+
+    /*
+     * function：审核通过
+     * author：宿伟
+     * date：2015/9/14
+     */
+    /*   public function verifyAction()
+       {
+           //获取金额流水记录ID数组
+           $ids = $this->request->getPost('ids');
+           var_dump($ids);
+           exit;
+           foreach ($ids as $id) {
+               $res = $this->getModel('balanceFlow')->confirmAccount($id);
+               if ($res) {
+                   echo $res;
+                   exit;
+               }
+           }
+           //跳转
+           return $this->response->redirect("verification/list");
+       }*/
+    /**
+     * 修改核销金额
+     */
+    public function ajaxeditAction()
+    {
+        $message = '';
+        $type = $this->request->getPost('type');
+        $id = $this->request->getPost('id');
+        $amount = $this->request->getPost('amount');
+        $balanceFlow = $this->getModel('balanceFlow')->findFirst($id);
+        if (!$balanceFlow) {
+            $message = '核销记录不存在！';
+            $this->renderJson(array(), $message);
+        }
+        $orderSubcontract = $this->getModel('orderSubcontract')->findFirst("subcontract='" . $balanceFlow->subcontract . "'");
+        if ($orderSubcontract->confirm_amount - $balanceFlow->amount + $amount > $orderSubcontract->pay_amount) {
+            $message = '核销金额不能超过订单实际支付金额！';
+            $this->renderJson(array(), $message);
+        }
+        if ($type == 0) {
+            $charge = $this->getModel('balanceFlow')->findFirst($balanceFlow->relation_id);
+            $balanceFlows = $this->getModel('balanceFlow')->find("is_del=0 and id!=$id and relation_id=" . $charge->id);
+            $money = 0;
+            foreach ($balanceFlows as $one) {
+                $money += $one->amount;
+            }
+            $useMoney = $charge->amount - $money;
+            if ($amount > $useMoney) {
+                $message = "核销金额不能大于{$useMoney}元";
+                $this->renderJson(array(), $message);
+            }
+        }
+        if (!$message) {
+            $this->getModel('orderSubcontract')->updateOne("subcontract='" . $balanceFlow->subcontract . "'", array('confirm_amount' => $orderSubcontract->confirm_amount - $balanceFlow->amount + $amount));
+            $this->getModel('balanceFlow')->updateOne($id, array('amount' => $amount));
+        }
+        $this->renderJson(array(), $message);
+    }
+
+    /**
+     * 取消核销记录
+     */
+    public function ajaxdeleteAction()
+    {
+        $message = '';
+        $type = $this->request->getPost('type');
+        $id = $this->request->getPost('id');
+        $balanceFlow = $this->getModel('balanceFlow')->findFirst($id);
+        if (!$balanceFlow) {
+            $message = '核销记录不存在！';
+        }
+        $res = $this->getModel('balanceFlow')->deleteOne($id);
+        if ($res['error']) {
+            $message = $res['error'];
+        }
+        $orderSubcontract = $this->getModel('orderSubcontract')->findFirst("subcontract='" . $balanceFlow->subcontract . "'");
+        $this->getModel('orderSubcontract')->updateOne("subcontract='" . $balanceFlow->subcontract . "'", array('confirm_amount' => $orderSubcontract->confirm_amount - $balanceFlow->amount));
+        $this->renderJson(array(), $message);
+    }
+}

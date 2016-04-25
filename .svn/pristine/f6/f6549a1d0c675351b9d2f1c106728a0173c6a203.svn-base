@@ -1,0 +1,130 @@
+<!--=== Page Content ===-->
+<div class="row">
+    <div class="col-md-4">
+    </div>
+    <div class="col-md-4">
+    </div>
+</div>
+<div class="row">
+    <div class="form-group">
+
+
+        <div class="row">
+            <div class="col-md-2"></div>
+            <form class="form-horizontal row-border" method="GET" action="partner/search">
+                <div class="col-md-2">
+                    <select class="form-control" name="col">
+                        <option value="id">id</option>
+                        <option value="name">名称</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <input name="keyword" class="form-control" placeholder="" type="text">
+                </div>
+
+                <div class="col-md-2">
+                    <input class="btn btn-info btn-block" value="搜索" type="submit">
+                </div>
+            </form>
+        </div>
+        <!--.row -->
+
+    </div>
+</div>
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 配销商列表</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>真实姓名</th>
+                    <th>公司名称</th>
+                    <th>地址</th>
+                    <th>手机号</th>
+                    <th>角色</th>
+                    <th class="hidden-xs">创建者ID</th>
+                    <th class="hidden-xs">创建时间</th>
+                    <th class="hidden-xs">更新时间</th>
+                    <th class="align-center">操作</th>
+                </tr>
+                </thead>
+                <tbody>
+
+
+                <?php foreach ($partner as $k => $v) { ?>
+                    <tr>
+                        <td><?php echo $v->id; ?></td>
+                        <td><?php echo $v->contact_name; ?></td>
+                        <td><?php echo $v->company_name; ?></td>
+                        <td><?php echo $v->address; ?></td>
+                        <td><?php echo $v->mobile; ?></td>
+                        <td><?php echo $v->role; ?></td>
+                        <td class="hidden-xs"><?php echo $v->creator_id; ?>
+                        <td class="hidden-xs"><?php echo date('y-m-d H:i:s', $v->ctime); ?>
+                        <td class="hidden-xs"><?php echo date('y-m-d H:i:s', $v->utime); ?>
+                        </td>
+                        <td class="align-center">
+												<span class="btn-group">
+													<a href="partner/update?partnerid=<?php echo $v->id; ?>"
+                                                       class="btn btn-xs bs-tooltip" title="编辑"></i>编辑</a>
+													<a href="balance/withdraw?partnerid=<?php echo $v->id; ?>"
+                                                       class="btn btn-xs bs-tooltip" title="提现"></i>提现</a>
+													<a class="btn btn-xs bs-tooltip" title="删除"
+                                                       onclick="deletepartner(<?php echo $v->id ?>)">删除</a>
+												</span>
+												<span class="btn-group mgt-5">
+													<a class="btn btn-xs bs-tooltip" title="添加配销商分类"
+                                                       href="partner/addcate?partnerid=<?php echo $v->id; ?>">添加配销商分类</a>
+                                                    <a class="btn btn-xs bs-tooltip" title="收入明细"
+                                                       href="partner/incomelist?partnerid=<?php echo $v->id ?>">收入明细</a>
+                                                </span>
+                        </td>
+                    </tr>
+                <?php } ?>
+
+
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-6">
+
+                    </div>
+                    <div class="col-md-12">
+                        <?php echo $page; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+    function deletepartner(partnerId) {
+        if (confirm('确定删除该配销商吗?')) {
+            $.post('<?php echo $this->url->get('partner/delete')?>', {partnerid: partnerId}, function (data) {
+                if (data) {
+                    alert('删除成功！');
+                } else {
+                    alert('删除失败！');
+                }
+                window.location.href = '<?php echo $this->url->get('partner/list');?>';
+            });
+        }
+    }
+</script>

@@ -1,0 +1,116 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改店铺
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" onsubmit="return cre()">
+                    <?php if(isset($messages)): ?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php endif; ?> 
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            店铺名称：
+                        </label>                      
+                        <div class="col-md-4">
+                        <input name="name" id='name'class="form-control" type="text" value="<?php echo $shop['name']; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            地址：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="address" class="form-control" type="text" value="<?php echo $shop['address']; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            联系人：
+                        </label>
+                        <div class="col-md-2">
+                        <input name="contact_name" class="form-control" type="text" value="<?php echo $shop['contact_name']; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            联系电话：
+                        </label>
+                        <div class="col-md-2">
+                            <input name="contact_mobile" class="form-control" type="text" value="<?php echo $shop['contact_mobile']; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label" >
+                            销售代码：
+                        </label>
+                        <div class="col-md-2">
+                            <input id="sale_code" class="form-control" type="text" value="<?php echo $sale['code'] ?>">
+                            <input type="hidden" name="sale_id" value="<?php echo $sale['id'] ?>">
+                            <span id='spsalecode'><?php echo $sale['id']?"销售人员: ".$sale['real_name']:''?></span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            最佳送货时间：
+                        </label>
+                        <div class="col-md-2">
+                            <input name="best_time" class="form-control" type="text" value="<?php echo $shop['best_time']; ?>">
+                        </div>
+                    </div>
+                
+                    <div class="form-group">
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2">
+                            <input class="btn btn-info btn-block" value="提交" type="submit">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+$(function(){
+    $("#sale_code").bind('blur',function(){
+        if($(this).val()==''){
+            $(":hidden[name=sale_id]").val("");
+            $("#spsalecode").html('');
+        }
+        if($(this).val().length!=9)return;
+        $.getJSON("shop/create",{sale_code:$(this).val()},function(data){
+            if(data.data.id > 0){
+                $(":hidden[name=sale_id]").val(data.data.id);
+                $("#spsalecode").html('销售人员: '+data.data.real_name);
+            }else{
+                $(":hidden[name=sale_id]").val("");
+                $("#spsalecode").html('<font color="red">未查询到此销售代码对应的人员</font>');
+            }
+        });
+    });
+});
+    function cre(){
+        var checkflag = true;
+        if($("#spname").html() == '<font color="red">店铺名称已占用</font>' || $("#spname").html() == ''){
+            checkflag = false;
+        }
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+</script>

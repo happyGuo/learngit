@@ -1,0 +1,54 @@
+<?php
+namespace Models;
+
+class BaseCollection extends \Phalcon\Mvc\Collection
+{
+    public function initialize()
+    {
+       // $this->getDI()['mongo']->selectDB('fl');
+        $this->setConnectionService('fl_mongo');
+       // $this->getCollectionManager()->getConnection($this)->selectCollection("fl", $this->getSource());
+    }
+
+    public function getModel($name){
+        return $this->getDI()['mc']->getModel($name);
+    }
+
+    public function createModel($name){
+        return $this->getDI()['mc']->createModel($name);
+    }
+
+    public function createOne($data){
+        $id=0;
+        $error='';
+        $new = $this->createModel(explode('\\',get_class($this))[1]);
+        foreach($data as $k=>$v){
+            $new->$k = $v;
+        }
+        if($new->save()){
+            $id = $new->getId();
+        }else{
+            $error=$new->getError();
+        }
+        return array('id'=>$id,'error'=>$error);
+    }
+
+    public function getError()
+    {
+        $message = '';
+        $v =$this->getMessages();
+        if(!empty($v)){
+            foreach ($v as $msg) {
+                $message =  $msg->getMessage();
+                break;
+            }
+            exit($message);
+            if(defined('LOG') && LOG){
+                //存入日志
+                $this->getDI()['log']->modelError(array('message'=>$message,'db'=>'mongodb','table'=>$this->getSource()));
+            }
+        }
+        return $message;
+    }
+
+}

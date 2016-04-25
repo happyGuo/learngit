@@ -1,0 +1,15 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: xiaochuan
+ * Date: 2015/9/9
+ * Time: 17:47
+ */
+
+namespace Models;
+
+
+class UserBill  extends CommonModel
+{
+
+}

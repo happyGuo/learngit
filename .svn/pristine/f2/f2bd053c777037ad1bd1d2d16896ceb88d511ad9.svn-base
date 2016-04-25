@@ -1,0 +1,121 @@
+<script type="text/javascript">
+	var order_source = function(source){
+		if(source == ''){
+			return false;
+		}
+		var url = 'order/finish?source='+source;
+		window.location.href=url;
+	}
+</script>
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 已完成订单</h4>
+				 <a title="" class="btn btn-xs bs-tooltip" href="order/finish?source=all" <?php if($source=='all'){?>style="color:red" <?php } ?> data-original-title="全部">全部</a>
+				 <a title="" class="btn btn-xs bs-tooltip" href="order/finish?source=app" <?php if($source=='app'){?>style="color:red" <?php } ?> data-original-title="App订单">App订单</a>
+				 <a title="" class="btn btn-xs bs-tooltip" <?php if($source=='self'){?>style="color:red" <?php } ?> href="order/finish?source=self" data-original-title="自助订单">自助订单</a>
+		<div class="toolbar no-padding">
+			<div class="btn-group">
+				<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+			</div>
+		</div>
+		</div>
+		<div class="form-group">
+				<div class="row">
+					<form  method="post" class="form-horizontal row-border">
+						<div class="col-md-2">
+							<input type="text" class="form-control datepicker" id="start_time" readonly="readonly"  class="form-control" placeholder="开始时间" value="<?=$start_time?>" name="start_time">
+						</div>
+
+						<div class="col-md-2">
+							<input type="text" class="form-control datepicker" id="end_time"  readonly="readonly" class="" placeholder="结束时间" value="<?=$end_time?>" name="end_time">
+						</div>
+
+						<div class="col-md-2">
+							<input type="button" onclick="search()" value="搜索" class="btn btn-info btn-block">
+						</div>
+					</form>
+			</div> <!--.row -->
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<tr>
+					<td>订单总数：&nbsp;&nbsp;&nbsp;<?=$order_count?></td>
+					
+					<td>订单总额：&nbsp;&nbsp;&nbsp;<?=$order_sum?></td>
+					
+				</tr>
+			</table>
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th style="word-break : break-all; ">订单号</th>
+						<th>商家名</th>
+						<th>订单来源</th>
+						<th>下单时间</th>
+						<th style="word-break : break-all; ">订单总额</th>
+						<th>操作</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach ($order_list as $key => $value):?>
+					<tr>
+						<td style="word-break : break-all; "><?=$value['subcontract']?></td>
+						<td><a href="order/shopInfo?shop_id=<?=$value['shop_id']?>&order_type=<?=$value['order_type']?>"><?=$value['shop_name']?></a></td>
+						<td><?=$value['order_type_key']?></td>
+						<td><?=$value['ctime']?></td>
+						<td style="word-break : break-all; "><?=$value['buy_amount']?></td>
+						<td>
+						    <a title="" class="btn btn-xs bs-tooltip" href="order/finishinfo?id=<?=$value['id']?>&source=<?=$value['order_type']?>" data-original-title="详情">详情</a>
+						<?php if($value['order_type'] == 'self'){?> 
+						    <a title="" class="btn btn-xs bs-tooltip" href="/partnerorder/create?shopid=<?=$value['shop_id']?>&ordersn=<?=$value['subcontract']?>" data-original-title="详情">生成订单</a>
+						<?php } ?>
+						</td>	
+					</tr>
+				<?php endforeach; ?>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+      //全选 
+	 function selectall(){
+	 	//alert(1);return false;
+		var check_all = document.getElementById('check_all');
+		var select_all = document.getElementsByName('select_all');
+		for (var i=0;i<select_all.length ;i++ ){
+			select_all[i].checked=check_all.checked;
+		}
+	}
+	//全选打印
+	function allprint(){
+		var arr =[];
+		$(".del_checkbox:checked").each(function(){arr.push($(this).val())});
+
+		if(arr.length<1){
+			alert('请选择打印项');
+			return false;
+		}
+
+		$(".btnprint").attr("href",'/order/allprint?id='+arr.join(','));
+	}
+
+	var search = function()
+	{
+		var start_time = $('#start_time').val();
+		var end_time = $('#end_time').val();
+		if(start_time == ''){
+			alert('开始时间不能为空');
+			return false;
+		}
+
+		if(end_time == ''){
+			alert('结束时间不能为空');
+			return false;
+		}
+
+		var url = 'order/finish?start_time='+start_time+'&end_time='+end_time+'&source=<?=$source?>';
+		window.location.href=url;
+	}
+</script>

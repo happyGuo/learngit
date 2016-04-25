@@ -1,0 +1,9 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class IndexController extends ComplexController
+{
+
+
+}
+

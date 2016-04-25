@@ -1,0 +1,72 @@
+<form class="form-horizontal row-border" method="POST" action="" >
+ 					<?php if(isset($messages)) {?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?>
+<table class="table table-hover table-striped table-bordered table-highlight-head">
+<p>为&nbsp;&nbsp;<font color="red" size="4"><?php echo $shopId[0]['name'];?></font>&nbsp;&nbsp;&nbsp;&nbsp;配置配销商</p>
+<thead>
+     <tr>
+	<th>分类</th>	
+	<th>配销商</th>		
+    </tr>
+</thead>
+<tbody>
+	<?php 
+	$selected = '';
+	foreach($category as $k=>$v) { ?>
+	<tr>
+	<input type = 'hidden' name='category_id[]' id='category_id' value='<?php echo $v['id']?>'>
+	<input type = 'hidden' name='shop_id' id='shop_id' value='<?php echo $shopId[0]['id'];?>'>
+	<input type = 'hidden' name='status' id='status' value='<?php echo $status;?>'>
+	<td><?php echo $v['name']?></td>
+	<td>
+	<select name="partner_id[]" id="partner_id[]">
+	<?php 
+		if($v['type'] != 1){?>
+			<option value="">--请选择--</option>
+	<?php	}
+	?>
+	
+	<?php 
+	foreach($v['partner'] as $key=>$val) 
+	{
+	?>
+	<?php 
+	if(isset($v['partner_id']['partner_id']))$selected=$v['partner_id']['partner_id'] ==$val['id'] ?'selected':'';?>
+
+	     <option <?php  echo $selected ?> value="<?php echo $val['id']?>"><?php echo $val['company_name']?></option>
+	<?php
+	}
+	?>
+	</select>
+	</td>
+	</tr>
+	<?php
+	}
+	?>
+	<tr>
+	    <td colspan='2'><input type="submit" class="btn btn-info btn-block" value="配置"></td>
+	</tr>
+	
+	</tbody>
+</table>
+</form>
+<script type="text/javascript">
+$(function(){
+	$("select[name=set_all]").bind("change",function(){
+		var partner_id=$(this).val();
+		$("select[name^=partner_id]").each(function(){
+			var partner = $(this);
+			$(this).find("option").each(function(){
+				if($(this).attr("value")==partner_id)partner.val(partner_id);
+				return ;
+			})
+		});
+	});
+});
+</script>

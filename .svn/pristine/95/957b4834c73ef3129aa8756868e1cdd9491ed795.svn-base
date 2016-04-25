@@ -1,0 +1,189 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class AdminController extends BackendController
+{
+    public function initialize()
+    {
+        parent::initialize();
+        $this->view->menu = array('admin/create' => '创建管理员', 'admin/catdeluser' => '查看删除的管理员');
+
+    }
+
+    public function listAction()
+    {
+        $where = 'is_del=0';
+        $admin = $this->getModel('admin')->find(array($where, "order" => "id desc"));
+        $total = count($admin);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'admin/list';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('admin')->find(array($where, "limit" => $limit, "offset" => $pageary['offset'], "order" => "id desc"));
+        $roles = \Libs\Util::getRoleList();
+        if ($pageactvt) {
+            $pageactvt = $pageactvt->toArray();
+           /* foreach($pageactvt as $k=>$v){
+                $arr = explode(',',$v['role']);
+                $v['role'] = '';
+                foreach($arr as $one){
+                    foreach($roles as $role){
+                        if($role[$one]){
+                            $v['role'] .= $role[$one].",";
+                            break;
+                        }
+                    }
+                }
+                $pageactvt[$k]['role'] = rtrim($v['role'],',');
+            }*/
+        }
+
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->item = $pageactvt;
+    }
+
+    /*
+    function:添加后台管理
+    author：宿伟
+    date:2015/7/29
+    */
+    public function createAction()
+    {
+        if ($this->request->isPost()) {
+            $data['login'] = $this->request->getPost('login');
+            $data['real_name'] = $this->request->getPost('real_name');
+            $data['city'] = $this->request->getPost('city');
+            $data['before_pwd'] = $this->request->getPost('pwd');
+            // $data['role'] = $this->request->getPost('role');
+            $res = $this->getModel('admin')->createOne($data);
+            if ($res['error']) {
+                $this->view->messages = $res['error'];
+            } else {
+                return $this->response->redirect("admin/list");
+            }
+        }
+        //循环城市列表
+        $role = $this->getModel('admin')->findById($this->currentUser['id'])['role'];
+        $where = 'region_grade = 2 and status = 2 and is_del = 0';
+        $region = $this->getModel('region')->find(array($where))->toArray();
+        $this->view->region = $region;
+        $this->view->role = $role;
+    }
+
+    /*
+    Function:删除后台管理用户(逻辑删除)
+    author：宿伟
+    date：2015/7/29
+	*/
+    public function deleteAction()
+    {
+        $admin = $this->getModel('admin')->deleteOne($this->request->getPost('id'));
+        if ($admin['error']) {
+            echo $admin['error'];die;
+        } else {
+            echo 1;die;
+        }
+    }
+
+    /*
+      Function:修改后台管理用户
+      author：宿伟
+      date：2015/7/28
+      */
+    public function updateAction()
+    {
+        if ($this->request->isPost()) {
+            $data['real_name'] = $this->request->getPost('real_name');
+            //$data['role'] = $this->request->getPost('role');
+            if ($this->request->getPost('pwd')) {
+                $data['before_pwd'] = $this->request->getPost('pwd');
+            }
+            if ($this->request->getPost('admin_city')) {
+                $data['city'] = $this->request->getPost('admin_city');
+            }
+            $res = $this->getModel('admin')->updateOne($this->request->getPost('id'), $data);
+
+            if ($res['error']) {
+                $message = $res['error'];
+            } else {
+                return $this->response->redirect("admin/list");
+            }
+        }
+        $id = intval($this->request->getQuery('id'));
+        $where = 'id = ' . $id;
+        $this->view->admin = $this->getModel('admin')->find(array($where, "limit" => 1));
+        $where = 'region_grade = 2 and status = 2 and is_del = 0';
+        $region = $this->getModel('region')->find(array($where))->toArray();
+        $this->view->region = $region;
+        $this->view->messages = $message;
+
+    }
+
+    /*
+    function:查看已删除管理
+    author:宿伟
+    date:2015/08/20
+    */
+    public function catdeluserAction()
+    {
+        $where = 'is_del=1';
+        $admin = $this->getModel('admin')->find(array($where, "order" => "id desc"));
+        $total = count($admin);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'admin/list';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('admin')->find(array($where, "limit" => $limit, "offset" => $pageary['offset'], "order" => "id desc"));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->item = $pageactvt;
+    }
+
+    /*
+    function:恢复已删除管理
+    author:宿伟
+    date:2015/08/20
+    */
+    public function recoveruserAction()
+    {
+        $res = $this->getModel('admin')->updateOne($this->request->getPost('id'), array('is_del' => 0));
+        if ($res['error']) {
+            return $res['error'];
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * @fun 权限编辑
+     * @author chuan
+     */
+    public function privilegeAction()
+    {
+        if ($this->request->isPost()) {
+            $uid = $this->request->getPost('uid');
+            $roles = $this->request->getPost('roles');
+            $role = '';
+            $message['type'] = 2;
+            if ($roles) {
+                $role = implode(',', $roles);
+            }
+            $res = $this->getModel('admin')->updateOne("id={$uid}", array('role' => $role));
+            if ($res['error'] == "") {
+                $message['type'] = 0;
+                $message['info'] = "权限编辑成功！";
+            } else {
+                $message['info'] = $res['error'];
+            }
+        } else {
+            $uid = $this->request->getQuery('id');
+        }
+        //查询用户的权限
+        $user = $this->getModel('admin')->findById($uid);
+        $roleArr = explode(',', $user['role']);
+
+        $this->view->messages = $message;
+        $this->view->uid = $uid;
+        $this->view->myRolses = $roleArr;
+        $this->view->rolses = \Libs\Util::getRoleList();
+    }
+}

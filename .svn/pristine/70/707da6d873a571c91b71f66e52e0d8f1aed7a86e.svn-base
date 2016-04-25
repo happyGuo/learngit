@@ -1,0 +1,137 @@
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 订单详情</h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget-content">
+                <table class="table table-striped table-bordered table-hover table-checkable datatable">
+                    <tr>
+                        <td colspan="5">订单号：<?php echo $order->sn; ?>　　
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">收货人：<?php echo $order->contact_name; ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">订单金额：<?php echo $order->buy_amount; ?> 元</td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">实际支付金额：<?php echo $order->pay_amount; ?> 元</td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">收货地址：<?php echo $order->receive_address; ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">订单状态：
+                            <?php
+                            switch ($order->status) {
+                                case 0:
+                                    echo "待处理";
+                                    break;
+                                case 1:
+                                    echo "处理中";
+                                    break;
+                                case 2:
+                                    echo "处理完毕";
+                                    break;
+                                case 3:
+                                    echo "用户取消";
+                                    break;
+                                case 4:
+                                    echo "客服取消";
+                                    break;
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">订单备注：<?php echo $order->remark; ?></td>
+                    </tr>
+                </table>
+                <div>
+                    <h3>订单商品</h3>
+                </div>
+                <table class="table table-striped table-bordered table-hover table-checkable datatable">
+                    <?php foreach ($ordersku as $k => $group) { ?>
+                    <thead>
+                    <tr>
+                        <td colspan=" <?php if ($order->status == 1) { ?> 8<?php } else { ?>7<?php } ?>">
+                            分单号：<?php echo $k; ?> <span
+                                style="margin-left:10px;">配销商：<?php echo $group['partner']['contact_name']; ?></span></td>
+                    </tr>
+                    <tr>
+                        <th>商品名称</th>
+                        <th>购买数量</th>
+                        <th>实际发货数量</th>
+                        <th>商品单价</th>
+                        <th>订单金额</th>
+                        <th>实际支付金额</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($group['list'] as $sku) { ?>
+                        <tr>
+                            <td>
+                                <label class="col-md-12 control-label"><?php echo $sku['sku_name']; ?></label>
+                            </td>
+                            <td>
+                                <div class="col-md-5">
+                                    <?php echo $sku['buy_number']; ?>
+                                </div>
+                            </td>
+                            <th><?php echo $sku['real_number'];?></th>
+                            <td><?php echo $sku['unit_price'];?></td>
+                            <td>
+                                <div class="col-md-5">
+                                    <?php echo $sku['buy_amount']; ?>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="col-md-5">
+                                    <?php echo $sku['pay_amount']; ?>
+                                </div>
+                            </td>
+
+                        </tr>
+                    <?php }
+                    } ?>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    /*function save(id,orderId){
+     var buy_number = $('#buy_number_'+id).val();
+     var buy_amount = $('#buy_amount_'+id).val();
+     var pay_amount = $('#pay_amount_'+id).val();
+     if(buy_number<0){
+     alert('购买数量不能为负数！');
+     return;
+     }
+     if(pay_amount<0){
+     alert('实际支付金额不能为负数！');
+     return;
+     }
+     var url = '/order/detail?orderId='+orderId;
+     $.post(url,{id:id,buy_number:buy_number,buy_amount:buy_amount,pay_amount:pay_amount},function(data){
+     alert(data);
+     window.location.href = url;
+     });
+     }
+     function changePrice(id){
+     var num = Number($('#buy_number_'+id).val());
+     var price = Number($('#price_'+id).val());
+     var newprice = num*price;
+     $('#buy_amount_'+id).val(newprice);
+
+     }*/
+</script>

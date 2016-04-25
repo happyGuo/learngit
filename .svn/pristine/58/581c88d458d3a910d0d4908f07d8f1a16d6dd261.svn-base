@@ -1,0 +1,31 @@
+<?php
+namespace Models;
+
+class OperateLog extends BaseCollection
+{
+
+    public function getSource()
+    {
+        return "operate_log";
+    }
+
+    public function beforeValidationOnCreate()
+    {
+        $nums = $this->getModel('OperateLog')->count();
+        $this->id = $nums + 1;
+    }
+
+    /**
+     * 获取模块的中文名
+     * @param $enName
+     * @return string
+     */
+    public function _getModuleZN($enName)
+    {
+        $arr = array(
+            'partner' => '配销商管理',
+            'backend' => '后台管理',
+        );
+        return isset($arr[$enName]) ? $arr[$enName] : $enName;
+    }
+}

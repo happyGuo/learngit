@@ -1,0 +1,17 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+/**
+ * api模块，
+ * Class ApiController
+ * @package Modules\App\Controllers
+ */
+class ApiController extends \Libs\ControllerBase
+{
+    public function initialize()
+    {
+
+        define('APP_NAME','api');
+    }
+}

@@ -1,0 +1,77 @@
+/*
+Ajax 商品分类联动
+日期：2012-08-27
+
+settings 参数说明
+-----
+data: 分类列表
+cate1:默认一级分类
+cat32:默认二级分类
+required:必选项
+------------------------------ */
+(function($){
+	$.fn.categorySelect=function(settings){
+		if(this.length<1){return;};
+
+		// 默认值
+		settings=$.extend({
+			data:[],
+			cate1:null,
+			cate2:null,
+			required:false
+		},settings);
+
+		var box_obj=this;
+		var cate1_obj=box_obj.find(".cate1");
+		var cate2_obj=box_obj.find(".cate2");
+		var cate1_val=settings.cate1;
+		var cate2_val=settings.cate2;
+		var select_prehtml=(settings.required) ? "" : "<option value=''>请选择分类</option>";
+		var cate_json;
+
+		// 赋值二级分类函数
+		var cate2Start=function(){
+			var cate1_id=cate1_obj.val();
+			cate2_obj.empty().attr("disabled",true);
+			
+			// 遍历赋值二级分类下拉列表
+			temp_html=select_prehtml;
+			$.each(cate_json[cate1_id].subs,function(i,cate2){
+				temp_html+="<option value='"+cate2.id+"'>"+cate2.name+"</option>";
+			});
+			cate2_obj.html(temp_html).attr("disabled",false);
+		};
+
+		var init=function(){
+			// 遍历赋值一级分类下拉列表
+			temp_html=select_prehtml;
+			$.each(cate_json,function(i,cate1){
+				temp_html+="<option value='"+cate1.id+"'>"+cate1.name+"</option>";
+			});
+			cate1_obj.html(temp_html);
+
+			// 若有传入一级分类与二级分类的值，则选中。（setTimeout为兼容IE6而设置）
+			setTimeout(function(){
+				if(settings.cate1!=null){
+					cate1_obj.val(settings.cate1);
+					cate2Start();
+					setTimeout(function(){
+						if(settings.cate2!=null){
+							cate2_obj.val(settings.cate2);
+						};
+					},1);
+				};
+			},1);
+
+			// 选择一级分类时发生事件
+			cate1_obj.bind("change",function(){
+				cate2Start();
+			});
+		};
+
+		// 设置json数据
+		cate_json=settings.data;
+		init();
+
+	};
+})(jQuery);

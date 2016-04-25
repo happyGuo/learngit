@@ -1,0 +1,120 @@
+<!-- 
+		<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value=''>请选择查询条件</option>
+				<option value="id">id</option>
+				<option value="real_name">账户名</option>
+				<option value="mobile">手机号</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="keyword" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	</div> -->
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 货到付款核销列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">订单号</th>
+						<th class="align-center">子订单号</th>	
+						<th class="align-center">系统计算总价</th>
+						<th class="align-center">支付金额</th>
+						<th class="align-center">折扣</th>
+						<th class="align-center">发送时间</th>
+						<th class="align-center">确认时间</th>
+						<th class="align-center">用户收货或拒绝时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($orderSubcontract as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->order_sn; ?></td>
+						<td><?php echo $v->subcontract; ?></td>
+						<td><?php echo $v->buy_amount?></td>
+						<td><?php echo $v->pay_amount?></td>
+						<td><?php echo $v->pay_discount?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->send_time); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->confirm_time); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->receive_time); ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a onclick="comfrim(<?php echo $v->id?>)" class="btn btn-xs bs-tooltip" title="确认">确认</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function comfrim(id) {
+	var html = "<input class='form-control' type='text' id='remark'>";
+	bootbox.dialog({
+		message  : html,
+		title    : "添加备注",
+		onEscape : function () {
+		},
+		show     : true,
+		backdrop : true,
+		size     : 'large',
+		animate  : true,
+		className: "my-modal",
+		buttons  : {
+			success: {
+				label    : "确认",
+				className: "btn-success",
+				callback : function () {
+					var remark = $("#remark").val();
+					$.ajaxSetup({async: false});
+					$.post('partner/confirm', {id: id, remark: remark},
+						function (data) {
+							if(data){
+								window.location.href = '<?php echo $this->url->get('partner/payment');?>';
+							}else{
+								alert(data);
+							}
+						}, 'text');
+				}
+			},
+			"取消"   : {
+				className: "btn-danger",
+			}
+		}
+	});
+}
+</script>

@@ -1,0 +1,20 @@
+<?php
+namespace Plugins;
+
+class Api extends \Phalcon\Mvc\User\Plugin {
+	static $storage=array();
+
+    public function __construct($di)
+    {
+        $this->_dependencyInjector = $di;
+    }
+
+	public function getApi($name){
+		if(!isset(self::$storage[$name])){
+			$tmp = '\\Apis\\'.ucfirst($name);
+            $config =$this->common_config->api->$name;
+			self::$storage[$name] = new $tmp($this->_dependencyInjector ,$config->host,$config->port);
+		}
+		return self::$storage[$name];
+	}
+}

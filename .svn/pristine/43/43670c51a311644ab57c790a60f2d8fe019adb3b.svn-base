@@ -1,0 +1,92 @@
+<?php
+namespace Plugins;
+
+/**
+ * 全局常用工具类
+ * Class Util
+ * @package Plugins
+ */
+class Util extends \Phalcon\Mvc\User\Plugin {
+    static public $city;
+    public $di;
+
+    public function __construct($dependencyInjector)
+    {
+        $this->di = $dependencyInjector;
+    }
+
+    public function getApi($name){
+        return $this->api->getApi($name);
+    }
+
+    public function setCity($city){
+        self::$city = $city;
+    }
+
+    public function getCity(){
+        return self::$city;
+    }
+    /**
+     * 发送短信
+     * @param $mobile
+     * @param $msg
+     */
+    public function sendSms($mobile, $msg){
+
+        if(\Libs\Util::isAlone()){
+            return \Libs\Util::sendSms($mobile, $msg);
+        }
+        else{
+            return $this->getApi('common')->sendSms(array('mobile' => $mobile, 'msg' => $msg));
+        }
+    }
+
+    public function jpush($deviceToken, $contentType, $text, $deviceType, $n_content,$platform){
+        switch($platform){
+            case 'app_liannong':
+            case 'backend':
+                $masterSecret = 'ebef7a02ac87c9012d9211f7';
+                $appkeys = '85e868df5fbafb4a5c236a80';
+                break;
+            case 'app_ykyj':
+            case 'partner':
+                $masterSecret = '39ca1b9ab4705ed07d1fa2bc';
+                $appkeys = '7a7eec4c4447ecad054068ba';
+                break;
+        }
+        if(\Libs\Util::isAlone()){
+            return \Libs\Util::sendJpush($deviceToken, $contentType, $text, $deviceType, $n_content,$masterSecret,$appkeys);
+        }
+        else{
+            return $this->getApi('common')->push(array('deviceToken' => $deviceToken, 'type' =>$contentType,'title'=>$n_content,'deviceType'=>$deviceType,'action_id'=>$text['action_id'],'masterSecret'=>$masterSecret,'appkeys'=>$appkeys));
+        }
+    }
+
+
+    public function startXh(){
+        if(extension_loaded('xhprof') && defined('XH') && XH){
+            xhprof_enable(XHPROF_FLAGS_NO_BUILTINS | XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY);
+        }
+    }
+
+    public function closeXh(){
+        if(extension_loaded('xhprof') && defined('XH') && XH ){
+            $xhprof_data = xhprof_disable();
+            $XHPROF_ROOT ='/www/git/xhprof';
+
+            include_once $XHPROF_ROOT . "/xhprof_lib/utils/xhprof_lib.php";
+            include_once $XHPROF_ROOT . "/xhprof_lib/utils/xhprof_runs.php";
+
+            $xhprof_runs = new \XHProfRuns_Default();
+            $save =  MODULE.'_'.$this->di->get('dispatcher')->getControllerName().'_'.$this->di->get('dispatcher')->getActionName();
+            $run_id = $xhprof_runs->save_run($xhprof_data, $save);
+//            echo "---------------\n".
+//                "Assuming you have set up the http based UI for \n".
+//                "XHProf at some address, you can view run at \n".
+//                "http://xhprof.my.com/index.php?run=$run_id&source=$save\n";
+
+        }
+    }
+
+
+}

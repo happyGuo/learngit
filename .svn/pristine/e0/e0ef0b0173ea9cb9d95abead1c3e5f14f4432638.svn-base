@@ -1,0 +1,53 @@
+<div class="row">
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 核销列表</h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+                <table class="table table-hover table-striped table-bordered table-highlight-head">
+                    <thead>
+                    <tr>
+                        <th class="align-center">ID</th>
+                        <th class="align-center">充值流水ID</th>
+                        <th class="align-center">状态</th>
+                        <th class="align-center">类型</th>
+                        <th class="align-center">核销金额</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($list as $k => $v) { ?>
+                        <tr>
+                            <td><?php echo $v->id; ?></td>
+                            <td><?php echo $v->relation_id; ?></td>
+                            <td><?php echo $v->status == 0 ? '未审核':'审核通过';?></td>
+                            <td><?php echo $v->type == 8 ? '系统自动核销':'人工核销'; ?></td>
+                            <td><?php echo $v->amount;?></td>
+                        </tr>
+                    <?php } ?>
+
+                    </tbody>
+                </table>
+                <div class="row">
+                    <div class="table-footer">
+                        <div class="col-md-12">
+
+                        </div>
+                        <div class="col-md-12">
+                            <?php echo $page; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>

@@ -1,0 +1,105 @@
+<div class="col-md-12">
+    
+</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+                        <h4><i class="icon-reorder"></i> <?php if($state==0){?>逾期客户列表<?php }else{ ?>账期已冻结客户列表<?php }?></h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+	</div>
+        <div class="widget-content" id="print_div">
+            <table  class="table table-hover table-striped table-bordered table-highlight-head" >
+                <thead>
+                    <tr>
+                        <th class="align-center">客户编码</th>
+                        <th class="align-center">客户名称</th>
+                        <th class="align-center">账期</th>
+                        <th class="align-center">客户类型</th>
+                        <th class="align-center">到期时间</th>
+                        <th class="align-center">状态</th>
+                        <th class="align-center">逾期天数</th>
+                        <th class="align-center">金额明细</th>
+                        <!--<th class="align-center">操作</th>-->
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if($customer){ ?>
+                    <?php foreach ($customer as $k => $v) { ?>
+                        <?php
+                        if($v['payment_start']){
+                           $day = ceil((time() - $v['payment_start']) / (24 * 3600)); //当前时间和账期时间中间差 
+                        }else{
+                           $day='';
+                        }
+                        
+                        if($v['pay_day_id']){
+                            $zq = $this->mc->getDict($v['pay_day_id'])['code'];
+                        }else{
+                            $zq='';
+                        }
+                        ?>
+                        <tr class="align-center">
+                            <td><?php echo $v['id']; ?></td>
+                            <td><?php echo $v['mobile']; ?></td>
+                            <td><?php echo!empty($v['payment_start']) ? date('Y-m-d', $v['payment_start']) . '~' . date('Y-m-d', $v['payment_start'] + $zq * 24 * 3600) : ''; ?></td>
+                            <td>
+                                <?php
+                                if ($v['pay_day_id'] == 162) {
+                                    echo '周结';
+                                } elseif ($v['pay_day_id'] == 163) {
+                                    echo '半月结';
+                                } else {
+                                    echo '月结';
+                                }
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                if ($day >= $zq) {
+                                    echo 0;
+                                } else {
+                                    echo $zq-$day;
+                                }
+                                ?>
+                            </td>
+                            <td>是</td>
+                            <td>
+                                <?php
+                                echo $day;                              
+                                ?>
+                            </td>
+                            <td><?php echo $v['balance']; ?></td>
+                            <!--<td class="align-center">
+                                <span class="btn-group">
+                                    <a href="<?php echo $this->url->get('overdue/frost', array('id' => $v['id'])); ?>" class="btn btn-xs bs-tooltip" title="冻结">冻结</a>
+                                </span>
+                            </td>-->
+                        </tr>
+                    <?php } ?>
+                    <?php } ?>
+                </tbody>
+            </table>
+            
+        </div>
+        <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        
+                    </div>
+                </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+   $(function(){        
+      window.print();
+   });
+</script>

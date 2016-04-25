@@ -1,0 +1,25 @@
+<?php
+namespace Models;
+
+class Activity extends CityModel
+{
+	public function initialize()
+    {
+        parent::initialize();
+    }
+
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'name',
+            'message' => '活动名称不能为空'
+        )));
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'url',
+            'message' => 'url不能为空'
+        )));
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+}

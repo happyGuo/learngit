@@ -1,0 +1,101 @@
+<?php
+namespace Modules\Frontend\Controllers;
+
+class UserController extends FrontendController
+{
+    public function registerAction()
+    {
+
+        $user = new \Models\User();
+        $errMessages = array();
+
+        if($this->request->isPost()){
+            if (!$this->security->checkToken('csrf')) {
+                exit('csrf无效');
+            }
+            else{
+                $user->login = $this->request->getPost('login');
+                $user->real_name = $this->request->getPost('real_name');
+                $user -> pwd = $this->request->getPost('pwd');
+                $user -> confirm_pwd = $this -> request -> getPost('confirm_pwd');
+                if($user -> pwd != $user -> confirm_pwd) {
+                	$errMessages['confirm_pwd'] = '2次密码不一致';
+                }
+
+                if($user->save()==false){
+                    foreach ($user->getMessages() as $message) {
+                        echo "错误信息: ", $message->getMessage();
+                       // echo "Field: ", $message->getField();
+                       // echo "Type: ", $message->getType();
+                    }
+                }
+                else{
+                	$this -> auth -> saveSession($user);
+                    return $this->response->redirect("index/index");
+                }
+                exit;
+            }
+        }
+        $form = new \Modules\Frontend\Forms\RegisterForm();
+        $this->view->form = $form;
+        $this -> view -> errmessages = $errMessages;
+
+    }
+
+    public function loginAction()
+    {
+        if($u = $this->auth->getInfo()){
+            //$this->renderJson(array('id'=>$u->id));
+            return $this -> response -> redirect('index/index'); 
+        }
+
+        if ($this->request->isPost()) {
+
+            if ($this->security->checkToken('csrf')) {
+                $login = $this->request->getPost('login');
+
+                $password = $this->request->getPost('pwd');
+
+                $user = \Models\User::findFirstByLogin($login);
+
+                if ($user) {
+                    if ( $this->auth->verify($password,$user)) {
+                        $message = '成功';
+                        return $this -> response -> redirect('index/index');
+                    }
+                    else{
+                        $message = '密码错误';
+                    }
+                }
+                else {
+                    $message = '用户名不存在';
+                }
+            }
+            else{
+                $message = '无效提交，请重试';;
+            }
+
+            $this->renderJson(array('message'=>$message));
+        }
+
+    }
+
+    public function logoutAction()
+    {
+        $this->auth->clear();
+        return $this -> response -> redirect('index/index');
+        //$this->renderJson(array('message'=>'已清除'));
+    }
+    
+    public function testAction(){
+    	echo 'user allowed only';
+    	exit;
+    }
+
+    public function findPwdAction(){
+
+        $this->renderJson( array('data'=>'user allowed only'));
+    }
+
+}
+

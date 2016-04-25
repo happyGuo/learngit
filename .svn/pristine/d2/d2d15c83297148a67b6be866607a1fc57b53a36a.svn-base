@@ -1,0 +1,124 @@
+<div class="row">
+	<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<!--<div class="col-md-5">
+                    <label class="col-md-4 control-label">日期：</label>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" name="start_time" readonly class="form-control datepicker" placeholder="起始日期" value="<?php echo isset($start_time)?$start_time:'';?>">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="end_time" readonly class="form-control datepicker" placeholder="结束日期" value="<?php echo isset($end_time)?$end_time:'';?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>-->
+                <div class="col-md-2">
+                    <select class="form-control" name="type">
+                                <?php $type=isset($type)?$type:'';?>
+				<option value='1'>客户类型</option>
+				<option <?php if($type==0){ echo 'selected'; }?> value="0">现结</option>
+				<option <?php if($type==162){ echo 'selected'; }?> value="162">周结</option>
+                                <option <?php if($type==163){ echo 'selected'; }?> value="163">半月结</option>
+                                <option <?php if($type==164){ echo 'selected'; }?> value="164">月结</option>
+                    </select>
+                
+                </div>
+                <div class="col-md-2" >
+                    <input name="shop_name" class="form-control" placeholder="店铺名称" type="text"  value="<?php echo isset($shop_name) ? $shop_name : '' ?>">
+                </div>
+		
+		<div class="col-md-1">
+			<input class="btn btn-info btn-block" value="搜索" type="submit"> 
+		</div>
+                <div class="col-md-1">
+			<a href="<?php echo $this->url->get('amount/static', array('print'=>1)); ?>"><input class="btn btn-info btn-block" value="导出" type="button"> </a>
+		</div>
+	</form>
+</div>
+</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 销售统计</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">店铺名称</th>
+						<th class="align-center">客户类型</th>
+						<th class="align-center">已核算订单</th>
+                                                <th class="align-center">已核算金额</th>
+                                                <th class="align-center">未核算订单</th>
+                                                <th class="align-center">未核算金额</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach($list as $k=>$v){ ?>
+                                    
+					<tr>
+                                                <td><?php echo $v['name'];?></td>
+                                                <td>
+                                                    <?php 
+                                                    if($v['pay_day_id']==162){
+                                                       echo '周结'; 
+                                                    }elseif($v['pay_day_id']==163){
+                                                       echo '半月结'; 
+                                                    }elseif($v['pay_day_id']==164){
+                                                        echo '月结';
+                                                    }else{
+                                                        echo '现结';
+                                                    }
+                                                    
+                                                    ?>
+                                                </td>
+                                                <td><?php echo isset($v['con'])?$v['con']:'';?></td>
+                                                <td class="amount"><?php echo isset($v['amount'])?$v['amount']:'';?></td>
+                                                <td>
+                                                <?php 
+                                                    echo isset($v['ucon'])?$v['ucon']:'';
+                                                ?>
+                                                </td>
+                                                <td class="umount">
+                                                 <?php
+                                                   echo isset($v['umount'])?$v['umount']:'';
+                                                 ?>
+                                                   
+                                                </td>
+                                                
+					</tr>
+				<?php } ?>
+                                        
+				</tbody>
+			</table>
+                    <div>总核算金额：<?php echo $sum1;?> &nbsp;未核算金额:<?php echo $sum2;?></div>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+                                            
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+	 $("form").submit(function(e){
+            var start_val=$("input[name='start_time']").val();
+            var end_val=$("input[name='end_time']").val();
+            
+            if(start_val>end_val){
+                       e.preventDefault();
+                       alert("结束日期必须大于开始日期!");
+            }
+         });
+</script>

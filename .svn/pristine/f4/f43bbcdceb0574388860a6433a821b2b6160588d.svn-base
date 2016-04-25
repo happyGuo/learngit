@@ -1,0 +1,214 @@
+<style type="text/css">
+	li a{
+		cursor:pointer
+	}
+</style>
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 生成订单</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+				<table>
+					<tr>
+					</tr>
+				</table>
+				<h4><i class="icon"></i>新增菜品</h4>
+				<table>
+					<tr>
+						<td>菜品：</td>
+						<td><input style="width:300px;" type="text" autocomplete="off" onkeyup="search_sku(this.value)" class="form-control" id="sku_name"></td>
+						<td>&nbsp;&nbsp;&nbsp;&nbsp;数量：</td>
+						<td><input style="width:100px" id="sku_number" type="text"  class="form-control">
+							<ul id="sku_result_common" style="display: none; left: 49px; width: 300px;height:300px; position: absolute; border: 1px solid rgb(153, 153, 153); background-color: rgb(255, 255, 255); padding: 0px 0px;overflow:auto;">
+							</ul>
+                            <ul id="sku_result_partner" style="display: none; left: 359px; width: 300px;height:300px; position: absolute; border: 1px solid rgb(153, 153, 153); background-color: rgb(255, 255, 255); padding: 0px 0px;overflow:auto;">
+                            </ul>
+							<input type="hidden" id="sku_id" value="">
+                            <input type="hidden" id="unit_price" value="">
+							<input type="hidden" id="sku_type" value="">
+						</td>
+						<td>&nbsp;&nbsp;&nbsp;&nbsp;<input type="submit" onclick="add_sku()" disabled="disabled"  class="btn btn-primary" id="add_result" value="添加"></td>
+
+				</table><br/></tr>
+				<table class="table table-hover table-striped table-bordered table-highlight-head">
+					<thead>
+						<tr>
+							<th>序号</th>
+							<th>品名</th>
+							<th>数量</th>
+							<th>单价</th>
+							<th>小计</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+						<tbody id="order_list">
+						<?php foreach ($sku_list as $key => $value) :?>
+							<tr id="order_1">
+								<td><?php echo $key+1;?></td>
+								<td><?=$value['sku_name']?></td>
+								<td><input type="text" value="<?=$value['real_number']?>" name="number" style="width:80px" onkeyup="order_amount(<?=$value['sku_id']?>,this.value)"></td>
+								<td><?=$value['unit_price']?></td>
+								<td><?=$value['total_amount']?></td>
+								<input type="hidden" value="<?=$value['sku_id']?>" name="sku_id">
+								<input type="hidden" value="<?php if(empty($value['sku_type'])){ echo 1; }else{ echo $value['sku_type']; }?>" name="sku_type">
+								<td><a onclick="delete_order(<?=$value['sku_id']?>)" href="javascript:void(0)">删除</a></td>
+							</tr>
+						<?php endforeach;?>
+						</tbody>
+			</table>
+				备注：<br/><textarea rows='6' cols='141' id="remark"></textarea><br/><br/>
+			<input type="submit" value="下单" onclick="submit_order()" style="float:right" class="btn btn-primary"><br/>
+		</div>
+	</div>
+</div>
+ <script type="text/javascript">
+ 	var create_order = function(id){
+ 		var  tr = $('#sku_'+id);
+ 		var td = tr.children().siblings('td');
+		var name = td.eq(0).text();
+		var number = td.eq(2).text();
+ 		var price = td.eq(3).text();
+ 		tr.css('display', 'none');
+ 		create_html(name, number, price, id);
+ 	}
+
+ 	var create_html = function(name, number, price, id,type)
+ 	{
+        var input_hidden = "<input type='hidden' name='sku_id' value='"+id+"'>";
+ 		var input_hidden_type = "<input type='hidden' name='sku_type' value='"+type+"'>";
+ 		var input_length = $("input[name = 'number']").length + 1;
+ 		if(input_length > 0){
+	  		for(var i=0;i<input_length;i++)
+	 		{
+				if($("input[name = 'sku_id']").eq(i).val() == id && $("input[name = 'sku_type']").eq(i).val() == type){
+					alert('已添加该菜品');
+					return;
+				}
+	 		}			
+ 		}
+ 		var total_amount = price * number;
+ 		var html = "<tr id='order_"+id+"'><td>"+input_length+"</td><td>"+name+"</td><td><input onkeyup='order_amount("+id+",this.value)' style='width:80px' type='text' name='number' value='"+number+"'></td><td>"+price+"</td><td>"+total_amount.toFixed(2)+"</td>";
+ 		var html_input = "<td><a href='javascript:void(0)' onclick='delete_order("+id+")'>删除</a></td></tr>";
+ 		$("#order_list").append(html+input_hidden_type+html_input+input_hidden);
+ 	} 
+
+ 	var delete_order = function(id){
+ 		var tr = $('#order_'+id);
+ 		tr.remove();
+ 		 $('#sku_'+id).removeAttr("style");;
+ 		return;
+ 	}
+
+ 	var order_amount = function(id,number){
+ 		var tr = $('#order_'+id);
+ 		var td = tr.children().siblings('td');
+ 		var price = td.eq(3).text();
+ 		var total_amount = price * number;
+ 		if(isNaN(total_amount)){
+ 			var total_amount = 0;
+ 		}
+ 		td.eq(4).text(total_amount.toFixed(2));
+ 	}
+
+ 	var submit_order = function(){
+		
+ 		var input_length = $("input[name = 'number']").length;
+ 		var str = "";
+ 		if(input_length <= 0){
+ 			alert('请选择商品');
+ 			return;
+ 		}
+ 		for(var i=0;i<input_length;i++)
+ 		{
+            var number = new RegExp('^(?!(0{1,4}(((\\.0{2})?))$))([1-9]{1,2}[0-9]{0,9}|0)(\\.[0-9]{1,2})?$');
+            if(number.exec($("input[name = 'number']").eq(i).val()) == null || $("input[name = 'number']").eq(i).val() == 0){
+                alert('数量填写有误');
+                return;
+            } 
+ 			str += $("input[name = 'sku_id']").eq(i).val()+"|"+$("input[name = 'number']").eq(i).val()+"|"+$("input[name = 'sku_type']").eq(i).val()+"@";
+ 		}
+
+ 		var shop_id = <?=$shop_id?>;
+ 		var remark = $('#remark').val();
+ 		var data = "info="+str+"&shop_id="+shop_id+"&remark="+remark;
+         $.ajax({
+            type:'POST', 
+            url:"partnerorder/generate",
+            dataType:'text',
+            data:data, 
+            async:true,
+            success:function(result)
+            {
+            	if(result==1){
+            		alert('下单成功，请联系客户确认该订单！');
+            		window.location.href=window.location.href;
+            	}else{
+            		alert(result);
+            	}
+            }
+        });	
+ 	}
+
+ 	var search_sku = function(value)
+ 	{
+ 		 $('#add_result').attr('disabled', true);
+         $.ajax({
+            type:'get', 
+            url:"partnerorder/create",
+            dataType:'json',
+            data:"term="+value, 
+            async:true,
+            success:function(result)
+            {
+                $('#sku_result_partner').css('display','block');
+                $('#sku_result_partner').html(result.data.partner);
+
+            	$('#sku_result_common').css('display','block');
+            	$('#sku_result_common').html(result.data.common);
+            }
+        });			
+ 	}
+
+ 	$(window).click(function(){
+        $('#sku_result_common').css("display",'none');
+ 		$('#sku_result_partner').css("display",'none');
+ 	});
+
+ 	var change_sku = function(id,name,price,type){
+ 		$('#sku_name').val(name);
+ 		$('#sku_id').val(id);
+        $('#unit_price').val(price);
+ 		$('#sku_type').val(type);
+ 		$('#add_result').removeAttr("disabled");
+ 	}
+
+  	var add_sku = function()
+ 	{
+ 		var name = $('#sku_name').val();
+ 		var id = $('#sku_id').val();
+ 		var price = $('#unit_price').val();
+ 		var number = $('#sku_number').val();
+ 		var type = $('#type').val();
+        var preg_number = new RegExp('^(?!(0{1,4}(((\\.0{2})?))$))([1-9]{1,2}[0-9]{0,9}|0)(\\.[0-9]{1,2})?$');
+        if(name == ''){
+        	alert('请选择商品');
+        	return;
+        }
+        if(preg_number.exec(number) == null || number == 0){
+            alert('数量填写有误');
+            return;
+        }
+        $('#sku_name').val('');
+        $('#sku_number').val('');
+        $('#add_result').attr('disabled', true);
+ 		create_html(name, number, price, id, type);
+ 	}
+ </script>
+</head>
+<body>

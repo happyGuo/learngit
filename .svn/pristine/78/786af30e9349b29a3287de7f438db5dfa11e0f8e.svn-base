@@ -1,0 +1,69 @@
+<?php
+/**
+ *  配销商商品一客一价
+ *
+ *  配销商商品Model
+ * @author      zhangrg
+ * @version     20150826
+*/
+namespace Models;
+
+class PartnerSkuYkyj extends CityModel
+{
+    //根据商品取得所有客户的报价 
+    public function getListByPartnerSku($partnerId = 0,$skuId = 0){
+        $where = 'is_del=0 and partner_id='.$partnerId.' and sku_id='.$skuId;
+
+        $return  = [];
+        if(count($this->count([$where]))){
+            $list = $this->find([$where])->toArray();
+
+            foreach ($list as $key => $val) {
+                $return[$val['shop_id']] = $val;
+            }
+        }
+        return $return;
+    }
+
+    //获取单个商品一客一价信息
+    public function getYkyj($shopId, $partnerId,$skuId){
+        $where = 'is_del=0 and partner_id='.$partnerId.' and sku_id='.$skuId.' and shop_id='.$shopId;
+        $re = $this->findFirst($where);
+        if(!empty($re)){
+            return $re->price;
+        }
+        else{
+            return false;
+        }
+    }
+
+    public function getYkyjListByShopId($shopId,$partnerId=''){
+        $where = 'is_del = 0 and shop_id = '.$shopId;
+        if($partnerId){
+            $where .= ' and partner_id='.$partnerId;
+        }
+
+        $columns = ['sku_id','price'];
+        $ykyj = $this->find(array($where,'columns'=>$columns))->toArray();
+        $list = [];
+        if (!empty($ykyj)) {
+            foreach ($ykyj as $val) {
+                $list[$val['sku_id']] = $val['price'];
+            }
+        }
+        return $list;
+    }
+
+    public function savePrice($shopId, $partnerId,$skuId,$price){
+        $where  = "is_del=0 and partner_id=".$partnerId.' and shop_id='.$shopId.' and sku_id='.$skuId;
+        $sku = $this->findFirst($where);
+
+        if($sku==false){
+            $arr = ['partner_id'=>$partnerId,'shop_id'=>$shopId,'sku_id'=>$skuId,'price'=>$price];
+            $this->createOne($arr);
+        }else{
+            $this->updateOne($where,['price'=>$price]);
+        }
+        return $this->getError();
+    }  
+}

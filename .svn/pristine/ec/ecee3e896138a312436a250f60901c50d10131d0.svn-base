@@ -1,0 +1,89 @@
+<?php
+namespace Models;
+
+class Category extends CityModel
+{
+
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\StringLength(array(
+            'field' => 'name',
+            'min' => 1,
+            'messageMinimum' => '名称长度不能小于1'
+        )));
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+
+    /**
+     * TODO 重构，大改
+    * @name 根据一级分类数组或者String获取分类列表
+    * @author zhangrg
+    * @return 定义函数或者方法的返回信息
+    */
+    public function getList($str='',$json=false){
+
+        //如果是数组
+        if(is_array($str)){
+            $str = implode(',', $str);
+        }
+
+        //去重过滤
+        if(is_string($str)){
+            $idArr = array();
+            foreach (explode(',', $str) as $key => $val) {
+                if($val>0)$idArr[$val] = $val;
+            }
+            $str = implode(',', $idArr);
+        }
+
+        //查询
+        $where = 'is_del=0 and parent_id=0';
+        if(strlen($str)>0){
+            $where .= ' and id in ('.$str.')';
+        }
+        $order = 'sort asc,id asc';
+        $comumns = 'id,name';
+        $cateParentList = $this->find([$where,'order'=>$order,'columns'=>$comumns]);
+
+        //返回值
+        $return = [];
+        foreach ($cateParentList as $key => $val) {
+            $return[$val->id] = $val->toArray();
+
+            //查询子分类
+            $subWhere = 'parent_id = '.$val->id.' and is_del=0';
+
+            if($this->count($subWhere)){
+                $return[$val->id]['subs'] = $this->find([$subWhere,'order'=>$order,'columns'=>$comumns])->toArray();
+            }
+        }
+
+        return $json ? json_encode($return) : $return;
+    }
+
+
+
+    public function getCategoryListByParentId($id){
+
+
+        //查询
+        $where = 'is_del=0 and parent_id='.$id;
+
+        $order = 'sort asc,id asc';
+
+        return  $this->find(array($where,'order'=>$order))->toArray();
+    }
+
+
+    public function getCategoryListByIds($ids){
+        $where = "is_del = 0 and parent_id = 0 and find_in_set(id,'"+$ids+"')";
+        $order = 'sort asc,id asc';
+        $categoryList =   $this->find(array($where,'order'=>$order))->toArray();
+        return $categoryList;
+    }
+
+}

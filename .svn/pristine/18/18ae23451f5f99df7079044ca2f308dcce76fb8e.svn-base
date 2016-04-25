@@ -1,0 +1,391 @@
+<?php
+/*
+ * author: 张瑞光
+ * description: 商品分类
+ * date: 2015-07-27
+*/
+namespace Modules\App\Controllers;
+
+class CSkuController extends CAppController
+{
+
+    var $tagArr = [];
+
+    public function initialize(){
+        parent::initialize();
+
+        $this->tagArr = [1=>"快餐/食堂",2=>'普通餐馆',3=>'高档酒楼'];
+    }
+
+    /**
+    * listAction
+    * 商品列表
+    *
+    * @param int $discount_price    可选，是否打折     1:打折 0:所有
+    * @param int $new               可选，新品         1:新品 0:所有
+    * @param int $hot               可选，热销         1:热销 0:所有
+    * @param int $category_id       可选，分类         分类ID
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function listAction(){
+
+        //搜索条件初始化
+        $condition = 'is_del = 0';
+        $order = 'sort asc';
+
+        //打折
+        if($this->request->getQuery('discount_price')==1){
+            $condition .= ' and discount_price > 0';
+        }
+
+        //新品
+        if($this->request->getQuery('new')==1){
+            $condition .= ' and new>0 ';
+            $order = 'new asc,id desc';
+        }
+
+        //热销
+        if($this->request->getQuery('hot')==1){
+            $condition .= ' and hot>0';
+            $order = 'hot asc,id desc';
+        }
+
+        //一级分类
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        if(intval($parent_category_id)>0){
+            $condition .= ' and parent_category_id='.$parent_category_id;
+        }
+
+        //二级分类
+        $category_id = $this->request->getQuery('category_id');
+        if(intval($category_id)>0){
+            $condition .= ' and category_id='.$category_id;
+        }
+
+        //标签
+        $tag = $this->request->getQuery('tag');
+        if(intval($tag)>0){
+            $condition .= ' and find_in_set(\''.$tag.'\',tag)';
+        }
+
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+
+        //select字段
+        $columns = ['id','name','remark','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id','discount_price','tag','spec'];
+        $list = $this->getModel('sku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>$limit , 'offset' => $offset))->toArray();
+        foreach ($list as $key => $val) {
+            //计数单位
+            $unit = $this->dict($val['unit_id']);
+            $list[$key]['unit_name'] = isset($unit['name'])?$unit['name']:'';
+            unset($list[$key]['unit_id']);
+
+            //计量单位
+            $measure = $this->dict($val['measure_id']);
+            $list[$key]['measure_name'] = isset($measure['name'])?$measure['name']:'';
+            unset($list[$key]['measure_id']);
+
+            //图片
+            $list[$key]['pic_url']=$this->img->getUrlById('sku',$val['id']);
+
+            //标签
+            //$list[$key]['tag'] = str_replace(array_keys($this->tagArr), $this->tagArr, $list[$key]['tag']);
+
+            //是否收藏
+            $list[$key]['is_favored'] = $this->userId>0?$this->getModel('userFavor')->count(['is_del=0 and user_id='.$this->userId.' and sku_id='.$val['id']]):0;
+
+        }
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('sku')->count(array($condition))]);
+    }
+
+    /**
+    * searchAction
+    * 商品搜索
+    *
+    * @param int $discount_price    必选，是否打折     1:打折 0:所有
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function searchAction(){
+
+        //搜索条件初始化
+        $condition = 'is_del = 0';
+        $order = 'sort asc';
+
+        //打折
+        $name = $this->request->getQuery('name');
+        if($name){
+            $condition .= ' and search_name like \'%'.$name.'%\'';
+        }
+
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+        //一级分类
+        $parent_category_id = $this->request->getQuery('parent_category_id');
+        if(intval($parent_category_id)>0){
+            $condition .= ' and parent_category_id='.$parent_category_id;
+        }
+
+        //二级分类
+        $category_id = $this->request->getQuery('category_id');
+        if(intval($category_id)>0){
+            $condition .= ' and category_id='.$category_id;
+        }
+
+        //select字段
+        $columns = ['id','name','remark','unit_id','unit_price','unit_number','measure_id','discount_price','tag','spec','category_id','parent_category_id'];
+        $list = $this->getModel('sku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>$limit , 'offset' => $offset))->toArray();
+        foreach ($list as $key => $val) {
+            //计数单位
+            $unit = $this->dict($val['unit_id']);
+            $list[$key]['unit_name'] = isset($unit['name'])?$unit['name']:'';
+            unset($list[$key]['unit_id']);
+
+            //计量单位
+            $measure = $this->dict($val['measure_id']);
+            $list[$key]['measure_name'] = isset($measure['name'])?$measure['name']:'';
+            unset($list[$key]['measure_id']);
+
+            //图片
+            $list[$key]['pic_url']=$this->img->getUrlById('sku',$val['id']);
+        }
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('sku')->count(array($condition))]);
+    }
+
+    /**
+    * hotsearchAction
+    * 热搜商品   返回6个热搜商品名称
+    *
+    * @param null
+    */
+    public function hotsearchAction(){
+
+        //搜索条件初始化
+        $condition = 'is_del = 0 and search > 0';
+        $order = 'search asc';
+
+        //select字段
+        $columns = ['id','name'];
+        $list = $this->getModel('sku')->find(array($condition,'order'=>$order,'columns'=>$columns,'limit'=>6))->toArray();
+
+        $this->renderJson(['list'=>$list,'num'=>$this->getModel('sku')->count(array($condition))]);
+    }
+
+    /**
+    * hotsearchAction
+    * 热搜商品
+    *
+    * @param int $id             必选，商品ID         
+    */
+    public function detailAction(){
+
+        //初始化
+        $condition = 'is_del = 0';
+
+        //ID
+        $id = $this->request->getQuery('id');
+        if(intval($id)>0){
+            $condition .= ' and id='.$id;
+        }
+
+        //字段
+        $columns = ['id','name','remark','content','parent_category_id','category_id','unit_id','unit_price','unit_number','measure_id','tag','discount_price','origin','spec'];
+
+        //查询，关联字段
+        $oneSku = $this->getModel('sku')->findFirst(array($condition,'order'=>'sort desc','columns'=>$columns));
+
+        //商品已下架
+        if(!isset($oneSku->id)){
+            $this->renderJson([''],'商品已下架');
+        }
+		$oneSku->unit_name = $this->dict($oneSku->unit_id)['name'];
+        $oneSku->measure_name = $this->dict($oneSku->measure_id)['name'];
+
+        //图片
+        $oneSku->pic_url=$this->img->getUrlById('sku',$oneSku->id);
+
+        //标签
+        //$oneSku->tag  = str_replace(array_keys($this->tagArr), $this->tagArr,$oneSku->tag);
+
+        //是否收藏
+        $oneSku->is_favored = $this->userId>0?$this->getModel('userFavor')->count(['is_del=0 and user_id='.$this->userId.' and sku_id='.$oneSku->id]):0;
+
+        $this->renderJson($oneSku);
+    }
+
+    /**
+    * listfavor
+    * 收藏商品列表 (需登录)
+    *
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function listfavorAction(){
+
+        //初始化
+        $condition = 'is_del = 0 and user_id='.$this->userId.' and platform = "app_liannong"';
+
+        //获取记录条数
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+
+        //列表
+        $list = $this->getModel('userFavor')->find([$condition,'order'=>'ctime desc','offset'=>$offset,'limit'=>$limit]);
+
+        //返回SKU字段
+        $columns = ['id','name','category_id','remark','content','unit_id','unit_price','unit_price','measure_id','tag','discount_price','origin','spec','is_del','spec'];
+
+        //返回值
+        $return = [];
+        foreach ($list as $key => $val) {
+            $oneSku = $this->getModel('sku')->findFirst(array('id='.$val->sku_id,'columns'=>$columns))->toArray();
+
+            //计数单位
+            $unit = $this->dict($oneSku['unit_id']);
+            $oneSku['unit_name'] = isset($unit['name'])?$unit['name']:'';
+            unset($oneSku['unit_id']);
+
+            //计量单位
+            $measure = $this->dict($oneSku['measure_id']);
+            $oneSku['measure_name'] = isset($measure['name'])?$measure['name']:'';
+            unset($oneSku['measure_id']);
+
+            //图片
+            $oneSku['pic_url']=$this->img->getUrlById('sku',$val->sku_id);
+
+            $return[] = $oneSku;
+        }
+
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('userFavor')->count($condition)]);
+    }
+
+    /**
+    * addfavorAction
+    * 收藏商品 (需登录)
+    *
+    * @param int $sku_id             必选，商品ID
+    */
+    public function addfavorAction(){
+        //检查是否登录
+        if($this->userId<1){
+            $this->renderJson([],'未登录');
+        }
+
+        //检查ID
+        $sku_id = $this->request->getPost('sku_id');
+        if(intval($sku_id)<1){
+            $this->renderJson([],'商品ID不正确');
+        }
+
+        //商品是否存在
+        if($this->getModel('sku')->findFirst($sku_id)==false){
+            $this->renderJson([],'商品不存在');
+        }
+        $platform = \Libs\Util::getPlatform();
+        //是否已收藏
+        $isHave = $this->getModel('userFavor')->findFirst('is_del=0 and user_id='.$this->userId.' and sku_id='.$sku_id.' and platform="'.$platform.'"');
+        if(isset($isHave->id)){
+            $this->renderJson([],'已收藏');
+        }
+
+        //添加收藏
+        $userFavor = $this->createModel('userFavor');
+        $userFavor->user_id = $this->userId;
+        $userFavor->sku_id = $sku_id;
+        if($userFavor->save()){
+            $this->renderJson(['status'=>'1']);
+        }else{
+            $this->renderJson([],$userFavor->getError());
+        }
+
+    }
+
+    /**
+    * common
+    * 常用商品列表
+    * 登录状态获取user_id=当前用户的记录
+    * 未登录状态获取user_id=0的记录
+    *
+    * @param int $limit             必选，条数         默认：10
+    * @param int $offset            必选，开始         默认：0
+    */
+    public function commonAction(){
+
+        //查询条件初始化
+        $condition = 'is_del = 0  and platform = "app_liannong"';
+        $order = 'id desc';
+
+        if(intval($this->userId) > 0){
+            $condition .= ' and user_id = '.$this->userId;
+        }else{
+            $condition .= ' and user_id = 0';
+        }
+
+        //开始条数 获取条数
+        $offset = $this->request->getQuery('offset');
+        $limit = $this->request->getQuery('limit');
+
+        $list = $this->getModel('userSku')->find([$condition,'order'=>$order,'offset'=>$offset,'limit'=>$limit]);
+        //字段
+        $columns = ['id','name','remark','content','unit_id','unit_price','unit_number','measure_id','tag','discount_price','origin','spec'];
+        //查询详细
+        $return = [];
+        foreach ($list as $key => $val) {
+            $oneSku = $this->getModel('sku')->findFirst(array('id='.$val->sku_id,'columns'=>$columns))->toArray();
+
+            //计数单位
+            $unit = $this->dict($oneSku['unit_id']);
+            $oneSku['unit_name'] = isset($unit['name'])?$unit['name']:'';
+            unset($oneSku['unit_id']);
+
+            //计量单位
+            $measure = $this->dict($oneSku['measure_id']);
+            $oneSku['measure_name'] = isset($measure['name'])?$measure['name']:'';
+            unset($oneSku['measure_id']);
+
+            //图片
+            //var_dump($val);
+            $oneSku['pic_url']=$this->img->getUrlById('sku',$oneSku['id']);
+
+            $return[] = $oneSku;
+        }
+        $this->renderJson(['list'=>$return,'num'=>$this->getModel('userSku')->find($condition)->count()]);
+
+    }
+
+    /**
+    * delfavor
+    * 收藏商品 (需登录)
+    *
+    * @param int $id             必选，ID
+    */
+    public function delfavorAction(){
+
+        //检查ID
+        $id = $this->request->getPost('id');
+        if(intval($id)<1){
+            $this->renderJson([],'ID错误');
+        }
+
+        //是否已收藏
+        $isHave = $this->getModel('userFavor')->findFirst('sku_id = '.$id.' and is_del=0 and user_id='.$this->userId);
+        if(isset($isHave->id)==false){
+            $this->renderJson([],'未收藏');
+        }
+
+        //取消收藏
+        $isHave->is_del = 1 ;
+
+        //保存
+        if($isHave->save()){
+            $this->renderJson(['status'=>'1']);
+        }else{
+            $this->renderJson([],$isHave->getError());
+        }
+    }
+
+    
+}

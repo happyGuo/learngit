@@ -1,0 +1,138 @@
+<?php
+
+namespace Modules\Partner\Controllers;
+
+class PurchaseController extends PartnerController {
+
+    public function initialize() {
+        parent::initialize();
+    }
+
+    //今日采购单
+    public function currentAction() {
+        //判断是否是打印操作
+        $print = $this->request->getQuery('print');
+        $save = $this->request->getPost('save');
+        $name = $this->request->getPost('name');
+
+        $sdatetime = $this->request->getQuery('sdatetime');
+        $xdatetime = date('H', time()) <= 12 ? date('Y-m-d', time() - (24 * 3600)) . ' 02:00:00' : date('Y-m-d', time()) . ' 02:00:00';
+
+        $sdatetime = $sdatetime ? $sdatetime : $xdatetime;
+        $xedatetime = date('Y-m-d H:i:s', strtotime($xdatetime) + 24 * 3600);
+
+        $edatetime = $this->request->getQuery('edatetime');
+        
+        $edatetime = $edatetime ? $edatetime : $xedatetime;
+
+        $this->view->sdatetime = $sdatetime;
+        $this->view->edatetime = $edatetime;
+        $starttime = strtotime($sdatetime);
+        $endtime = strtotime($edatetime);
+        if ($print) {
+            //如果打印清除模板输出，载入打印模板
+            $this->view->cleanTemplateAfter();
+            $this->view->print = $print;
+        }
+        $partner_id = $this->currentUser['id'];//配货商id
+        $where= 'partner_id=' . $partner_id . ' and is_del=0 and status=1 ';
+        $ids='';
+        $ord= $this->getModel('OrderSubcontract')->find(array($where,'columns'=>'id,subcontract'))->toArray();
+        if(!empty($ord)){
+            foreach($ord as $v){
+            $ids.=',"'.$v['subcontract'].'"';
+            }
+            $ids=substr($ids,1);
+            $condition = 'partner_id=' . $partner_id . ' and is_del=0  and subcontract in('.$ids.') and ctime>' . $starttime . ' and ctime<' . $endtime;
+            $res_order = $this->getModel('OrderSku')->find(array($condition, 'group' => 'sku', 'columns' => "sum(buy_number) as nums,count(id) as purchase_num,group_concat(buy_number) as buy_numbers,group_concat(shop_id) as shop_ids,group_concat(user_remark) as user_remarks,group_concat(sku_type) as types,concat(sku_id,'|',sku_type) as sku,sku_name,sku_id,shop_id,unit_price,buy_number,partner_id,unit_id,order_sn,category_id,spec,remark,sum(buy_amount) as pay_amount", 'order' => 'sku_id desc, sku_name asc'));
+            if ($res_order) {
+                $order = $res_order->toArray();
+            } else {
+                $order = array();
+            }
+            $sum=$this->getModel('OrderSku')->sum(array('column' => 'pay_amount', $condition));
+        }else{
+            $order = array();
+            $sum=0;
+        }
+       
+       
+       
+        
+        //$res_order = $this->getModel('OrderSku')->find(array($condition, 'group' => 'sku', 'columns' => "sum(buy_number) as nums,count(id) as purchase_num,group_concat(buy_number) as buy_numbers,group_concat(shop_id) as shop_ids,group_concat(subcontract) as types,group_concat(user_remark) as user_remarks,concat(sku_id,'|',sku_type) as sku,sku_name,sku_id,shop_id,unit_price,buy_number,partner_id,unit_id,user_remark,order_sn", 'order' => 'sku_id desc, sku_name asc'));
+       
+        $this->view->setVar('sum', $sum);
+        $this->view->messages = array();
+
+        if ($save) {
+            if (empty($order)) {
+                $this->view->messages = array('采购单保存失败');
+            } else {
+                //保存采购单，将当前数组序列化
+                foreach ($order as $k => $v) {
+                    $cid = $v['category_id'];
+                    $new_order[$cid][] = $v;
+                }
+                $purchaselist = $this->getModel('purchase');
+                $purchaselist->partner_id = $partner_id;
+                $defaultname = '采购单' . date('Y-m-d H:i:s', time());
+                $purchaselist->title = ($name) ? $name : $defaultname;
+                $purchaselist->content = serialize($new_order);
+                if ($purchaselist->save()) {
+                    $this->view->messages = array('采购单保存成功');
+                } else {
+                    $this->view->messages = $purchaselist->getError();
+                }
+            }
+        }
+
+        //$this->view->purchase = $purchase;
+        $this->view->purchase = $order;
+        if ($print) {
+            //载入打印模板
+            $this->view->pick('bill/purchasecurrent');
+        }
+    }
+
+    //采购单管理
+    public function listAction() {
+        $day = $this->request->getQuery('day');
+        $partner_id = $this->currentUser['id'];
+        if ($day) {
+            $starttime = strtotime($day);
+            $endtime = $starttime + (24 * 60 * 60);
+            $where = 'is_del=0 and ctime>=' . $starttime . ' and ctime<=' . $endtime . ' and partner_id=' . $partner_id;
+            $purchase = $this->getModel('purchase')->find(array($where, 'order' => 'id desc'));
+        } else {
+            $purchase = $this->getModel('purchase')->find(array('is_del=0 and partner_id=' . $partner_id, 'order' => 'id desc'));
+            $day = '';
+        }
+
+        $this->view->purchase = $purchase;
+        $this->view->day = $day;
+    }
+
+    //采购单删除
+    public function deleteAction() {
+        $purchase = $this->getModel('purchase')->findFirst($this->request->getPost('id'));
+        $purchase->is_del = 1;
+
+        if ($purchase->save()) {
+            $this->renderJson($purchase);
+        } else {
+            $this->renderJson('', $purchase->getMessages());
+        }
+    }
+
+    //采购单详情
+    public function pdetailAction() {
+        $id = $this->request->getQuery('id');
+
+        $purchase = $this->getModel('purchase')->findById($id, false);
+
+        $purchaselist = unserialize($purchase->content);
+
+        $this->view->obj = $purchaselist;
+    }
+
+}

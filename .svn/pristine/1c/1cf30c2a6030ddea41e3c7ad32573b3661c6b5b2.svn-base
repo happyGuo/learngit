@@ -1,0 +1,61 @@
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 商品日志</h4>
+        <div class="toolbar no-padding">
+            <div class="btn-group">
+                <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+            </div>
+        </div>
+    </div>
+    <div class="widget-content">
+        <table class="table table-hover table-striped table-bordered table-highlight-head">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>类型</th>
+                    <th>操作表名</th>
+                    <th>操作内容</th>
+                    <th>操作时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($logs as $k => $v) { ?>
+                <tr>
+                    <td><?php echo $v->id; ?></td>
+                    <td><?php  
+                            switch($v->type){
+                              case 'create':
+                               echo "添加";
+                               break;
+                              case 'delete':
+                               echo "删除";
+                               break;
+                              case 'update':
+                               echo "修改";
+                               break;
+                            }
+                    ?></td>
+                    <td><?php echo $v->table; ?></td>
+                    <td><?php echo $v->content; ?></td>
+                    <td class="hidden-xs"><?php echo date('Y-m-d H:i:s', $v->ctime); ?>
+                    </td>
+                </tr>
+            <?php } ?>
+            </tbody>
+        </table>
+    <div class="row">
+        <div class="table-footer">
+            <div class="col-md-6">
+            </div>
+            <div class="col-md-12">
+                <?php echo $page; ?>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

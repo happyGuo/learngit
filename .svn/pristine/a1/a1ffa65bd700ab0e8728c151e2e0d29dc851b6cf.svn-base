@@ -1,0 +1,211 @@
+<div class="col-md-12">
+		<div class="widget box">
+			<div class="widget-header">
+				<h4><i class="icon-reorder"></i> 订单详情</h4>
+			<!-- 	<?php if($source == 'self'){?>
+			   <a title="" class="btn btn-xs bs-tooltip" href="partnerorder/addsku?order_id=<?=$order['id']?>&source=<?=$source?>" data-original-title="详情">添加商品</a>
+			    <?php } ?>-->
+				<div class="toolbar no-padding">
+					<div class="btn-group">
+						<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+					</div>
+				</div>
+			</div>
+			
+			<div class="widget-content">
+				<table class="table table-striped table-bordered table-hover table-checkable datatable">
+					<tbody>
+						<tr>
+							<td colspan="5">订单号：<?=$order['subcontract']?>&#12288;&#12288;
+								<?php if($source == 'self'){?>
+									<a href='partnerorder/addsku?shop_id=<?=$order['shop_id']?>&order_id=<?=$order['order_id']?>'  class="btn btn-xs bs-tooltip btn_color" href='javascript:void(0)'>添加商品
+									</a>								
+								<?php } ?>
+								<a onclick="change_status(1,<?=$order['order_id']?>,'<?=$source?>')"  class="btn btn-xs bs-tooltip" href='javascript:void(0)'>下一步
+</a>	
+							</td>
+
+							<td colspan="5">店铺名：<?=$order['shop_name']?>&#12288;&#12288;</td>
+						</tr>
+						<tr>
+							<td colspan="5">订单总额：<?=$order['buy_amount']?></td>
+							<td colspan="5">订单状态：<?=$order['status_key']?></td>
+						</tr>
+						<tr>
+							<td colspan="5">实际支付金额：<?=$order['pay_amount']?></td>
+							<td colspan="5">订单备注：<?=$order['remark']?></td>
+						</tr>
+						<tr>
+							<td>支付方式：<?=$order['pay_key']?></td>
+						</tr>
+					</tbody>
+				</table>
+				<table class="table table-striped table-bordered table-hover table-checkable datatable">
+					<thead>
+						<tr>
+							<th>商品名称</th>
+							<th>单价</th>
+							<th>订单数量</th>
+							<th>订单金额</th>
+							<th>发货数量</th>
+							<th style="word-break : break-all; ">实际金额</th>
+							<th>购买备注</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+					<tbody>			
+						<?php foreach ($sku_list as $key => $value):
+						$unit_name = $this->mc->getDict($value['unit_id'])['name'];
+						?>
+							<tr>
+								<td><?=$value['sku_name']?>
+									<?php if($value['spec']){?>
+										(<?=$value['spec']?>)
+									<?php } ?>
+								</td>
+								<td id="price_<?=$value['id']?>"><?=$value['unit_price']?></td>
+								<td  id="number_<?=$value['id']?>"><?=$value['buy_number']?><?=$unit_name?></td>
+								<td><?=$value['buy_amount']?></td>
+								<td><?php echo str_replace('.00', '', $value['real_number'])?><?=$unit_name?></td>
+								<td style="word-break : break-all; "><?=$value['pay_amount']?></td>
+								<td><?=$value['user_remark']?></td>
+								<td id="option_<?=$value['id']?>">
+									<a title='' onclick="createHtml('<?=$value['id']?>','<?=$value['buy_number']?>','<?=$order['order_type']?>','<?=$value['unit_price']?>')" class="btn btn-xs bs-tooltip" href='javascript:void(0)'>修改
+									</a>
+									<?php if($source == 'self'){?>
+									<a title='' onclick="delsku(<?=$value['id']?>,<?=$value['order_id']?>)" class="btn btn-xs bs-tooltip" href='javascript:void(0)'>删除
+									</a>
+									<?php } ?> 								
+								</td>
+						<?php endforeach;?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<script type="text/javascript">
+		var delsku = function(order_sku_id, id)
+		{
+	        bootbox.confirm("确认操作",function(confirmed){
+		        if(confirmed){
+					var data = 'order_id='+id+'&order_sku_id='+order_sku_id;
+			        $.ajax({
+			            type:'POST', 
+			            url:"partnerorder/delete",
+			            dataType:'json',
+			            data:data, 
+			            async:false,
+			            success:function(result)
+			            {
+			            	if(result.data == 1){
+			            		window.location.href=window.location.href;
+			            		return true;
+			            	}else{
+			            		alert(result.errmsg);
+			            	}
+			            }
+			        });
+		        }
+	        });	
+		}
+
+		var createHtml = function(id, real_number, order_type, price)
+		{
+			var html_button = "<a  onclick=\"changeNumber('"+id+"','"+real_number+"','"+order_type+"','"+price+"')\" class='btn btn-xs bs-tooltip' href='javascript:void(0)'>确定</a>";
+			var html_clean = "<a  onclick=\"cleanhtml('"+id+"','"+real_number+"','"+order_type+"','"+price+"')\" class='btn btn-xs bs-tooltip' href='javascript:void(0)'>取消</a>";
+			var input_number = "<input style='width:60px' type='text' id='inputnumber_"+id+"' value='"+real_number+"'>";
+			if(order_type == 'self'){
+				var input_price  = "<input style='width:60px' type='text' id='inputprice_"+id+"' value='"+price+"'>";
+				$('#number_'+id).html(input_number);
+				$('#price_'+id).html(input_price);
+				$('#option_'+id).html(html_button+html_clean);
+			}else{
+				$('#number_'+id).html(input_number);
+				$('#option_'+id).html(html_button+html_clean);
+			}
+		}
+
+		var cleanhtml = function(id, real_number, order_type, price)
+		{
+			var html_button = "<a  onclick=\"createHtml('"+id+"','"+real_number+"','"+order_type+"','"+price+"')\" class='btn btn-xs bs-tooltip' href='javascript:void(0)'>修改</a>";
+			if(order_type == 'self'){
+				var html_clean = "<a title='' onclick='delsku("+id+",<?=$order['order_id']?>)' class='btn btn-xs bs-tooltip' href='javascript:void(0)'>删除</a>";
+			}else{
+				var html_clean = "";
+			}
+			$('#option_'+id).html(html_button+html_clean);
+			$('#number_'+id).html(real_number);
+			$('#price_'+id).html(price);
+		}
+
+		var changeNumber = function(id,real_number, order_type, price)
+		{
+			var real_number_input = $('#inputnumber_'+id).val();
+			var numberReg = new RegExp('^[0-9]{0,9}?$');
+	          if(numberReg.exec(real_number_input) == null && real_number_input != 0){
+	                $('#number_'+id).val(real_number);
+	                alert('输入数量有误');
+	                return false;
+	            }
+
+	        if(order_type == 'self'){
+	        	var unit_price = $('#inputprice_'+id).val();
+				if(real_number_input == real_number && unit_price == price){
+					return false;
+				}
+				var priceReg = new RegExp('^(?!(0{1,4}(((\\.0{2})?))$))([1-9]{1,2}[0-9]{0,9}|0)(\\.[0-9]{1,2})?$');
+		          if(priceReg.exec(unit_price) == null){
+		                alert('单价输入有误');
+		                return false;
+		            }
+		        var data = 'id='+id+'&number='+real_number_input+'&source='+order_type+'&unit_price='+unit_price;	        	
+	        }else{
+	        	var data = 'id='+id+'&number='+real_number_input+'&source='+order_type;	        				
+				if(real_number_input == real_number){
+					return false;
+				}
+	        }
+
+	        $.ajax({
+	            type:'POST', 
+	            url:"order/changenumber",
+	            dataType:'json',
+	            data:data, 
+	            async:false,
+	            success:function(result)
+	            {
+	            	if(result.data == 1){
+	            		window.location.href=window.location.href;
+	            		return true;
+	            	}else{
+	            		alert(result.errmsg);
+	            	}
+	            }
+	        });	
+		}
+
+
+	var change_status = function(status, order_id, source){
+        bootbox.confirm("确认操作",function(confirmed){
+	        if(confirmed){
+				var data = "status="+status+"&order_id="+order_id+"&source="+source;
+		        $.ajax({
+		            type:'POST', 
+		            url:"order/changeorderstatus",
+		            dataType:'json',
+		            data:data, 
+		            async:false,
+		            success:function(result)
+		            {
+		            	if(result.data == 0){
+		            		alert(result.errmsg);
+		            	}else{
+		            		  window.history.go(-1);
+		            		 return false;
+		            	}
+		            }
+		        });
+	        }
+        });	
+	}
+	</script>

@@ -1,0 +1,63 @@
+<?php
+
+namespace Modules\App\Controllers;
+
+class BAppController extends AppController
+{
+
+    public $clientKey = 'partner';
+    public $unlogin = array('b_user/login','b_user/sendsms');
+
+    public function initialize()
+    {
+        parent::initialize();
+
+        $this->appName ='partner';
+        define('APP_NAME',$this->appName);
+        $query = $this->request->getQuery();
+
+        $post = $this->request->getPost();
+        $query = array_merge($query, $post);
+        if(isset($query['ver']))
+            $this->ver = $query['ver'];
+        $current = $this->dispatcher->getControllerName() . '/' . $this->dispatcher->getActionName();
+
+        if (!isset($query['access_token']) || empty($query['access_token'])) {
+            $this->userId = 0;
+            //判断当前操作是否必须登入
+            if (!in_array($current, $this->unlogin)) {
+                $this->renderJson(array(), '您尚未登入',2);
+            }
+        } else {
+            if (in_array($current, $this->unlogin)){
+                $this->renderJson(array(), '您已登入',1);
+            }
+
+                $this->accessToken = $query['access_token'];
+            //根据token获取当前登入人
+            $device = \Models\PartnerDevice::findFirst('access_token="' . $this->accessToken . '"');
+
+            if ($device == false) {
+                $this->access_token = '';
+                return $this->renderJson(array(), '登入失败，请重新登入',2);
+            } else {
+                $this->userId = $device->partner_id;
+                define('CITY',$device->city);
+                $userInfo = $this->getModel('partner')->findById($this->userId);
+                if ($userInfo['is_del']) {
+                    $this->renderJson(array(), '该用户已删除');
+                }
+
+                $this->userInfo = $userInfo;
+                $this->deviceToken = $device->device_token;
+                $this->deviceType = $device->device_type;
+            }
+        }
+
+    }
+
+
+
+	
+	
+}

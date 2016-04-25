@@ -1,0 +1,51 @@
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 用户充值未核销列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">充值用户</th>
+						<th class="align-center">充值金额</th>
+						<th class="align-center">创建时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($recharge as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>	
+						<td><?php echo $v->user_id  ?></td>
+						<td><?php echo $v->amount; ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href='<?php echo $this->url->get('verification/confirm',array('id'=>$v->id))?>' class="btn btn-xs bs-tooltip" title="核销详情">核销详情</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+		<div id="message" style="display: none;"><input class="form-control" type='text' name='comfirm_remark'></div>
+<!-- /Page Content -->

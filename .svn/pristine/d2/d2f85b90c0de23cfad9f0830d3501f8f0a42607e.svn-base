@@ -1,0 +1,51 @@
+<?php
+namespace Modules\Partner\Controllers;
+
+class PartnerController extends \Libs\ControllerBase
+{
+	public $open='';
+	public $currentUser;
+	public $userId;
+    public static $role = array('admin'=>3);
+
+    public function initialize()
+	{
+		parent::initialize();
+		$this->userId=0;
+		$module =91;
+		$this->view->setTemplateAfter('common');
+		$this->view->selectCity=$this->view->current_user =array();
+		$this->view->current_user  = $this->currentUser = $this->auth->getInfo();
+		//echo $this->currentAction;exit;
+		if($this->currentUser){
+            $this->userId=$this->currentUser['id'];
+			//判断用户是否属于该城市
+			$exist = $this->getModel('partner')->findById($this->currentUser['id']);
+			if(empty($exist)){
+				exit('you are not belong '.CITY);
+			}
+		}
+
+		//设置导航
+		$m = $this->getModel('dict');
+
+		$dict = $m::findFirst('code = "'.$this->currentAction.'" and is_del=0 and module='.$module);
+		if(empty($dict)){
+			exit('action['.$this->currentAction.'] not set in dict');
+		}
+		$dict = $dict->toArray();
+		$return = '<li class="current"><a href="javascript:void();" title="">'.$dict['name'].'</a></li>';
+
+		$this->view->crumb ='<ul id="breadcrumbs" class="breadcrumb">'.$this->getCrumb($dict['parent_id']).$return.'</ul>';
+
+		$this->view->nav = $this->getNav($module);
+	}
+
+
+    //todo 干掉
+	public function useBill($type=''){
+		$this->view->cleanTemplateAfter ();
+		//exit;
+	}
+
+}

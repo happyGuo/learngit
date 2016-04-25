@@ -1,0 +1,96 @@
+<script type="text/javascript">
+$(function() {
+
+});
+function opencity(id){
+	if(parseInt(id)<1)return;
+	bootbox.confirm("是否确认开通城市?",function(confirmed){
+		if(confirmed){
+			$("#openform #id").val(id);
+			$("#openform").submit();
+		}
+	});
+}
+
+</script>
+<?php $statusArr=[0=>'未开通',1=>'后台开通',2=>'前台开通']; ?>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i>城市列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<form class="form-horizontal row-border" action="" method="get">
+			    <div class="form-group">
+			        <div class="col-md-10">
+			            <div class="row">
+			                <div class="col-md-2">
+			                    <input type="text" name="name" placeholder="标题" class="form-control" value="<?php echo isset($s_name)?$s_name:''?>">
+			                </div>
+			                <div class="col-md-3">
+			                    <select class="form-control" name="status" id="status" style="display:inline;width:140px">
+			                     	<option value="">请选择</option>
+									<option value="0" <?php if($status==0){echo "selected";} ?>>未开通城市</option>
+									<option value="1" <?php if($status==1){echo "selected";} ?>>后台开通城市</option>
+									<option value="2" <?php if($status==2){echo "selected";} ?>>前台开通城市</option>
+			                    </select>
+			                </div>
+			                <div class="col-md-1">
+			                    <input type="submit" value="搜索" class="btn btn-primary">
+			                </div>
+			            </div>
+			        </div>
+			    </div>
+			    <div class="form-group">
+			    </div>
+			</form>
+
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>城市名称</th>
+						<th>英文名称</th>
+						<th>开通状态</th>
+						<th>排序</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($citylist as $k=>$v) { ?>
+					<tr>
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->local_name; ?></td>
+						<td><?php echo $v->en_name; ?></td>
+						<td>
+							<?php echo $statusArr[$v->status]?>
+						</td>
+						<td><?php echo $v->sort; ?></td>
+						<td class="align-center">
+							<?php if($v->status==0): ?>
+							<a href="javascript:;" class="btn btn-primary" onclick="opencity(<?php echo $v->id ?>)">开通城市</a>
+							<?php endif; ?>
+						</td>
+					</tr>
+					<?php } ?>
+
+
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+			<form action="" method="post" id="openform"><input type="hidden" name="id" id="id"></form>
+		</div>
+	</div>
+</div>

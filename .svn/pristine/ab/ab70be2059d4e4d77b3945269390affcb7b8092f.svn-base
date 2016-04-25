@@ -1,0 +1,101 @@
+<?php
+/**
+ * 日志管理控制器
+ * User: xiaochuan
+ * Date: 2015/8/6
+ * Time: 9:38
+ */
+
+namespace Modules\Backend\Controllers;
+
+
+class LogController extends BackendController
+{
+    /**
+     * 操作日志列表查看
+     */
+    public function listAction()
+    {
+        $condition = array();
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        /* url初始化 */
+        $url = $this->currentAction . '?';
+        /* 搜索条件[名称] */
+        $name = $this->request->getQuery('name');
+        if (trim($name)) {
+            $this->view->s_name = $name;
+            $url .= '&name=' . $name;
+            $condition['$or'] = array(array('op_info.real_name' => "$name"), array('op_info.contact_name' => "$name"));
+        }
+        /* 搜索条件[城市] */
+        $city = $this->request->getQuery('s_city');
+        if (trim($city)) {
+            $this->view->s_city = $city;
+            $url .= '&s_city=' . $city;
+            foreach ($this->view->selectCity as $c) {
+                if (strstr($c['local_name'], $city)) {
+                    $city = $c['en_name'];
+                    break;
+                }
+            }
+            $condition['city'] = $city;
+        }
+        /* 搜索条件[模块] */
+        $module = $this->request->getQuery('s_module');
+        if (trim($module)) {
+            $this->view->s_module = $module;
+            $url .= '&s_module=' . $module;
+            $condition['module'] = $module;
+        }
+        /* 搜索条件[操作的表table] */
+        $table = $this->request->getQuery('table');
+        if (trim($table)) {
+            $this->view->s_table = $table;
+            $url .= '&table=' . $table;
+            $condition['table'] = $table;
+        }
+        $id = $this->request->getQuery('id');
+        if (trim($id)) {
+            $this->view->id = $id;
+            $url .= '&id=' . $id;
+            $condition['data.id'] = $id;
+        }
+        //查询操作日志列表
+        $total = $this->getModel('OperateLog')->count(array('conditions' => $condition));
+        $pageary = $this->pagination($total, $limit, $page, $url);
+       
+        $logs = $this->getModel('OperateLog')->find(array(
+                'conditions' => $condition,
+                'sort' => array('ctime' => -1),
+                "limit" => $limit,
+                "skip" => $pageary['offset'],
+            )
+        );
+
+        if ($logs) {
+            foreach ($logs as $k => $v) {
+                //转换城市
+                if (isset($v->city)) {
+                    foreach ($this->view->selectCity as $city) {
+                        if ($city['en_name'] == $v->city) {
+                            $logs[$k]->city = $city['local_name'];
+                            break;
+                        }
+                    }
+                }
+                //转换模块
+                if (isset($v->module)) {
+                    $logs[$k]->module = $this->getModel('OperateLog')->_getModuleZN($v->module);
+                }
+                //转换数据
+                if (isset($v->data)) {
+                    $logs[$k]->data = \Libs\Util::jsonFormat(json_encode($v->data, JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+        $this->view->setVar('page', $pageary['html'] ? $pageary['html'] : "");
+        $this->view->logs = $logs;
+    }
+}

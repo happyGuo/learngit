@@ -1,0 +1,8 @@
+/*此页面为公用css页面 放置公用元素CSS */
+
+/*btn_color 实现现有button（包含 a、input button类型），背景添加为深色，圆角*/
+.btn_color{
+		background-color:#DCDCDC;
+		border:1px slid; 
+		border-radius:3px;
+}

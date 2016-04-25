@@ -1,0 +1,60 @@
+
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 分类列表</h4>
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+                <table class="table table-hover table-striped table-bordered table-highlight-head">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>一级分类</th>
+                            <th>二级分类</th>
+                            <th class="hidden-xs">CODE</th>
+                            <th class="align-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($list as $k=>$v): ?>
+                        <tr>
+                            <td><?php echo $v['id']; ?></td>
+                            <td><?php echo $v['name']; ?></td>
+                            <td></td>
+                            <td class="hidden-xs"><?php echo $v['code']; ?></td>
+                            <td class="align-center">
+                                <span class="btn-group">
+                                    <a href="category/update?id=<?php echo $v['id']; ?>" class="btn btn-xs bs-tooltip" title="修改">修改</i></a>
+                                    <!-- <a href="category/delete?id=<?php echo $v['id']; ?>" class="btn btn-xs bs-tooltip" title="Delete"><i class="icon-trash"></i></a> -->
+                                </span>
+                            </td>
+                        </tr>
+                        <?php foreach ($v['subs'] as $key => $val): ?>
+                            <tr>
+                                <td><?php echo $val['id']; ?></td>
+                                <td></td>
+                                <td><?php echo $val['name']; ?></td>
+                                <td class="hidden-xs"><?php echo $val['code']; ?></td>
+                                <td class="align-center">
+                                    <span class="btn-group">
+                                        <a href="category/update?id=<?php echo $val['id']; ?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+                                        <!-- <a href="category/delete?id=<?php echo $val['id']; ?>" class="btn btn-xs bs-tooltip" title="Delete"><i class="icon-trash"></i></a> -->
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                
+        </div>
+    </div>
+    <!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

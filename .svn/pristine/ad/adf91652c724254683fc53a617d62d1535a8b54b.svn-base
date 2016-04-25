@@ -1,0 +1,110 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class UserskuController extends BackendController
+{
+
+	public function initialize(){
+		parent::initialize();
+		$this->view->setVar('measureArr',$this->getModel('dict')->find(['is_del=0 and parent_id=43','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('unitArr',$this->getModel('dict')->find(['is_del=0 and parent_id=37','columns'=>['name','id'],'order'=>'sort asc']));
+		$this->view->setVar('categoryArr',$this->getModel('category')->find(['is_del=0 and parent_id=0','columns'=>['name','id'],'order'=>'sort asc']));
+
+        /* 导航菜单 */
+        $this->view->menu=array('usersku/add'=>'常用商品添加','usersku/list'=>'常用商品列表');
+        
+	}
+
+	//显示商品列表
+    public function listAction()
+    {
+
+		//一级分类
+        $condition = 'is_del = 0';
+        //url初始化
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+
+        //搜索条件[用户名]
+        $user_id = $this->request->getQuery('user_id');
+        if(strlen(trim($user_id))){
+            $this->view->s_user_id = $user_id;
+            $condition .= ' and user_id='.$user_id; 
+            $url .= '&user_id='.$user_id;
+        }
+        //搜索条件[商品ID]
+        $sku_id = $this->request->getQuery('sku_id');
+        if(strlen(trim($sku_id))){
+            $this->view->s_sku_id = $sku_id;
+            $condition .= ' and sku_id ='.$sku_id; 
+            $url .= '&sku_id='.$sku_id;
+        }
+        //搜索条件[数据来源]
+        $platform = $this->request->getQuery('platform');
+        $platform = array_key_exists($platform, \Libs\Util::getPlatformList()) ? $platform :'app_liannong';
+        $this->view->s_platform = $platform;
+        $condition .= " and platform = '$platform'"; 
+        $url .= '&platform='.$platform;
+
+        $page = $this->request->getQuery('page');
+        $page = intval($page)< 0 ?1:intval($page);
+
+
+        $this->view->pagination = $this->pagination($this->getModel('userSku')->count(array($condition)), 10, $page, $url);
+        $this->view->sku = $this->getModel('userSku')->find(array($condition,'order'=>'ctime asc','limit'=>10,'offset'=>$this->view->pagination['offset']));
+    }
+
+    /* 添加商品到常用列表 */
+    public function addAction()
+    {
+        if($this->request->isPost()) {
+            $sku = $this->createModel('userSku');
+
+            $sku->user_id = 0;
+            $sku->sku_id = $this->request->getPost('sku_id');
+            $sku->sort = $this->request->getPost('sort');
+            
+            if($sku->save()) {
+                return $this->response->redirect("usersku/list");
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+    }
+
+    /* 修改商品 */
+    public function updateAction()
+    {
+        if($this->request->isPost()) {
+            $sku = $this->createModel('userSku')->findFirst($this->request->getQuery('id'));
+
+            $sku->sku_id = $this->request->getPost('sku_id');
+            $sku->sort = $this->request->getPost('sort');
+
+            if($sku->save()) {
+                return $this->response->redirect("usersku/list");
+            }else{
+                $this->view->messages = $sku->getError();
+            }
+        }
+
+        $skuid = intval($this->request->getQuery('id'));
+        $where = 'id = '.$skuid;
+        $this->view->sku = $this->getModel('userSku')->findFirst(array($where));
+    }
+
+    /* 删除商品 */
+    public function deleteAction()
+    {
+        $sku = $this->createModel('userSku')->findFirst($this->request->getPost('id'));
+        $sku->is_del = 1;
+        
+        if($sku->save()) {
+            $this->renderJson($sku);
+        }else{
+            $this->renderJson('',$sku->getError());
+        }
+    }
+
+}
+

@@ -1,0 +1,18 @@
+<?php
+namespace Models;
+
+class CityModel extends BaseModel
+{
+    public function getDb(){
+    //    $city = $this->getDI()['util']->getCity();
+        if(empty($city)){
+            if(!defined('CITY')){
+                $city = 'beijing';
+            }
+            else{
+                $city=CITY;
+            }
+        }
+        return $city;
+    }
+}

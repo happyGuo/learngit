@@ -1,0 +1,102 @@
+<div class="row row-bg">
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual yellow">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">已完成App订单收入</div>
+                <div class="value"><?php echo $money; ?>元</div>
+            </div>
+        </div>
+        <!-- /.smallstat -->
+    </div>
+    <!-- /.col-md-3 -->
+    <div class="col-sm-6 col-md-3">
+        <div class="statbox widget box box-shadow">
+            <div class="widget-content">
+                <div class="visual green">
+                    <i class="icon-dollar"></i>
+                </div>
+                <div class="title">已完成自助订单收入</div>
+                <div class="value"><?php echo $partner_money; ?>元</div>
+            </div>
+        </div>
+        <!-- /.smallstat -->
+    </div>
+    <!-- /.col-md-3 -->
+</div>
+
+<div>
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 已完成订单收入记录列表</h4>
+            <a title="" class="btn btn-xs bs-tooltip" href="amount/finish" <?php if(!$source){?>style="color:red" <?php } ?> data-original-title="全部">全部</a>
+            <a title="" class="btn btn-xs bs-tooltip" href="amount/finish?source=app" <?php if($source=='app'){?>style="color:red" <?php } ?> data-original-title="App订单">App订单</a>
+            <a title="" class="btn btn-xs bs-tooltip" href="amount/finish?source=partner" <?php if($source=='partner'){?>style="color:red" <?php } ?> data-original-title="自助订单">自助订单</a>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form action="" method="get" class="form-horizontal row-border">
+                <div class="form-group">
+                    <div class="col-md-12">
+                        <div class="row">
+                            <div class="col-md-2" style="margin-right: 10px;">
+                                <input type="text" name="start_time"
+                                       value="<?php echo isset($start_time) ? $start_time : ''; ?>"
+                                       class="form-control datepicker" placeholder="开始时间" readonly="readonly">
+                            </div>
+
+                            <div class="col-md-2">
+                                <input type="text" name="end_time"
+                                       value="<?php echo isset($end_time) ? $end_time : ''; ?>"
+                                       class="form-control datepicker" placeholder="结束时间" readonly="readonly">
+                            </div>
+
+                            <div class="col-md-2">
+                                <input type="submit" value="搜索" class="btn btn-info btn-block"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>订单号</th>
+                    <th>用户</th>
+                    <th>店铺</th>
+                    <th>金额（元）</th>
+                    <th>下单时间</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($list as $key => $value):?>
+                    <tr>
+                        <td><?=$value['id']?></td>
+                        <td><?=$value['subcontract']?></td>
+                        <td><?= isset($value['user']) ? $value['user']->real_name : ''; ?></td>
+                        <td><?=$value['shop_name']?></td>
+                        <td><?=$value['pay_amount']?></td>
+                        <td><?=$value['ctime']?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>

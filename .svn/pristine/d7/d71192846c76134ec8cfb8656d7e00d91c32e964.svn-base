@@ -1,0 +1,61 @@
+<?php
+namespace Models;
+class ShopSku extends CityModel
+{
+
+    public function getPartnerListByShop($shopId){
+        $condition = 'shop_id = '.$shopId.' and is_del = 0';
+        $columns = ['partner_id'];
+        $shopSku = $this->find(array($condition,'columns'=>$columns))->toArray();
+        $list = [];
+        foreach($shopSku as $val){
+            $list[$val['partner_id']]  = $this->mc->getPartner($val['partner_id']);
+        }
+        return $list;
+    }
+    public function getYkyjPartnerListByShop($shopId){
+        $condition = 'shop_id = '.$shopId.' and is_del = 0';
+        $columns = ['partner_id','category_id'];
+        $shopSku = $this->find(array($condition,'columns'=>$columns))->toArray();
+        $list = [];
+
+        foreach($shopSku as $val){
+
+            $list[$val['partner_id']]['partnerinfo']  = $this->mc->getPartner($val['partner_id']);
+
+            $list[$val['partner_id']]['category'][] = $this->mc->getCategory($val['category_id']);
+        }
+        return $list;
+    }
+
+    //得到配销商所有店铺
+    public function getShopListByPartnerId($partnerId = 0){
+        $where = 'is_del = 0 and partner_id = '.$partnerId;
+        $return = [];
+        if($this->count([$where,'group'=>'shop_id'])){
+            //店铺列表
+            $list = $this->find([$where,'group'=>'shop_id'])->toArray();
+
+            //过滤数据和判断用户状态
+            foreach ($list as $key => $val) {
+                $shopInfo = $this->mc->getShop($val['shop_id']);
+                $userInfo = $this->mc->getUser($shopInfo['user_id']);
+
+                if($userInfo['freeze']==0 && $userInfo['payment_freeze']==0 && isset($shopInfo['id'])){
+                    $return[] = $shopInfo;
+                }
+            }
+        }
+
+        return $return;
+    }
+
+
+    public function getParentIdByShopId($shopId){
+        $where = 'is_del = 0 and shop_id = '.$shopId;
+        $columns = ['partner_id'];
+        $list = $this->find(array($where,'columns'=>$columns))->toArray();
+        return $list;
+    }
+
+}

@@ -1,0 +1,18 @@
+<?php
+/**
+ * 支付日志模型
+ * User: xiaochuan
+ * Date: 2015/8/27
+ * Time: 17:43
+ */
+
+namespace Models;
+
+
+class PayLog extends BaseCollection
+{
+    public function getSource()
+    {
+        return "pay_log";
+    }
+}

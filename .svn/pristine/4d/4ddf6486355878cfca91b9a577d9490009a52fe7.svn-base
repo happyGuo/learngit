@@ -1,0 +1,21 @@
+<?php
+/**
+ * Setting up the view component
+ */
+$di->set('view', function () {
+    $view = new \Phalcon\Mvc\View();
+    $view->setViewsDir(__DIR__ . '/../views/');
+    return $view;
+});
+/**
+ * 注册手机支付宝支付类
+ */
+$di->set('mobileAlipay', function () use ($config) {
+    //合作身份者id，以2088开头的16位纯数字
+    $alipay_config['partner'] = $config->partner;
+    //收款支付宝账号
+    $alipay_config['seller_id'] = $config->partner;
+    $alipay = new \Libs\alipay\MobileAlipay($alipay_config, $config->notify_url, $config->return_url);
+    return $alipay;
+});
+

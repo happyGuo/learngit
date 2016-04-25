@@ -1,0 +1,124 @@
+<?php
+namespace Plugins;
+
+class Auth extends \Phalcon\Mvc\User\Plugin
+{
+    public $name;
+    public $db;
+
+    public function __construct()
+    {
+        switch (MODULE) {
+            case 'frontend':
+                $this->name = 'uid';
+                $this->db = 'user';
+                break;
+            case 'backend':
+                $this->name = 'admin_uid';
+                $this->db = 'admin';
+                break;
+            case  'partner':
+                $this->name = CITY . '_partner_uid';
+                $this->db = 'partner';
+                break;
+            default:
+                $this->name = $this->db = '';
+        }
+    }
+
+    public function onlyVerify($input, $user)
+    {
+        if (trim($this->crypt->decryptBase64($user->pwd)) == $input) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public function verify($input, $user)
+    {
+        //echo CITY;print_r($user->toArray());
+        if (trim($this->crypt->decryptBase64($user->pwd)) == $input) {
+            if ($this->cookies->has('remember-me')) {
+                $time = 30 * 3600 * 24;
+            } else {
+                $time = 15 * 60;
+            }
+
+            $this->saveSession($user, $time);
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //独立出来，以便注册的时候可以reuse
+    public function saveSession($user, $time = 3600)
+    {
+
+        $s = sha1(sha1($user->id) . md5(time()));
+
+        $this->cookies->set($this->name, $s, time() + 3600 * 24 * 365);
+        $u = $user->toArray();
+        unset($u['pwd']);
+
+        $this->cache->save($this->name . '_' . $s, $u['id'], $time);
+
+        return true;
+    }
+
+    public function isLogin()
+    {
+        return $this->getInfo() ? true : false;
+    }
+
+    public function refresh()
+    {
+        if ($data = $this->getInfo()) {
+            if (DEBUG) {
+                $time =  30 * 3600 * 24;
+            } else {
+                $time = 30 * 60;
+            }
+            $this->cache->save($this->getCookie(),$data['id'], $time);
+        }
+    }
+
+    public function getCookie()
+    {
+        return $this->name . '_' . trim($this->cookies->get($this->name)->getValue());
+    }
+
+    public function getInfo()
+    {
+        if(!$this->name)
+            return false;
+        if ($this->cookies->has($this->name)) {
+            $s = $this->cache->get($this->getCookie());
+           // var_dump($this->getCookie());exit;
+            if ($s) {
+                if(!is_numeric($s)){
+                    $this->clear();
+                    return false;
+                }
+                $tmp = $this->mc->getModel($this->db)->findById($s);
+                if(empty($tmp))
+                    return false;
+
+                unset($tmp['pwd']);
+                return $tmp;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public function clear()
+    {
+        $this->cache->delete($this->getCookie());
+    }
+
+}

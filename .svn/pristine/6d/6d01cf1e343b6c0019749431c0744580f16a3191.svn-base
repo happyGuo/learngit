@@ -1,0 +1,150 @@
+<?php
+namespace Models;
+class PartnerOperateLog extends CityModel
+{
+    //修改商品日志
+    public function partnerSkuUpdate($before,$data){
+
+         $mess = '';
+        //商品名称
+        if($data['name'] != $before['name']){
+            $mess.= '将商品名称:'.$before['name'].'修改为'.$data['name'].',';
+        }
+
+        //商品简介
+        if($data['remark'] != $before['remark']){
+            $mess.= '将商品简介:'.$before['remark'].'修改为'.$data['remark'].',';
+        }
+
+        //单价
+        if($data['unit_price'] != $before['unit_price']){
+            $mess.= '将单价:'.$before['unit_price'].'修改为'.$data['unit_price'].',';
+        }
+
+        //一级分类
+        if($data['parent_category_id'] != $before['parent_category_id']){
+            $f_rcate = $this->getModel('category')->findById($before['parent_category_id']);
+            $f_rname = $f_rcate['name'];
+            $f_cate = $this->getModel('category')->findById($data['parent_category_id']);
+            $f_cname = $f_cate['name'];
+            $mess.= '将二级分类'.$f_rname.'修改为'.$f_cname.',';
+        }
+        //二级分类
+        if($data['category_id'] != $before['category_id']){
+            $f_rname = $this->getModel('category')->findById($before['category_id']);
+            $rname = $f_rname['name'];
+            $f_cname = $this->getModel('category')->findById($data['category_id']);
+            $cname = $f_cname['name'];
+            $mess.= '将二级分类'.$rname.'修改为'.$cname.',';
+        }
+
+        //产地
+        if($data['origin'] != $before['origin']){
+            $mess.= '将产地'.$before['origin'].'修改为'.$data['origin'].',';
+        }
+
+        //规格
+        if($data['spec'] != $before['spec']){
+            $mess.= '将规格'.$before['spec'].'修改为'.$data['spec'].',';
+        }
+
+        //商品详细
+        if($data['content'] != $before['content']){
+            $mess.= '将商品详细'.$before['content'].'修改为'.$data['content'].',';
+        }
+
+        //单位
+        if($data['unit_id'] != $before['unit_id']){
+            $rname = $this->getModel('dict')->findById($before['unit_id'])['name'];
+            $uname = $this->getModel('dict')->findById($data['unit_id'])['name'];
+            $mess.= '将单位'.$rname.'修改为'.$uname.',';
+        }
+
+        //热销
+        if($data['hot'] != $before['hot']){
+            $mess.= '将商品['.$data['name'].']设为热销';
+        }
+
+        //新品
+        if($data['new'] != $before['new']){
+            $mess.= '将商品['.$data['name'].']设为新品';
+        }
+
+        //上下架
+        //上架
+        //print_r($before);print_r($this->is_del);die;
+        if(($before['is_del'] == 1) && ($data['is_del'] == 0)){
+            $mess.= '将商品['.$data['name'].']进行了上架操作';
+        }
+        //下架
+        if(($before['is_del'] == 0) && ($data['is_del'] == 1)){
+            $mess.= '将商品['.$data['name'].']进行了下架操作';
+        }
+        $partner = $this->getModel('partner')->findById($data['partner_id']);
+        $p_name = $partner['contact_name'];
+        $out=array();
+        $out['partner_id'] = $data['partner_id'];
+        $out['type'] = 'update';
+        $out['table'] = 'partnerSku';
+        $out['target_id'] = $data['id'];
+        $out['content'] = "".$p_name."修改了：<a href='partnersku/detail/".$data['id']."'>".$data['name']."</a>    的商品,".$mess;
+        //print_r($data);die;
+        $this->getModel('partnerOperateLog')->createOne($out);
+    }
+    //商品添加日志
+    public function partnerSkuCreate($data){
+        $res['partner_id'] = $data->partner_id;
+        $p_name = $this->getModel('partner')->findById($data->partner_id)['contact_name'];
+        $res['type'] = 'create';
+        $res['table'] = 'partnerSku';
+        $res['target_id'] = $data->id;
+        $res['content'] = "".$p_name."添加了一个名为：<a href='partnersku/detail/$data->id'>".$data->name."</a>    的商品";
+        $this->getModel('partnerOperateLog')->createOne($res); 
+    }
+     //添加店铺日志
+    public function shopCreate($data){
+
+        if($data['type'] == 1){
+            $partner_id = $data['creator_id'];
+            $partner = $this->getModel('partner')->findById($partner_id);
+            $p_name = $partner['contact_name'];
+            $res['partner_id'] = $partner_id;
+            $res['type'] = 'create';
+            $res['table'] = 'shop';
+            $res['target_id'] = $data['id'];
+            $res['content'] = "".$p_name."添加了一个ID为：".$data['id']."店铺名为：".$data['name']."</a>    的店铺,联系电话为".$data['contact_mobile']."";
+            $this->getModel('partnerOperateLog')->createOne($res);
+        }
+    }
+    //修改商铺日志
+    public function shopUpdate($before,$data){
+        $mess = '';
+         //客户名称
+        if($data['name'] != $before['name']){
+            $mess.= '将客户名称:'.$before['name'].'修改为'.$data['name'].',';
+        }
+        //联系人
+        if($data['contact_name'] != $before['contact_name']){
+            $mess.= '将联系人:'.$before['contact_name'].'修改为'.$data['contact_name'].',';
+        }
+        //最佳收货时间
+        if($data['best_time'] != $before['best_time']){
+            $mess.= '将最佳收货时间:'.$before['best_time'].'修改为'.$data['best_time'].',';
+        }
+        //地址
+        if($data['address'] != $before['address']){
+            $mess.= '将地址:'.$before['address'].'修改为'.$data['address'].',';
+        }
+        $partner = $this->getModel('partner')->findById($data['creator_id']);
+        $p_name = $partner['contact_name'];
+        $out=array();
+        $out['partner_id'] = $data['creator_id'];
+        $out['type'] = 'update';
+        $out['table'] = 'shop';
+        $out['target_id'] = $data['id'];
+        $out['content'] = "".$p_name."修改了ID为：".$data['id']."    的店铺,".$mess;
+        $this->getModel('partnerOperateLog')->createOne($out);
+    }
+
+}
+?>

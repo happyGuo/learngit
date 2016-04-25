@@ -1,0 +1,68 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: zyf
+ * Date: 15-3-26
+ * Time: 下午4:44
+ */
+namespace Apis;
+class BaseApi {
+    public $hc;
+    public $host;
+    public $port;
+    public $di;
+    public function __construct($di,$host,$port=80){
+        $this->di = $di;
+        $this->hc = new \Libs\HttpClient($host,$port);
+    }
+
+    public function get($url,$data=false){
+//        $ch = curl_init();
+//        //设置选项，包括URL
+//        curl_setopt($ch, CURLOPT_URL, $url);
+//        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+//        curl_setopt($ch, CURLOPT_HEADER, 0);
+//        //执行并获取HTML文档内容
+//        $output = curl_exec($ch);
+//        //释放curl句柄
+//        curl_close($ch);
+//        return $output;
+        $r= $this->hc->get($url,$data);
+        if($r!='ok'){
+            $this->warning(ENV.'环境请求远程GET请求['.$url.']失败');
+            return false;
+        }
+        return $r;
+    }
+
+    public function post($url,$data){
+//        $ch = curl_init();
+//        curl_setopt($ch, CURLOPT_URL, $url);
+//        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+//        // post数据
+//       curl_setopt($ch, CURLOPT_POST, 1);
+//       // post的变量
+//       curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+//       $output = curl_exec($ch);
+//       curl_close($ch);
+//            return $output;
+        $r = $this->hc->post($url,array('data'=>json_encode($data)));
+        if($r!='ok'){
+            //短信提醒报错
+
+            $this->warning(ENV.'环境请求远程POST请求['.$url.']失败，内容:'.$r.'.时间 '.date('Y-m-d H:i:s',time()));
+            return false;
+        }
+        return $r;
+
+    }
+
+    public function warning($msg){
+        //短信提醒报错
+        $cache = $this->di['cache']->get('oplog_warning');
+        if($cache===false){
+            \Libs\Util::sendEmail('zhangyifei@farmlink.cn','api报错', $msg);
+            $this->di['cache']->save('oplog_warning',1,3600*2);
+        }
+    }
+}

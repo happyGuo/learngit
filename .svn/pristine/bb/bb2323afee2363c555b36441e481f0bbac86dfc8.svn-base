@@ -1,0 +1,431 @@
+<?php
+namespace Models;
+class OrderSubcontract extends CityModel
+{
+
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'order_id',
+            'message' => '订单ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'order_sn',
+            'message' => '订单号不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'buy_amount',
+            'message' => '订单金额不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'partner_id',
+            'message' => '配销商ID不能为空'
+        )));
+
+
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    public function changeStatus($order_id, $status, $partner_id)
+    {
+        $order_id = trim($order_id, ',');
+        if(strstr($order_id, ',')){
+            $message = '';
+            $ids = '';
+            $subcontract = $this->find(array('conditions'=>'order_id in ('.$order_id.')'));
+            foreach ($subcontract as $key => $value) {
+                $ids .= $value->order_id.',';
+            }
+            $ids = trim($ids, ',');
+            $order = $this->getModel('Order')->find(array('conditions'=>'id in ('.$ids.')'));
+            foreach ($order as $key => $value) {
+                $userDevice = $this->getModel('userDevice')->findFirst(array('user_id=' . $value->user_id, 'order' => 'utime desc'));
+                if ($value->status == 3 || $value->status == 4) {
+                    $message .= '订单'.$value['order_sn'].'已取消';
+                    continue;
+                }
+                if ($status == 1) {
+                    $value->status = 1;
+                    $value->save();
+                    //极光推送           
+                    if (!empty($userDevice)) {
+                        $this->getModel('userPush')->sendJpush('order_processing', $value->user_id, $value->id);
+                    }
+                }
+                if($status == 2) {
+                     if (!empty($userDevice)) {
+                        $this->getModel('userPush')->sendJpush('delivery_reminder', $value->user_id, $value->id);
+                    }
+                }
+
+                if($status == 6){
+                    $value->status = 4;
+                    $value->save();
+                    if (!empty($userDevice)) {
+                        $this->getModel('userPush')->sendJpush('order_cancellation', $value->user_id, $value->id);
+                    }
+                }
+
+                $orders = $this->findFirst(array('order_id=' . $value->id . ' and partner_id=' . $partner_id));
+                if($orders->partner_id != $partner_id){
+                    continue ; 
+                }
+                if($status == 1){
+                    if($orders->status != 0){
+                        continue ; 
+                    }                    
+                }else if($status == 2){
+                    if($orders->status != 1){
+                        continue ; 
+                    }                   
+                }else{
+                    continue ;                     
+                }
+                $orders->status = $status;
+                if ($status == 1) {
+                    $orders->confirm_time = time();
+                } else if ($status == 2) {
+                    $orders->send_time = time();
+                }
+                if ($orders->save()) {
+                    $order_id = $orders->id;
+                    $message = '操作成功';
+                } else {
+                    $message = $orders->getError();
+                    $order_id = 0;
+                }
+            }        
+        }else{
+            $order = $this->getModel('Order')->findFirst($order_id);
+            $userDevice = $this->getModel('userDevice')->findFirst(array('user_id=' . $order->user_id, 'order' => 'utime desc'));
+            if ($order->status == 3 || $order->status == 4) {
+                $message = '该订单已取消';
+            }
+            if ($status == 1) {
+                $order->status = 1;
+                $order->save();
+                //极光推送           
+                if (!empty($userDevice)) {
+                    $this->getModel('userPush')->sendJpush('order_processing', $order->user_id, $order_id);
+                }
+            }
+
+            if($status == 2) {
+                 if (!empty($userDevice)) {
+                    $this->getModel('userPush')->sendJpush('delivery_reminder', $order->user_id, $order_id);
+                }
+            }
+
+            if($status ==  6){
+                $order->status = 4;
+                $order->save();
+            }
+            $orders = $this->findFirst(array('order_id=' . $order_id . ' and partner_id=' . $partner_id));
+            if($orders->partner_id != $partner_id){
+                return array('order_id' => 0, 'message' => '订单不可操作'); 
+            }
+            switch ($status) {
+                case 1:
+                    if($orders->status != 0){
+                        return array('order_id' => 0, 'message' => '操作有误'); 
+                    }
+                    break;
+                case 2:
+                    if($orders->status != 1){
+                        return array('order_id' => 0, 'message' => '操作有误'); 
+                    }
+                    break;
+                case 6:
+                    if($orders->status != 0 || $orders->platform != 'partner'){
+                        return array('order_id' => 0, 'message' => '操作有误');
+                    }
+                    break;
+                default:
+                    return array('order_id' => 0, 'message' => '操作有误');
+                    break;
+            }
+            $orders->status = $status;
+            if ($status == 1) {
+                $orders->confirm_time = time();
+            } else if ($status == 2) {
+                $orders->send_time = time();
+            }
+            if ($orders->save()) {
+                $order_id = $orders->id;
+                $message = '操作成功';
+            } else {
+                $message = $orders->getError();
+                $order_id = 0;
+            }
+        }
+        return array('order_id' => $order_id, 'message' => $message);
+    }
+
+
+    public function changeOrderStatus($order_id, $status, $partner_id)
+    {
+        $message = '';
+        $order_id = trim($order_id, ',');
+        if(strstr($order_id, ',')){
+            $ids = '';
+            $subcontract = $this->find(array('conditions'=>'order_id in ('.$order_id.')'));
+            foreach ($subcontract as $key => $value) {
+                $ids .= $value->order_id.',';
+            }
+            $ids = trim($ids, ',');
+            $order = $this->getModel('Order')->find(array('conditions'=>'id in ('.$ids.')'));
+            foreach ($order as $key => $value) {
+                $userDevice = $this->getModel('userDevice')->findFirst(array('user_id=' . $value->user_id, 'order' => 'utime desc'));
+                if ($value->status == 3 || $value->status == 4) {
+                    $message .= '订单'.$value['order_sn'].'已取消';
+                    continue;
+                }
+                if ($status == 1) {
+                    $value->status = 1;
+                    $value->save();
+
+                }
+
+                if($status == 6){
+                    $value->status = 4;
+                    $value->save();
+                }
+                $orders = $this->findFirst(array('order_id=' . $value->id . ' and partner_id=' . $partner_id));
+                if($orders->partner_id != $partner_id){
+                    continue ;
+                }
+                if($status == 1){
+                    if($orders->status != 0){
+                        continue ;
+                    }
+                }else if($status == 2){
+                    if($orders->status != 1){
+                        continue ;
+                    }
+                }else{
+                    continue ;
+                }
+                $orders->status = $status;
+                if ($status == 1) {
+                    $orders->confirm_time = time();
+                } else if ($status == 2) {
+                    $orders->send_time = time();
+                }
+                if ($orders->save()) {
+                    $order_id = $orders->id;
+                } else {
+                    $message = $orders->getError();
+                    $order_id = 0;
+                }
+            }
+        }else{
+            $order = $this->getModel('Order')->findFirst($order_id);
+            if ($order->status == 3 || $order->status == 4) {
+                $message = '该订单已取消';
+            }
+            if ($status == 1) {
+                $order->status = 1;
+                $order->save();
+
+            }
+
+
+            if($status ==  6){
+                $order->status = 4;
+                $order->save();
+            }
+            $orders = $this->findFirst(array('order_id=' . $order_id . ' and partner_id=' . $partner_id));
+            if($orders->partner_id != $partner_id){
+                $message = '订单不可操作';
+            }
+            switch ($status) {
+                case 1:
+                    if($orders->status != 0){
+                        $message = '操作有误';
+                    }
+                    break;
+                case 2:
+                    if($orders->status != 1){
+                        $message = '操作有误';
+                    }
+                    break;
+                case 6:
+                    if($orders->status != 0 || $orders->platform != 'partner'){
+                        $message = '操作有误';
+                    }
+                    break;
+                default:
+                    $message = '';
+                    break;
+            }
+            $orders->status = $status;
+            if ($status == 1) {
+                $orders->confirm_time = time();
+            } else if ($status == 2) {
+                $orders->send_time = time();
+            }
+            if ($orders->save()) {
+                $order_id = $orders->id;
+
+            } else {
+                $message = $orders->getError();
+                $order_id = 0;
+            }
+        }
+        return array('order' => $orders, 'message' => $message);
+    }
+
+    public function getInfo($id, $partner_id)
+    {
+        $info = array();
+        $order = $this->findById($id);
+        if($order['partner_id'] != $partner_id){
+            return NULL;
+        }
+        $orders = $this->getModel('order')->findById($order['order_id']);
+        $order['remark'] = $orders['remark'];
+        switch ($order['status']) {
+            case 0:
+                $order['status_key'] = '待收单';
+                break;
+            case 1:
+                $order['status_key'] = '已接单';
+                break;
+            case 2:
+                $order['status_key'] = '已发货';
+                break;
+            case 3:
+            case 5:
+            case 7:
+                $order['status_key'] = '已收货';
+                break;
+            case 4:
+                $order['status_key'] = '已拒收';
+                break;
+            case 6:
+                $order['status_key'] = '已取消';
+                break;
+        }
+        if($order['platform'] == 'partner'){
+            $order['order_type_key'] = '自助订单';
+            $order['order_type'] = 'self';
+        }else{
+            $order['order_type_key'] = '下发订单';
+            $order['order_type'] = 'app';
+        }
+        $order['shop_name'] = $this->mc->getShop($order['shop_id'])['name'];
+        $sku_list = $this->getModel('OrderSku')->find(array("order_id='". $orders['id'] ."' and is_del=0 and partner_id=".$partner_id))->toArray();
+        $info['order'] = $order;
+        $info['sku_list'] = $sku_list;
+        return $info;
+    }
+
+    public function getSumAmount($condition)
+    {
+        $conditions = array();
+        $conditions['conditions'] = $condition;
+        $conditions["columns"] = "sum(pay_amount) amount";
+        $moneyObj = $this->getModel("OrderSubcontract")->findFirst($conditions);
+        return $moneyObj->amount ? $moneyObj->amount : 0;
+    }
+
+    public function getList($conditions, $status = NULL)
+    {
+        if(is_array($status)){
+            $status = implode(',', $status);
+            $conditions['conditions'] .= ' and status in ('.$status.')';         
+        }else if(!empty($status) || $status === 0){
+            $conditions['conditions'] .= ' and status='.$status;
+        }
+        $order = $this->find($conditions)->toArray();
+
+        if($order){
+            $sum_price = 0;
+            foreach ($order as $key => $value) {
+                $sum_price += $value['buy_amount'];
+                $order['sum_price'] = $sum_price;
+                $order[$key]['shop_name'] = $this->mc->getShop($value['shop_id'])['name'];
+                if ($value['pay_type'] == 1) {
+                    $order[$key]['pay_type_key'] = '货到付款';
+                } else {
+                    $order[$key]['pay_type_key'] = '余额支付';
+                }
+                if($value['platform'] == 'partner'){
+                    $order[$key]['order_type_key'] = '自助订单';
+                    $order[$key]['order_type'] = 'self';
+                }else{
+                    $order[$key]['order_type_key'] = '下发订单';
+                    $order[$key]['order_type'] = 'app';
+                }
+                $order[$key]['ctime'] = date('m-d H:i:s', $value['ctime']);
+                $order[$key]['utime'] = date('m-d H:i:s', $value['utime']);
+                switch ($value['status']) {
+                    case 0:
+                        $order[$key]['status_key'] = '待收单';
+                        break;
+                    case 1:
+                        $order[$key]['status_key'] = '已接单';
+                        break;
+                    case 2:
+                        $order[$key]['status_key'] = '已发货';
+                        break;
+                    case 3:
+                    case 5:
+                    case 7:
+                        $order[$key]['status_key'] = '已收货';
+                        break;
+                    case 4:
+                        $order[$key]['status_key'] = '已拒收';
+                        break;
+                    case 6:
+                        $order[$key]['status_key'] = '已取消';
+                        break;
+                }                
+            }
+        }
+        return $order;
+    }
+
+    public function getCount($conditions, $status)
+    {
+        if(is_array($status)){
+            $status = implode(',', $status);
+            $conditions['conditions'] .= ' and status in ('.$status.')';          
+        }else if(!empty($status) || $status === 0){
+            $conditions['conditions'] .= ' and status='.$status;
+        }
+
+        return $this->count($conditions);
+    }
+
+//    public function afterUpdate()
+//    {
+//        if (in_array($this->getSource(), self::$cacheTable)){
+//            $this->cacheMetaData();
+//        }
+//        $orders = $this->getModel('OrderSubcontract')->findFirst('id ='.$this->id)->toArray();
+//        $partner_id = $orders['partner_id'];
+//        $status = $this->status;
+//        $p_name = $this->getModel('partner')->findById($partner_id)['contact_name'];
+//        $data['partner_id'] = $partner_id;
+//        $data['type'] = 'update';
+//        $data['table'] = 'order';
+//        $data['target_id'] = $this->id;
+//        if($status == 2){
+//            $data['content'] = "".$p_name."将订单号为：".$this->order_sn."    执行发货操作";
+//        }
+//        $this->getModel('partnerOperateLog')->createLog($data);
+//
+//    }
+
+}

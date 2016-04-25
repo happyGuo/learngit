@@ -1,0 +1,11 @@
+<?php
+namespace Modules\App\Controllers\C;
+
+class UserController extends CAppController
+{
+    public function indexAction()
+    {
+        return $this->renderJson(array('key'=>4444));
+    }
+}
+

@@ -1,0 +1,286 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class UserController extends BackendController
+{
+     public function initialize(){
+        parent::initialize();
+    }
+	/*
+    Function:显示用户列表
+    author：宿伟
+    date：2015/7/28
+    */
+    public function listAction(){
+        $select = $this->request->getQuery('select');
+        $keyword = $this->request->getQuery('keyword');
+        $is_del = $this->request->getQuery('is_del');
+        $where = 'is_del=0 and city="'.CITY.'"' ;
+        if($select == 'id' && is_numeric($keyword)){
+            $where .= ' and id = '.$keyword;
+        }elseif($select == 'real_name'){
+            $where .= " and real_name like '%".$keyword."%'";
+        }elseif($select == 'mobile'){
+             $where .= " and mobile = ".$keyword."";
+        }elseif($select == 'free_d'){
+             $where .= " and freeze = 1";
+        }elseif($select == 'free_j'){
+             $where .= " and freeze = 0";
+        }
+        $type = $this->request->getQuery('type') ? $this->request->getQuery('type') : 0;
+        if($type){
+            $where .= ' and type= '.$type;
+        }else{
+            $where .= ' and type = '.$type;
+        }
+        $user = $this->getModel('user')->find(array($where,"order"=>"id desc"));
+        $total = $this->getModel('user')->count($where);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/list?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del.'&type='.$type;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('user')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        $this->view->setVar("select", $select);
+        $this->view->setVar("keyword", $keyword);
+        $this->view->setVar("type", $type);
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->type = $type;
+        $this->view->user = $pageactvt;
+    }
+
+   /*
+    Function:删除用户(逻辑删除)
+    author：宿伟
+    date：2015/7/28
+    */
+    public function deleteAction(){
+        $uid = $this->request->getPost('userId');
+        $where = 'user_id ='.$uid.' and is_del = 0';
+        $shop = $this-> getModel('shop')->findFirst($where);
+        if($shop){
+            echo 2;die;
+        }
+        $res = $this->getModel('user')->deleteOne($uid);
+        if($res['error']) {
+            echo $res['error'];die;
+        }else{
+            echo 1;die;
+        }
+    }
+
+    /*
+    Function:修改用户信息
+    author：宿伟
+    date：2015/7/28
+    */
+    public function updateAction(){
+        if($this->request->isPost()) {
+            $user = $this->getModel('user')->findFirst($this->request->getPost('id'));
+            
+            $data['real_name'] = $this->request->getPost('real_name');
+            $data['mobile'] = $this->request->getPost('mobile');
+            $data['sex'] = $this->request->getPost('sex');
+            $type = $this->request->getPOst('type');
+            if($type == 0){
+                $data['credit_line'] = $this->request->getPost('credit_line');
+                $data['pay_day_id'] = $this->request->getPost('pay_day_id');
+                $data['sale_id'] = $this->request->getPost('sale_id');
+            }
+            if($this->request->getPost('pwd')){
+                $data['before_pwd'] = $this->request->getPost('pwd');
+            }
+            $res = $this->getModel('user')->updateOne($this->request->getPost('id'),$data);
+            if($res['error']) {
+                $message = $res['error'];
+            }else{
+                if($type == 0){
+                    return $this->response->redirect("user/list?type=0"); 
+                }else{
+                    return $this->response->redirect("user/list?type=1"); 
+                }
+                
+            }
+        }
+        $userid = intval($this->request->getQuery('userid'));
+        $where = 'id = '.$userid;
+        $this->view->user = $this->getModel('user')->find(array($where,"limit"=>1)); 
+        $this->view->type = $this->request->getQuery('type');
+        $this->view->messages = $message;
+    }
+
+    /*
+    function :查看用户详情
+    author：宿伟
+    date：2015/08/04
+    */
+
+    public function detailAction(){
+        $this->view->type = $this->request->getQuery('type');
+        $this->view->user = $this->getModel('user')->findById($this->request->getQuery('userid'));
+    }
+	 /*
+    function :创建用户
+    author：崔萌泽
+    date：2015/08/05
+    */
+	 public function createAction(){
+        $user = $this->createModel('user');
+
+		if($this->request->isPost()) {
+            $user->real_name = $this->request->getPost('real_name');
+            $user->sale_id = $this->request->getPost('sale_id');
+            $user->before_pwd = $this->request->getPost('pwd');
+            $user->mobile = $this->request->getPost('mobile');
+            $user->is_del = 0;
+            if($user->save()){
+                $this->response->redirect("user/list");
+            }else{
+                $message = $user->getError();
+            }
+        }
+        $this->view->messages = $message;
+	}
+
+    /*
+    function:查看已删除用户
+    author:宿伟
+    date:2015/08/20
+    */
+    public function catdeluserAction(){
+        $this->view->menu=array('user/list'=>'查看未删除用户');
+        $select = $this->request->getQuery('select');
+        $keyword = $this->request->getQuery('keyword');
+        $is_del = $this->request->getQuery('is_del');
+        $where = 'is_del=1';
+        if($select == 'id' && is_numeric($keyword)){
+            $where .= ' and id = '.$keyword;
+        }elseif($select == 'real_name'){
+            $where .= " and real_name like '%".$keyword."%'";
+        }elseif($select == 'mobile'){
+             $where .= " and mobile = ".$keyword."";
+        }
+        $user = $this->getModel('user')->find(array($where,"order"=>"id desc"));
+        $total = count($user);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/search?select='.$select.'&keyword='.$keyword.'&is_del='.$is_del;
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('user')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        $this->view->setVar("select", $select);
+        $this->view->setVar("keyword", $keyword);
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->user = $pageactvt;
+    }
+    /*
+    function:恢复已删除用户
+    author:宿伟
+    date:2015/08/20
+    */
+    public function recoveruserAction(){
+        $res = $this->getModel('user')->updateOne($this->request->getPost('id'),array('is_del'=>0));
+        if($res['error']){
+            return $res['error'];
+        }else{
+            return true;
+        }
+    }
+
+    /*
+    Function:显示用户设备列表
+    author：宿伟
+    date：2015/08/10
+    */
+    public function deviceAction(){
+        //搜索条件初始化
+        $where = ' 1=1';
+        $search = $this->request->getQuery('search');
+        $select = $this->request->getQuery('select');
+         //查询条件
+        if($select == 'id' && is_numeric($search)){
+            $where .= ' and user_id = '.$search;
+        }elseif($select == 'mobile'){
+            $where .= " and mobile = '".$mobile."'";
+        }
+        if($this->request->getQuery('type')){
+            $where .= " and device_type = '".$this->request->getQuery('type')."'";
+        }
+        $device = $this->getModel('userDevice')->find(array($where));
+        $total = count($device);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/device';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageactvt = $this->getModel('userDevice')->find(array($where,"limit"=>$limit, "offset"=>$pageary['offset'],'order'=>'utime desc'));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->setVar('search', $search);
+        $this->view->setVar('select', $select);
+        $this->view->item = $pageactvt;
+    }
+
+    /*
+    function:后台强制前台用户登出
+    author:宿伟
+    date:2015/08/10    
+     */
+     public function logoutAction(){
+        $data['access_token'] = '';
+        $res = $this->getModel('userDevice')->updateOne($this->request->getQuery('userid'),$data);
+        return $this->response->redirect("user/device");
+    }
+
+    /*
+    Function:显示推送列表
+    author：宿伟
+    date：2015/8/11
+    */
+    public function userpushAction(){
+        $userpush = $this->getModel('userPush')->find(array("order"=>"id desc"));
+        $total = count($userpush);
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $url = 'user/userpush';
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $where = ' 1=1';
+        $pageactvt = $this->getModel('userPush')->find(array($where, "limit"=>$limit, "offset"=>$pageary['offset'], "order"=>"id desc"));
+        $this->view->setVar("page", $pageary['html']);
+        $this->view->userpush = $pageactvt;
+    }
+    /*
+    Function:冻结用户
+    author：cmz
+    date：2015/9/9
+    */
+    public function ajaxfrostAction(){
+        $id = intval($this->request->getPost('id'));
+        $user = $this->getModel('user')->findFirst($id);
+        $user->freeze = 1;
+        if($user->save()) {
+           echo 1;exit();
+        }else{
+           echo 2;exit();
+        }
+    }
+     /*
+    Function:解冻用户
+    author：cmz
+    date：2015/9/9
+    */
+    public function ajaxthawAction(){
+        $id = intval($this->request->getPost('id'));
+        $user = $this->getModel('user')->findFirst($id);
+        $user->freeze = 0;
+        if($user->save()) {
+           echo 1;exit();
+        }else{
+           echo 2;exit();
+        }
+    }
+    /*账单详情*/
+    public function billAction()
+    {
+        $uid=intval($this->request->getQuery('userid'));
+        $where="user_id=$uid";
+        $list=$this->getModel('UserBill')->find(array($where,'order'=>'id desc'))->toArray();
+        $this->view->list=$list;
+    } 
+}

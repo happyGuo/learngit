@@ -1,0 +1,199 @@
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i> 订单统计</h4>
+
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <form class="form-horizontal" action="" method="get"
+                  onsubmit="return checkform()">
+                <div class="form-group col-md-5">
+                    <label class="col-md-4 control-label">搜索分类：</label>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6" style="padding: 0;">
+                                <select name="type" class="form-control">
+                                    <option <?php if($type==0){?> selected <?php }?>  value="0">全部</option>
+                                    <option <?php if($type==1){?> selected <?php }?> value="1" >订单状态</option>
+                                    <option <?php if($type==2){?> selected <?php }?> value="2" >店铺名称</option>
+                                    <option <?php if($type==3){?> selected <?php }?> value="3" >配销商代码</option>
+                                    <option <?php if($type==4){?> selected <?php }?> value="4" >配销商名称</option>
+                                    <option <?php if($type==5){?> selected <?php }?> value="5" >销售人员编号</option>
+                                    <option <?php if($type==6){?> selected <?php }?> value="6" >销售人员</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5" style="padding: 0;">
+                                <select class="form-control" name="status" style="display:none">
+                                    <option <?php if($status==0){?> selected <?php }?> value="0">待确认</option>
+                                    <option <?php if($status==1){?> selected <?php }?> value="1">确认</option>
+                                    <option <?php if($status==2){?> selected <?php }?> value="2">发货</option>
+                                    <option <?php if($status==3){?> selected <?php }?> value="3">确认收货</option>
+                                    <option <?php if($status==4){?> selected <?php }?> value="4">拒绝收货</option>
+                                    <option <?php if($status==5){?> selected <?php }?> value="5">系统确认收货</option>
+                                    <option <?php if($status==6){?> selected <?php }?> value="6">已取消</option>
+                                    <option <?php if($status==7){?> selected <?php }?> value="7">货到付款已到账</option> 
+                                </select>
+                                <input type="text" name="objs" class="form-control" value="<?php echo $objs;?>" />
+                                
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group col-md-5">
+                    <label class="col-md-4 control-label">日期：</label>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" name="start_time" readonly="readonly" class="form-control datepicker"
+                                       placeholder="起始日期" value="<?= isset($start_time) ? $start_time : '' ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="end_time" readonly="readonly" class="form-control datepicker"
+                                       placeholder="结束日期" value="<?= isset($end_time) ? $end_time : '' ?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group col-md-2">
+                    <label class="col-md-4 control-label"></label>
+                    <input type="submit" value="搜索" class="btn btn-primary">
+                </div>
+                <div class="form-group col-md-1">
+                    <a href="<?php echo $this->url->get('order/stat', array('print'=>1,'start_time'=>$start_time,'end_time'=>$end_time,'type'=>$type,'status'=>$status,'objs'=>$objs)); ?>"><input type="button" value="导出" class="btn btn-primary" ></a>
+                </div>
+            </form>
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>订单号</th>
+                    <th>收货人</th>
+                    <th>用户类型</th>
+                    <th>店铺</th>
+                    <th>电话</th>
+                    <th>订单金额</th>
+                    <th>下单渠道</th>
+                    <th>实际支付金额</th>
+                    <th>下单时间</th>
+                    <th>销售人员编号</th>
+                    <th>销售人员</th>
+                    <th>区域代码</th>
+                    <th>所属区域</th>
+                    <th>配销商代码</th>
+                    <th>配销商名称</th>
+                    <th>订单状态</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php
+                foreach ($order as $k => $v) { 
+                  $shop=$this->mc->getShop($v['shop_id']);  
+                  $sale_id=$this->mc->getUser($v['user_id'])['sale_id'];
+                  $sale=array();
+                  if(!empty($sale_id)){
+                      $sale=$this->mc->getAdmin($sale_id);
+                      if(!empty($sale['area'])){
+                          $area=$this->mc->getModel('Region')->findById($sale['area']);
+                      }
+                  }
+                  
+                  if($v['platform']=='backend'){
+                      $platform='运营后台';
+                  }elseif($v['platform']=='partner'){
+                      $platform='桃园系统';
+                  }elseif($v['platform']=='app_liannong'){
+                      $platform='统一定价APP';
+                  }elseif($v['platform']=='app_ykyj'){
+                      $platform='一客一价APP';
+                  }elseif($v['platform']=='app_partner'){
+                      $platform='配销商APP';
+                  }
+                  
+                    ?>
+                    <tr>
+                        <td><?php echo $v['id']; ?></td>
+                        <td><?php echo $v['subcontract']; ?></td>
+                        <td><?php echo $shop['contact_name']; ?></td>
+                        <td><?php echo ($v['user_type']==0)?'平台用户':'配销商用户'; ?></td>
+                        <td><?php echo $shop['name'] ?></td>
+                        
+                        <td><?php echo $shop['contact_mobile']; ?></td>
+                        <td><?php echo $v['buy_amount']; ?></td>
+                        <td><?php echo $platform; ?></td>
+                        <td><?php echo $v['pay_amount']; ?></td>
+                        <td><?php echo date('Y-m-d H:i:s', $v['ctime']); ?></td>
+                        <td><?php echo !empty($sale['code'])?$sale['code']:'';?></td>
+                        <td><?php echo !empty($sale['real_name'])?$sale['real_name']:'';?></td>
+                        <td><?php echo !empty($area['zip'])?$area['zip']:'';?></td>
+                        <td><?php echo !empty($area['local_name'])?$area['local_name']:'';?></td>
+                        <td></td>
+                        <td><?php echo $this->mc->getPartner($v['partner_id'])['mobile'];?></td>
+                       
+                        <td><?php
+                            switch ($v['status']) {
+                                case 0:
+                                    echo "待确认";
+                                    break;
+                                case 1:
+                                    echo "确认";
+                                    break;
+                                case 2:
+                                    echo "收货";
+                                    break;
+                                case 3:
+                                    echo "确认收货";
+                                    break;
+                                case 4:
+                                    echo "拒绝收货";
+                                    break;
+                                case 5:
+                                    echo "系统确认收货";
+                                    break;
+                                case 6:
+                                    echo "已取消";
+                                    break;
+                                case 7:
+                                    echo "货到付款已到账";
+                                    break;
+                            }
+                            ?>
+                        </td>
+                        
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+            <div class="row">
+                <div class="table-footer">
+                    <div class="col-md-12">
+                        <?php echo $page; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+    $("select[ name=type]").change(function () {
+        if ($(this).val() == 1) {
+            $("select[name=status]").show();
+            $("input[name=objs]").hide();
+           
+        }else{
+            $("select[name=status]").hide();
+            $("input[name=objs]").show();
+        }
+    });
+    
+</script>

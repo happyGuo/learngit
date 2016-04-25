@@ -1,0 +1,101 @@
+<div class="tabbable tabbable-custom tabbable-full-width">
+	<ul class="nav nav-tabs">
+		<li <?php if(!$type){?>class="active"<?php }?>><a data-toggle="tab" onclick="gohre()" href="javascript:void(0)">用户充值核销未审核列表<span></span></a></li>
+		<li <?php if($type == 1){?>class="active"<?php }?>><a onclick="gohref()"  data-toggle="tab" href="javascript:void(0)">订单核销待审核列表<span></span></a></li>
+	</ul>
+	</div>
+
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<?php if($type == 0){?>
+				<h4><i class="icon-reorder"></i> 用户充值核销未审核列表</h4>
+			<?php }else{?>
+				<h4><i class="icon-reorder"></i> 订单核销待审核列表</h4>
+			<?php } ?>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<?php if($type==0){ ?>
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">充值用户</th>
+						<th class="align-center">充值金额</th>
+						<th class="align-center">创建时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($recharge as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>	
+						<td><?php echo $this->mc->getUser($v->user_id)['real_name']; ?></td>
+						<td><?php echo \Libs\Util::moenyConversion($v->amount); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<a href='<?php echo $this->url->get('verification/list',array('id'=>$v->id,'type'=>$type))?>' class="btn btn-xs bs-tooltip" title="核销详情">核销详情</a>
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<?php }else{ ?>
+				<table class="table table-hover table-striped table-bordered table-highlight-head">
+					<thead>
+					<tr>
+						<th class="align-center">订单ID</th>
+						<th class="align-center">订单批次号</th>
+						<th class="align-center">客户ID</th>
+						<th class="align-center">订单金额</th>
+						<th class="align-center">创建时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+					</thead>
+					<tbody>
+					<?php foreach($recharge as $k=>$v) { ?>
+						<tr class="align-center">
+							<td><?php echo $v->id; ?></td>
+							<td><?php echo $v->subcontract; ?></td>
+							<td><?php echo $this->mc->getUser($v->user_id)['real_name']; ?></td>
+							<td><?php echo \Libs\Util::moenyConversion($v->pay_amount);  ?></td>
+							<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+							<td class="align-center">
+							<span class="btn-group">
+								<a href='<?php echo $this->url->get('verification/list',array('id'=>$v->subcontract,'type'=>$type))?>' class="btn btn-xs bs-tooltip" title="核销详情">核销详情</a>
+							</span>
+							</td>
+						</tr>
+					<?php } ?>
+					</tbody>
+				</table>
+			<?php } ?>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+		<div id="message" style="display: none;"><input class="form-control" type='text' name='comfirm_remark'></div>
+<!-- /Page Content -->
+<script>
+	function gohre(){
+		location.href = 'recharge/account?type=0';
+	}
+	function gohref(){
+		location.href = 'recharge/account?type=1';
+	}
+</script>

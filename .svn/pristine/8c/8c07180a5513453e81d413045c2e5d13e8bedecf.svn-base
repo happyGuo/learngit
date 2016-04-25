@@ -1,0 +1,59 @@
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+    function show() {
+        document.getElementById("main_img").style.width = document.body.offsetWidth-50 + "px";
+    }
+    window.onresize = show;
+//-->
+</SCRIPT>
+<!DOCTYPE html>
+<base url='/'>
+<html><head>
+        <meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="/css/app/css/peak-6.css" media="all">
+<title>关于我们</title>
+        <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+		<meta content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+        <!-- Mobile Devices Support @begin -->
+            <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+            <meta content="no-cache,must-revalidate" http-equiv="Cache-Control">
+            <meta content="no-cache" http-equiv="pragma">
+            <meta content="0" http-equiv="expires">
+            <meta content="telephone=no, address=no" name="format-detection">
+            <meta name="apple-mobile-web-app-capable" content="yes"> <!-- apple devices fullscreen -->
+            <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <!-- Mobile Devices Support @end -->
+        <link rel="shortcut icon" href="http://stc.mp.wokeyun.net/img/favicon.ico">
+        <style>
+            img{max-width:100%!important;}
+        </style>
+    </head>
+    <body onLoad="show()">
+		<div class="body">
+		<br>
+		<img src="/public/image/about_us.jpg" id="main_img" />
+			<section class="section_body">
+					<article class="article">
+						<div class="content">
+							<p class="MsoNormal">
+								<strong><span style="font-size:18px;"><br>
+							</span></strong> 
+							</p>
+							<p class="MsoNormal">
+								<span style="font-size:18px;line-height:27px;"><b><span style="color:#FFFFFF;background-color:#337FE5;"><a href="http://www.farmlink.cn/" target="_blank">点击进入官方网站</a><span id="__kindeditor_bookmark_end_22__"></span></span></b></span>
+							</p>
+							<p class="MsoNormal">
+								<span></span><span></span> 
+							</p>	
+						</div>
+					</article>
+			</section>
+			<section style="width:95%; margin:0px auto;">
+
+			</section>
+			<div style="padding-bottom:0!important;">
+				<a href="javascript:window.scrollTo(0,0);" style="font-size:12px;margin:5px auto;display:block;color:#fff;text-align:center;line-height:35px;background:#333;margin-bottom:-10px;">返回顶部</a>
+			</div>
+		</div>
+	</body>
+</html>

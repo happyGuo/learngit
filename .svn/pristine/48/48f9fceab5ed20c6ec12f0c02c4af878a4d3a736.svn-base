@@ -1,0 +1,424 @@
+<?php
+
+/*
+ * author: 柯茂
+ * description: 余额充值,配销商提现
+ * 
+ */
+
+namespace Modules\Backend\Controllers;
+
+class BalanceController extends BackendController {
+
+    //余额充值
+    public function rechargeAction() {
+        if ($this->request->isPost()) {
+            //前台用户id
+            $data['user_id'] = $this->request->getQuery('userid');
+            //后台用户id
+            $data['userid'] = $this->currentUser['id'];
+            $data['amount'] = $amount = abs(floatval($this->request->getPost('amount')));
+            $this->view->setVar('userid', $data['userid']);
+            //验证充值金额是否为空
+            if ($amount == 0) {
+                $this->view->messages = '充值金额为零';
+                return;
+            } elseif (!(preg_match('/^[0-9]+(.[0-9]{1,2})?$/', $amount))) {
+                $this->view->messages = '请保留小数点后两位';
+                return;
+            }
+
+            $password = $this->request->getPost('pwd');
+            $data['creator_id'] = $this->currentUser['id'];
+            if ($this->request->getPost('pay_sn')) {
+                $data['pay_sn'] = $this->request->getPost('pay_sn');
+                if (!preg_match('/^[a-zA-z0-9]+$/', $this->request->getPost('pay_sn'))) {
+                    $this->view->messages = '流水号格式不正确';
+                    return;
+                }
+            }
+            // if ($this->request->getPost('remark')) {
+            //     $data['remark'] = $this->request->getPost('remark');
+            //     if (!preg_match("/^([\x{4e00}-\x{9fa5}]+)\+(\d{4})\+[a-zA-z0-9]+$/u", $this->request->getPost('remark'))) {
+            //         $this->view->messages = array('备注格式不正确');
+            //         return;
+            //     }
+            // }
+            $data['type'] = 0;
+
+//            $admin = $this->getModel('admin')->findFirst($this->currentUser['id']);
+//            if ($admin) {
+//                if ($admin->is_del == 1) {
+//                    $this->view->messages = '该用户已删除';
+//                } elseif ($this->auth->onlyVerify($password, $admin)) {
+                    // 限制充值金额
+                    // $user = $this->getModel('user')->findById($data['user_id'],false);
+                    // if (($user->balance + $amount) <= 0) {
+                    //     $this->view->messages = array('您最少需要充值' . abs($user->balance));
+                    //     return;
+                    // }
+                    $res = $this->getModel('balanceFlow')->createFlow($data);
+                    $message['type'] = 0;
+                    $message['info'] = "充值成功！";
+                    $this->view->messages = $message;
+                    return $this->response->redirect("verification/confirm?id=".$res['id']);
+//                } else {
+//                    $this->view->messages = '密码错误';
+//                }
+//            }
+        }
+        $userid = $this->request->getQuery('userid');
+        $userInfo = $this->getModel('user')->findById($userid);
+        $shopInfo = $this->getModel('shop')->findFirst('user_id =' . $userInfo['id']);
+        if (empty($shopInfo)) {
+            $shopInfo->name = '';
+        }
+        $this->view->user = $userInfo;
+        $this->view->shop = $shopInfo;
+        $this->view->setVar('userid', $userid);
+    }
+
+    //配销商提现
+    public function withdrawAction() {
+        if ($this->request->isPost()) {
+            $data['amount'] = $amount = abs(floatval($this->request->getPost('amount')));
+            $password = $this->request->getPost('pwd');
+            $data['partner_id'] = $this->request->getPost('partnerid');
+            $data['status'] = 0;
+            $data['op_id'] = $this->currentUser['id'];
+            $message = '';
+            $admin = $this->getModel('admin')->findById($data['op_id'], false);
+            if ($admin) {
+                if ($this->auth->onlyVerify($password, $admin)) {
+                    $this->view->messages = $this->getModel('partnerWithdraw')->doWithdraw($data);
+                } else {
+                    $this->view->messages = '密码错误';
+                }
+            }
+            $this->view->setVar('partnerid', $data['partner_id']);
+            $this->view->setVar('withdraw_balance', $partner->withdraw_balance);
+        }
+        $partnerid = $this->request->getQuery('partnerid');
+        $partner = $this->getModel('partner')->findFirst(array('id=' . $partnerid));
+        $this->view->setVar('withdraw_balance', $partner->withdraw_balance);
+        $this->view->setVar('partnerid', $partnerid);
+    }
+
+    /**
+     * @Function:收支统计显示
+     * @author：chuan
+     * @date：2015/8/4
+     */
+    public function statisticsAction() {
+        $type = $this->request->getQuery('type');
+        $startTime = \Libs\Util::getStartUnixTime($type);
+        if ($type == 1) { //昨日
+            $endTime = \Libs\Util::getStartUnixTime();
+        }
+        $arr['>='] = $startTime;
+        if (isset($endTime) and $endTime > 0) {
+            $arr['<'] = $endTime;
+        }
+        //订单数量
+        $newTotalNum = $this->getModel('order')->count("is_del=0 and ctime>=$startTime" . ($endTime ? ' and ctime<' . $endTime : ''));
+        //充值金额
+        $incomeMoney = $this->getModel('BalanceFlow')->getSumAmount(0, 0, 0, 0, $arr);
+        //流出金额
+        $outMoney = $this->getModel('BalanceFlow')->getSumAmount(3, 0, 0, 0, $arr);
+        //交易金额
+        $dealMoney = $this->getModel('BalanceFlow')->getSumAmount(array(1, 2), 0, 0, 0, $arr);
+        //冻结金额
+        $freezeMoney = $this->getModel('BalanceFlow')->getSumAmount(1, 0, 0, 0, $arr);
+        //视图参数
+        $this->view->type = $type;
+        $this->view->newTotalNum = $newTotalNum;
+        $this->view->incomeMoney = $incomeMoney;
+        $this->view->outMoney = $outMoney;
+        $this->view->dealMoney = $dealMoney;
+        $this->view->freezeMoney = $freezeMoney;
+    }
+
+    /**
+     * @Function:收支明细 ===》流入流出 or 资金交易
+     * @request get请求 type=0流入流出  type=1资金交易
+     * @author：chuan
+     * @date：2015/8/4
+     */
+    public function detailAction() {
+        $type = $this->request->getQuery('type'); //0流入流出  1资金交易
+        $page = $this->request->getQuery('page');
+        $uId = $this->request->getQuery('uid'); //用户ID
+        $searchType = $this->request->getQuery('s_type'); //类型
+        $this->view->s_type = $searchType;
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        //查询金额变化记录
+        $balanceType = 'all';
+        //根据类型查询
+        if ($searchType != 0) {
+            $type = (in_array($searchType, array(1, 2, 4, 5, 6))) ? 1 : ($searchType == 3 ? 2 : 0);
+            $searchType = ($searchType == -1) ? 0 : $searchType;
+            $balanceType = $searchType;
+        } else {
+            if ($type == 1) {
+                $balanceType = '1,2,4,5,6'; //资金交易
+            } else if ($type == 2) {
+                $balanceType = '3'; //提现
+            } else {
+                $balanceType = '0'; //充值
+            }
+        }
+        $url = $this->url->get($this->currentAction, array('type' => $type));
+        $where = "is_del=0 and type in($balanceType)";
+        //根据用户ID查询
+        if ($uId) {
+            $this->view->s_uid = $uId;
+            $where .= " and user_id=$uId";
+        } else {
+            $uId = 0;
+        }
+
+        $total = $this->getModel('BalanceFlow')->getFlowCountByParams($where);
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $logs = $this->getModel('BalanceFlow')->getFlowListByParams(array('conditions'=>$where,'order'=>'ctime desc','limit'=>array('number'=>$limit,'offset'=>$pageary['offset'])));
+        $this->view->type = $type;
+        $this->view->page = $pageary['html'];
+        $this->view->logs = $logs;
+    }
+
+    /*
+      Function:查询银行卡信息
+      author：宿伟
+      date：2015/8/30
+     */
+
+    public function searchAction() {
+        $where = '1=1 and is_del = 0';
+        $select = $this->request->getPost('select');
+        $keyword = $this->request->getPost('keyword');
+        if ($select == 'bankcard' && !empty($keyword)) {
+            $where .= " and substring(bankcard,-4) = '" . $keyword . "'";
+        } elseif ($select == 'owner') {
+            $where .= " and owner like '%" . $keyword . "%'";
+        }
+        // elseif($select =='user_id' && !empty($keyword)) {
+        //     $where .= ' and user_id ='.$keyword;
+        // }
+        $bankcard = $this->getModel('userBankcard')->find(array($where, "order" => "id desc"));
+
+        $this->view->bankcard = $bankcard;
+        $this->view->setVar("select", $select);
+        $this->view->setVar("keyword", $keyword);
+    }
+
+    /* 逾期 已冻结客户列表 */
+
+    public function abnormalAction() {
+        $print = $this->request->getQuery('print');
+        $print_w = $this->request->getQuery('print_w');
+        $real_name = $this->request->getPost('real_name');
+        $utype = $this->request->getPost('utype');
+        $utype = isset($utype) ? $utype : 0;
+        $state = $this->request->getQuery('state'); //状态 0 逾期 1 冻结
+        $state = isset($state) ? $state : 0;
+
+        $condition = 'is_del=0 and is_debt=1  and payment_freeze=' . $state;
+
+        if (CITY) {
+            $condition.=" and city='" . CITY . "'";
+        }
+        if ($real_name) {
+            $condition.=" and mobile='" . $real_name . "'";
+            $this->view->setVar("real_name", $real_name);
+        }
+        if ($utype) {
+            $condition.=" and pay_day_id=" . $utype;
+        }
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?';
+        $total = $this->getModel('User')->count($condition); //总数量
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageary['offset'] = isset($pageary['offset']) ? $pageary['offset'] : 0;
+        if ($print || $print_w) {
+            $res_customer = $this->getModel('User')->find(array($condition, 'order' => 'id desc'));
+        }else{
+            $res_customer = $this->getModel('User')->find(array($condition, 'order' => 'id desc', "limit" => $limit, "offset" => $pageary['offset']));
+        }
+        
+        if ($res_customer) {
+            $customer = $res_customer->toArray();
+        } else {
+            $customer = array();
+        }
+        if ($print) {
+            $head = array('客户编号', '客户名称', '账期', '客户类型', '到期时间', '状态', '逾期天数', '金额明细');
+            $users = array();
+            if (!empty($customer)) {
+                foreach ($customer as $k => $v) {
+                    if ($v['payment_start']) {
+                        $day = ceil((time() - $v['payment_start']) / (24 * 3600)); //当前时间和账期时间中间差 
+                    } else {
+                        $day = '';
+                    }
+
+                    if ($v['pay_day_id']) {
+                        $zq = $this->mc->getDict($v['pay_day_id'])['code'];
+                    } else {
+                        $zq = '';
+                    }
+                    if ($v['pay_day_id'] == 162) {
+                        $wk = '周结';
+                    } elseif ($v['pay_day_id'] == 163) {
+                        $wk = '半月结';
+                    } else {
+                        $wk = '月结';
+                    }
+                    if ($day >= $zq) {
+                        $yq = 0;
+                    } else {
+                        $yq = $zq - $day;
+                    }
+                    $users[$k]['id'] = $v['id'];
+                    $users[$k]['mobile'] = $v['mobile'];
+                    $users[$k]['payment_start'] = !empty($v['payment_start']) ? date('Y-m-d', $v['payment_start']) . '~' . date('Y-m-d', $v['payment_start'] + $zq * 24 * 3600) : '';
+                    $users[$k]['pay_day_id'] = $wk;
+                    $users[$k]['zdate'] = $day;
+                    $users[$k]['status'] = '是';
+                    $users[$k]['yq'] = $yq;
+                    $users[$k]['balance'] = $v['balance'];
+                }
+            }
+            if ($state == 0) {
+                $fname = '逾期客户列表';
+            } else {
+                $fname = '账期已冻结客户列表';
+            }
+
+            \Libs\Util::getPhpExcel($fname, $head, $users);
+            exit;
+        }
+
+
+        $this->view->setVar("state", $state);
+        $this->view->setVar("utype", $utype);
+        $this->view->setVar('page', $pageary['html']);
+        $this->view->customer = $customer;
+        if ($print_w) {
+            $this->view->cleanTemplateAfter();
+            $this->view->pick('balance/printabnormal');
+        }
+    }
+
+    /* 资金流水明细 */
+
+    public function specificationAction() {
+        $type = $this->request->getQuery('type');
+        $ntype = $this->request->getQuery('ntype');
+        $start_time = $this->request->getQuery('start_time');
+        $end_time = $this->request->getQuery('end_time');
+        $condition = ' is_del=0 ';
+        $page = $this->request->getQuery('page');
+        $print= $this->request->getQuery('print');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?';
+       
+        if (is_numeric($type)) {
+            //$type = join(',', $type);
+           // $condition.=" and type in($type) ";
+            $url.='&type='.$type;
+            
+            $condition.=" and type =".($type-1);
+        }
+        if ($start_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $start_time)) {
+            $url.='&start_time='.$start_time;
+            $condition.=" and ctime>= " . strtotime($start_time);
+            $this->view->setVar('start_time', $start_time);
+        }
+        if ($end_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $end_time)) {
+            $url.='&end_time='.$end_time;
+            $condition.=" and ctime<= " . strtotime($end_time);
+            $this->view->setVar('end_time', $end_time);
+        }
+        if ($ntype) {
+            $url.='&ntype=' . $ntype;
+            if ($ntype == '1') {
+                $condition.=" and FROM_UNIXTIME( ctime, '%Y-%m-%d' ) = date_format(now(),'%Y-%m-%d') ";
+            } elseif ($ntype == '2') {
+                $condition.=" and  yearweek(FROM_UNIXTIME( ctime-24*3600, '%Y-%m-%d' )) =yearweek(FROM_UNIXTIME(unix_timestamp(now())-24*3600),'%Y-%m-%d') ";
+                //$condition.=" and yearweek(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=yearweek(now())";
+            } elseif ($ntype == '3') {
+                $condition.=" and  FROM_UNIXTIME( ctime, '%Y-%m' ) =date_format(now(),'%Y-%m')";
+            } elseif ($ntype == '4') {
+                $condition.=" and  YEAR(FROM_UNIXTIME( ctime, '%Y-%m-%d' ))=YEAR(now())";
+            }
+        }
+        file_put_contents('D:/aa.log', $condition);
+        $total = $this->getModel('BalanceFlow')->count($condition); //总数量
+        $sum = $this->getModel('BalanceFlow')->sum(array('column' => 'amount', $condition));
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $pageary['offset'] = isset($pageary['offset']) ? $pageary['offset'] : 0;
+        if($print){
+             $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc'))->toArray();
+        }else{
+             $list = $this->getModel('BalanceFlow')->find(array($condition, 'order' => 'ctime desc', 'limit' => $limit, 'offset' => $pageary['offset']))->toArray();
+        }
+       
+        if ($print) {
+            $head = array('ID', '流水号', '交易流水号', '用户手机号', '店铺名', '订单号', '批次', '类型','状态','金额','时间','备注');
+            $lists=array();
+            foreach ($list as $k => $v) {
+                if ($v['type'] == 0) {
+                    $lx= '充值';
+                } elseif ($v['type'] == 1) {
+                    $lx= '冻结资金';
+                } elseif ($v['type'] == 2) {
+                    $lx= '余额支付确认收货';
+                } elseif ($v['type'] == 3) {
+                    $lx= '提现';
+                } elseif ($v['type'] == 4) {
+                    $lx= '拒收解冻资金';
+                } elseif ($v['type'] == 5) {
+                    $lx= '订单取消解冻资金';
+                } elseif ($v['type'] == 6) {
+                    $lx= '争议退款';
+                } elseif ($v['type'] == 7) {
+                    $lx= '货到付款已到账';
+                } elseif ($v['type'] == 8) {
+                    $lx= '系统自动核销';
+                } elseif ($v['type'] == 9) {
+                    $lx= '人工审核核销';
+                }
+                $status=($v['status']==0)?'待审核':'已审核';
+                $lists[$k]['k'] = $k + 1;
+                $lists[$k]['sn'] = $v['sn'];
+                $lists[$k]['pay_sn'] = $v['pay_sn'];
+                $lists[$k]['user_id'] = !empty($v['user_id'])?$this->mc->getUser($v['user_id'])['mobile']:'';
+                ;
+                $lists[$k]['shop_id'] = !empty($v['shop_id'])?$this->mc->getShop($v['shop_id'])['name']:'';
+                $lists[$k]['order_id'] =!empty($v['order_id'])?$this->mc->getModel('Order')->findById($v['order_id'])['sn']:'';
+                $lists[$k]['subcontract'] = $v['subcontract'];
+                $lists[$k]['type'] = $lx;
+                $lists[$k]['status'] = $status;
+                $lists[$k]['amount'] = $v['amount'];
+                $lists[$k]['ctime'] = !empty($v['ctime'])?date('Y-m-d H:i:s',$v['ctime']):'';
+                $lists[$k]['remark']=$v['remark'];
+            }
+            
+            $fname = '资金流水明细';
+            \Libs\Util::getPhpExcel($fname, $head, $lists);
+            exit;
+            
+        }
+        $ntype=isset($ntype)?$ntype:'';
+        $type=isset($type)?$type:'';
+        $this->view->setVar('page', $pageary['html']);
+        $this->view->setVar('sum', $sum);
+        $this->view->setVar('ntype', $ntype);
+        $this->view->setVar('type', $type);
+        $this->view->list = $list;
+    }
+
+}

@@ -1,0 +1,28 @@
+<?php
+namespace Modules\Complex\Controllers;
+
+class ComplexController extends \Libs\ControllerBase
+{
+    public function initialize(){
+        parent::initialize();
+    }
+
+    public function getParam(){
+        $re = $this->dispatcher->getParams();
+
+        if(empty($re)){
+            $re = $this->request->getPost();
+        }
+        return $re;
+    }
+
+    public function renderJson($data = array(), $errMsg = '', $err = 0){
+        if(\Libs\Util::isAlone()){
+            return true;
+        }
+        else{
+            parent::renderJson($data,$errMsg,$err);
+        }
+    }
+
+}

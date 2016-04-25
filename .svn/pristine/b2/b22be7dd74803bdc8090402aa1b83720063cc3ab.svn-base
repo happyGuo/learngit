@@ -1,0 +1,48 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class FavorController extends BackendController
+{
+
+    public function initialize(){
+        parent::initialize();
+        $this->view->setVar('measureArr',$this->getModel('dict')->find(['is_del=0 and parent_id=43','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('unitArr',$this->getModel('dict')->find(['is_del=0 and parent_id=37','columns'=>['name','id'],'order'=>'sort asc']));
+        $this->view->setVar('categoryArr',$this->getModel('category')->find(['is_del=0 and parent_id=0','columns'=>['name','id'],'order'=>'sort asc']));
+
+        $this->view->menu=array('favor/list'=>'收藏列表');
+
+    }
+
+    //显示商品列表
+    public function listAction()
+    {
+        //一级分类
+        $condition = 'is_del = 0';
+        //url初始化
+        $url = $this->url->get($this->dispatcher->getControllerName().'/'.$this->dispatcher->getActionName().'?');
+
+        //搜索条件[用户名]
+        $user_id = $this->request->getQuery('user_id');
+        if(strlen(trim($user_id))){
+            $this->view->s_user_id = $user_id;
+            $condition .= ' and user_id='.$user_id; 
+            $url .= '&user_id='.$user_id;
+        }
+        //搜索条件[商品ID]
+        $sku_id = $this->request->getQuery('sku_id');
+        if(strlen(trim($sku_id))){
+            $this->view->s_sku_id = $sku_id;
+            $condition .= ' and sku_id ='.$sku_id; 
+            $url .= '&sku_id='.$sku_id;
+        }
+
+        $page = $this->request->getQuery('page');
+        $page = intval($page)< 0 ?1:intval($page);
+
+
+        $this->view->pagination = $this->pagination($this->getModel('userFavor')->count(array($condition)), 10, $page, $url);
+        $this->view->sku = $this->getModel('userFavor')->find(array($condition,'order'=>'ctime asc','limit'=>10,'offset'=>$this->view->pagination['offset']));
+    }
+
+}

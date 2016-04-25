@@ -1,0 +1,142 @@
+<?php
+namespace Plugins;
+
+use Phalcon\Events\Event,
+    Phalcon\Mvc\User\Plugin,
+    Phalcon\Mvc\Dispatcher,
+    Phalcon\Acl;
+
+/**
+ * Security
+ *
+ * This is the security plugin which controls that users only have access to the modules they're assigned to
+ */
+class Security extends Plugin
+{
+
+    public function __construct($dependencyInjector)
+    {
+        $this->_dependencyInjector = $dependencyInjector;
+    }
+
+    public function getAcl($dictId)
+    {
+
+        if (!isset($this->persistent->$dictId) || DEBUG) {
+
+            $acl = new \Phalcon\Acl\Adapter\Memory();
+
+            $acl->setDefaultAction(\Phalcon\Acl::DENY);
+            $roles = array();
+            //Register roles
+            foreach (\Libs\Util::getRoleList() as $k => $v) {
+                if(is_array($v)){
+                    foreach($v as $key=>$val){
+                        $roles[$key] = new \Phalcon\Acl\Role($key);
+                    }
+                }else{
+                    $roles[$k] = new \Phalcon\Acl\Role($k);
+                }
+            }
+            $roles['guest'] = new \Phalcon\Acl\Role('guest');
+            $roles['base'] = new \Phalcon\Acl\Role('base');
+            $resources = array();
+            foreach ($roles as $key => $role) {
+                $acl->addRole($role);
+                $resources[$key . 'Resources'] = array();
+            }
+
+            //Private area resources
+            $dict = \Models\Dict::find('is_del=0 and module =' . $dictId)->toArray();
+            foreach ($dict as $item) {
+                //默认未设置是访客
+                if (empty($item['role']))
+                    $item['role'] = 'guest';
+                if (empty($item['code'])) {
+                    continue;
+                }
+                $path = explode('/', $item['code']);
+
+                if (!isset($resources[$item['role'] . 'Resources'][$path[0]])) {
+                    $resources[$item['role'] . 'Resources'][$path[0]] = array();
+                }
+                array_push($resources[$item['role'] . 'Resources'][$path[0]], $path['1']);
+                $acl->addResource(new \Phalcon\Acl\Resource($path[0]), $path['1']);
+            }
+            //  print_r($acl);exit;
+            //绑定角色
+            foreach ($roles as $key => $none) {
+                if (!empty($resources[$key . 'Resources'])) {
+                    foreach ($resources[$key . 'Resources'] as $resource => $actions) {
+                        foreach ($actions as $action) {
+                            $acl->allow($key, $resource, $action);
+                        }
+                    }
+                }
+            }
+
+
+            //print_r($resources['guestResources'] );exit;
+
+            $this->persistent->$dictId = $acl;
+        }
+
+        return $this->persistent->$dictId;
+    }
+
+
+    /**
+     * This action is executed before execute any action in the application
+     */
+    public function beforeExecuteRoute(Event $event, Dispatcher $dispatcher)
+    {
+        //$acl = new \Phalcon\Acl\Adapter\Memory();
+        $dictId=0;
+        if (MODULE == 'backend')
+            $dictId = 1;
+        if (MODULE == 'partner')
+            $dictId = 91;
+
+        if($dictId==0){
+            return true;
+        }
+
+        $auth = $this->auth->getInfo();
+        if (!$auth) {
+            $role = array('guest');
+        } else {
+            if (isset($auth['role']) && !empty($auth['role'])) {
+                $role = array_merge(array('base'), explode(',', $auth['role']));
+            } else {
+                $role = array('base');
+            }
+        }
+        $controller = $dispatcher->getControllerName();
+        $action = $dispatcher->getActionName();
+//		echo $role;
+//		echo $controller.$action;exit;
+
+        $acl = $this->getAcl($dictId);
+        $pass = false;
+
+        foreach ($role as $one) {
+            $allowed = $acl->isAllowed($one, $controller, $action);
+//            echo $controller . '_' . $action;
+//            var_dump($allowed);
+            if ($allowed == Acl::ALLOW) {
+                $pass = true;
+            }
+        }
+        if (!$pass) {
+            if (in_array('guest', $role)) {
+                return $this->dispatcher->forward(array('controller' => 'index', 'action' => 'login'));
+            }
+            return $this->dispatcher->forward(array('controller' => 'index', 'action' => 'notallowed'));
+
+            return false;
+        }
+        return true;
+
+    }
+
+}

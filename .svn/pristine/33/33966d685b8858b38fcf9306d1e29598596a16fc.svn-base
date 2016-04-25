@@ -1,0 +1,84 @@
+<script type="text/javascript"
+        src="plugins/uniform/jquery.uniform.min.js"></script> <!-- Styled radio and checkboxes -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改用户权限
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="">
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">全选: </label>
+
+                        <div class="col-md-10 checkbox-column">
+                            <label class="checkbox-inline" style="margin-right: 10px;margin-left: 0;">
+                                <input type="checkbox" class="uniform check-all"/>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">权限列表: </label>
+                        <div class="col-md-10">
+                            <?php foreach ($rolses as $k => $one) { ?>
+                                <h3 class="widget-title col-md-12">
+                                    <b><?= $k ?></b>
+                                </h3>
+                                <div class="col-md-1" style="max-width: 60px;padding-left:0;">
+                                    <label class="checkbox-inline check"
+                                           style="margin-right: 10px;margin-left: 0;">
+                                        <input type="checkbox" class="uniform check-sub-all"/>
+                                    </label>
+                                 </div>
+                                <div class="sub-check-box col-md-11 ">
+                                    <?php foreach ($one as $key => $val) { ?>
+                                        <label class="checkbox-inline check" style="margin-right: 10px;margin-left: 0;">
+                                            <input type="checkbox" name="roles[]" class="uniform"
+                                                   value="<?= $key ?>" <?php if (in_array($key, $myRolses)) { ?> checked="checked"<?Php } ?>/> <?= $val ?>
+                                        </label>
+                                    <?php } ?>
+                                </div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <input type="hidden" name="uid" value="<?php echo $uid; ?>"/>
+                    <input class="btn btn-info btn-block" value="提交" type="submit">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    <?php if (isset($messages)) { ?>
+
+    showtip("<?=$messages['info']?>", "<?=$messages['type']?>");
+
+    <?php }?>
+    $('.check-all').on('change', function () {
+        var checked = $(this).prop('checked');
+        $('.check').each(function (j, cb) {
+            // Only toggle it if checkbox is not disabled
+            var cb_self = $(':checkbox:not(:disabled)', $(cb)).prop("checked", checked).trigger('change');
+            if (cb_self.hasClass('uniform')) {
+                $.uniform.update(cb_self);
+            }
+        });
+    });
+    $(".check-sub-all").on('change', function () {
+        var checked = $(this).prop('checked');
+        var list = $(this).parent().parent().parent().parent().next('.sub-check-box').find(".check");
+        console.log(list);
+        list.each(function (j, cb) {
+            // Only toggle it if checkbox is not disabled
+            var cb_self = $(':checkbox:not(:disabled)', $(cb)).prop("checked", checked).trigger('change');
+            if (cb_self.hasClass('uniform')) {
+                $.uniform.update(cb_self);
+            }
+        });
+    });
+
+</script>

@@ -1,0 +1,15 @@
+<?php
+/**
+ * 账期用户账单
+ * User: xiaochuan
+ * Date: 2015/9/10
+ * Time: 13:52
+ */
+
+namespace Models;
+
+
+class PartnerBill extends CityModel
+{
+
+}

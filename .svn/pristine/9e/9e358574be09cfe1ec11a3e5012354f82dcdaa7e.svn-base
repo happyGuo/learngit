@@ -1,0 +1,28 @@
+<?php
+namespace Plugins;
+
+class Complex extends \Phalcon\Mvc\User\Plugin
+{
+
+    public function __construct($di)
+    {
+        $this->_dependencyInjector = $di;
+    }
+
+    public function call($controllerName, $actionName, $params)
+    {
+        $controllerClass = '\Modules\Complex\Controllers\\' . ucfirst($controllerName) . "Controller";
+
+        //Instantiating the controller class via autoloaders
+        $controller = new $controllerClass();
+        //判断父类，是asyn时启用standalone
+        $parent = explode('\\', get_parent_class($controller));
+        if (array_pop($parent) == 'AsynController' && !\Libs\Util::isAlone()) {
+            $this->api->getApi('native')->asynModel($params);
+        } else {
+            $this->dispatcher->setParams($params);
+            // Execute the action
+            call_user_func_array(array($controller, $actionName . "Action"), array());
+        }
+    }
+}

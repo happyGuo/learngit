@@ -1,0 +1,534 @@
+<?php
+namespace Models;
+
+class BalanceFlow extends CityModel
+{
+    //余额支付流水号
+    public function serialNumber()
+    {
+
+        list($usec, $sec) = explode(' ', microtime());
+        return date('ymdHis', $sec) . substr($usec, 3, 3) . rand(100, 999);
+    }
+
+    public function validation()
+    {
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'sn',
+            'message' => '支付流水号不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'user_id',
+            'message' => '用户ID不能为空'
+        )));
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'amount',
+            'message' => '金额不能为空'
+        )));
+
+        $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+            'field' => 'type',
+            'message' => '支付类型不能为空'
+        )));
+
+        if (isset($this->creator_id)) {
+            $this->validate(new \Phalcon\Mvc\Model\Validator\PresenceOf(array(
+                'field' => 'creator_id',
+                'message' => '创建者ID不能为空'
+            )));
+        }
+        if ($this->validationHasFailed() == true) {
+            return false;
+        }
+    }
+
+    public function beforeValidationOnCreate()
+    {
+        //Set the creation date
+        $this->sn = $this->serialNumber();
+        $this->ctime = time();
+        $this->platform = \Libs\Util::getPlatform();
+        $this->utime = time();
+        $this->is_del = 0;
+    }
+
+    public function createFlow($data)
+    {
+        switch (intval($data['type'])) {
+            case 0: //充值
+                $info = $this->getModel('user')->findFirst($data['user_id']);
+                $info->balance = $info->balance + $data['amount'];
+                $data['status'] = 0;
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+
+                // 更新账户账单
+                if ($info->is_debt == 1) {
+                    $this->reimbursement($data);
+                }
+                $contentType = 'recharge_success';
+                break;
+            case 1://下单冻结
+                $info = $this->getModel('user')->findById($data['user_id']);
+                $info['freeze_balance'] += $data['amount'];
+                $res = $this->getModel('user')->updateOne($data['user_id'], $info);
+                break;
+            case 2://余额支付订单 确认收货
+                $user = $this->getModel('user')->findById($data['user_id']);
+                //订单下单时的原始金额
+                $total = $this->getModel('orderSku')->sum(array(
+                    "column" => "remark",
+                    "conditions" => "is_del=0 and subcontract='" . $data['subcontract'] . "'"
+                ));
+                $user['freeze_balance'] -= $total;
+                //用户余额减钱
+                $user['balance'] -= $data['amount'];
+
+                $res = $this->getModel('user')->updateOne($data['user_id'], $user);
+                $partner = $this->getModel('partner')->findById($data['partner_id']);
+                //设置配销商初始结算日
+                if (!$partner['payment_start']) {
+                    $partner['payment_start'] = strtotime(date("Y-m-d", time())) + $this->mc->getDict($user['pay_day_id'])['code'] * 24 * 3600;
+                }
+
+                //配销商余额加钱
+                $partner['balance'] = \Libs\Util::bcAdd($partner['balance'], $data['amount']);
+                $res = $this->getModel('partner')->updateOne($data['partner_id'], $partner);
+                //订单核销
+                $this->sysAccount($data['subcontract']);
+
+                $contentType = 'order_confirmation_deduction';
+                break;
+            case 3: //提现 配销商？
+                $info = $this->getModel('partner')->findFirst($data['partner_id']);
+                $info->balance = $info->balance - $data['amount'];
+                $info->withdraw = $info->withdraw + $data['amount'];
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+                break;
+            case 4://拒绝收货分组解冻
+                $info = $this->getModel('user')->findFirst($data['user_id']);
+                $total = $this->getModel('orderSku')->sum(array(
+                    "column" => "remark",
+                    "conditions" => "is_del=0 and subcontract='" . $data['subcontract'] . "'"
+                ));
+                $info->freeze_balance = $info->freeze_balance - $total;
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+                $contentType = 'rejection_of_order';
+                break;
+            case 5://取消订单解冻
+                $info = $this->getModel('user')->findFirst($data['user_id']);
+                $freezeBalance = $this->getModel('balanceFlow')->findFirst('is_del=0 and type=1 and order_id=' . $data['order_id']);
+                $info->freeze_balance = $info->freeze_balance - $freezeBalance->amount;
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+                break;
+            case 6://争议退款
+                $info = $this->getModel('user')->findFirst($data['user_id']);
+                $info->balance = $info->balance + $data['amount'];
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+                $info = $this->getModel('partner')->findFirst($data['partner_id']);
+                $info->balance = $info->balance - $data['amount'];
+                if (!$info->save()) {
+                    $res['error'] = $info->getError();
+                }
+                break;
+            case 7://货到付款
+                $info = $this->getModel('partner')->findFirst($data['partner_id']);
+                $info->withdraw_balance = $info->withdraw_balance + $data['amount'];
+                if (!$info->save()) {
+                    print_r($info->getError());
+                    exit;
+                }
+                break;
+        }
+
+        $res = $this->getModel('balanceFlow')->createOne($data);
+
+
+        if (isset($contentType)) {
+            if (empty($data['order_id'])) {
+                $data['order_id'] = '';
+            }
+            if ($contentType == 'recharge_success') {
+                $contentType .= '|' . $data['amount'];
+            }
+            $this->getModel('userPush')->sendJpush($contentType, $data['user_id'], $data['order_id']);
+        }
+        return $res;
+    }
+
+    private function reimbursement($data)
+    {
+        $where = 'user_id =' . $data['user_id'] . ' and status = 0';
+        $res = $this->getModel('userBill')->find(array($where, 'order' => 'cycle asc'));
+        if (!empty($res)) {
+            $amount = $data['amount'];
+            foreach ($res as $key => $val) {
+                if ($val->status == 0) {
+                    $diff = $val->debt_amount - $val->refund_amount;
+                    if ($amount < $diff) {
+                        $val->refund_amount = $val->refund_amount + $amount;
+                    } else {
+                        $val->refund_amount = $val->refund_amount + $diff;
+                        $val->status = 1;
+                        $amount = $amount - $diff;
+                    }
+                    $val->save();
+                } else {
+                    continue;
+                }
+            }
+            $row = $this->getModel('userBill')->find(array($where, 'order' => 'cycle asc'));
+            if (!empty($row)) {
+                $data1['is_debt'] = 0;
+                $data1['payment_freeze'] = 0;
+                $this->getModel('user')->updateOne($data['user_id'], $data1);
+            }
+        }
+    }
+
+
+    /**
+     * @auth chuan
+     * 系统自动核销
+     * @param 确认的批次号
+     * @param int $subcontract
+     * @return string|void
+     */
+    private function sysAccount($subcontract)
+    {
+        $order = $this->getModel('OrderSubcontract')->findFirst('is_del=0 and confirm_status=0 and status in(3,5) and subcontract="' . $subcontract . '"');
+        if (!$order) {
+            return false;
+        }
+        if ($order->pay_amount == 0) {
+            return false;
+        }
+        if (\Libs\Util::bcSub($order->confirm_amount, $order->pay_amount) == 0) {
+            return false;
+        }
+
+        //开始核销
+        $user = $this->getModel('user')->findById($order->user_id);
+        $userBalance = $user['balance'] + $order->pay_amount;
+        if ($userBalance <= 0) {
+            return false;
+        }
+        //计算核销金额
+        if ($userBalance > $order->pay_amount) {
+            $order->confirm_amount = $order->pay_amount;
+        } else {
+            $order->confirm_amount = $userBalance;
+        }
+        $partner = $this->getModel('Partner')->findById($order->partner_id);
+        //配销商可提现金额增加
+        $partner['balance'] -= $order->confirm_amount;
+        $partner['withdraw_balance'] += $order->confirm_amount;
+        if (\Libs\Util::bcSub($order->pay_amount, $order->confirm_amount) == 0.00) {
+            $order->confirm_status = 1;//已核销
+            $order->confirm_time = time();
+        }
+        $order->save();
+        $this->getModel('partner')->updateOne($order->partner_id, $partner);
+        //构建数据
+        $data = array(
+            'user_id' => $order->user_id,
+            'shop_id' => $order->shop_id,
+            'order_id' => $order->order_id,
+            'subcontract' => $order->subcontract,
+            'partner_id' => $order->partner_id,
+            'order_sn' => $order->order_sn,
+            'type' => 8,
+            'status' => 1,
+            'amount' => $order->confirm_amount,
+        );
+        $this->getModel('balanceFlow')->createOne($data);//创建核销记录
+    }
+
+    /**
+     * @auth chuan
+     * 人工核销 内部方法
+     * @param $relation_id
+     * @param $subcontract   array('id'=>,'money'=>))
+     * relation_id：充值流水号；id：订单批次ID；  money：订单核销金额
+     * @return string
+     */
+    public function manAccount($relation_id, $subcontract)
+    {
+        $chargeLog = $this->getModel('balanceFlow')->findById($relation_id);
+        if (!$chargeLog) {
+            return "充值记录不存在";
+        }
+        if (is_array($subcontract)) {
+            foreach ($subcontract as $one) {
+                $order = $this->getModel('OrderSubcontract')->findFirst($one['id']);
+                if (!$order || $one['money'] <= 0) {
+                    return "订单不存在或核销金额错误";
+                }
+                if ($order->confirm_amount + $one['money'] > $order->pay_amount) {
+                    return "核销金额不能大于订单支付金额";
+                }
+                if ($order->status != 3) {
+                    return "订单未确认收货";
+                }
+                if ($order->confirm_status == 1) {
+                    return "订单已核销";
+                }
+                //构建数据
+                $data = array(
+                    'user_id' => $order->user_id,
+                    'shop_id' => $order->shop_id,
+                    'order_id' => $order->id,
+                    'subcontract' => $order->subcontract,
+                    'partner_id' => $order->partner_id,
+                    'order_sn' => $order->order_sn,
+                    'amount' => $one['money'],//核销的金额
+                    'type' => 9,
+                    'status' => 0,
+                    'relation_id' => $relation_id,//充值流水号ID
+                    'creator_id' => $chargeLog['creator_id'],//操作员ID
+                );
+                $res = $this->getModel('BalanceFlow')->createOne($data);//创建核销记录
+                if ($res['error']) {
+                    return $res['error'];
+                }
+            }
+        }
+        return '';
+    }
+
+    /**
+     * @auth chuan
+     * 审核通过 核销记录
+     * @param $id
+     * @return string
+     */
+    public function confirmAccount($id)
+    {
+        $recharge = $this->getModel('BalanceFlow')->findFirst($id);
+        if (!$recharge) {
+            return "充值记录不存在";
+        }
+        if ($recharge->type != 0) {
+            return "不是充值记录，不允许操作";
+        }
+        if ($recharge->status == 1) {
+            return "充值记录已核销";
+        }
+
+        $list = $this->getModel('BalanceFlow')->find("relation_id={$id} and status=0");
+        foreach ($list as $item) {
+            $order = $this->getModel('OrderSubcontract')->findFirst($item->order_id);
+            $order->confirm_amount += $item->amount;
+            if (\Libs\Util::bcSub($order->pay_amount, $order->confirm_amount) < 0.00) {
+                return "核销金额不能大于订单支付金额";
+            }
+            if (\Libs\Util::bcSub($order->pay_amount, $order->confirm_amount) == 0.00) {
+                $order->confirm_status = 1;
+                $order->confirm_time = time();
+            }
+            $item->status = 1;
+            $item->utime = time();
+
+            $order->save();
+            $item->save();
+            $partner = $this->getModel('partner')->findFirst($item->partner_id);
+            //添加配销商可提现金额
+            $partner->withdraw_balance += $item->amount;
+            $partner->save();
+        }
+        $recharge->status = 1;
+        $recharge->save();
+        return '';
+    }
+
+    /**
+     * 根据参数获取流水记录
+     * @param array $conditions
+     * @return array
+     */
+    public function getFlowListByParams($conditions)
+    {
+        $list = $this->getModel('balanceFlow')->find($conditions);
+        if ($list) {
+            $list = $list->toArray();
+            foreach ($list as $k => $v) {
+                if ($v['user_id'] > 0) {
+                    //查询用户信息
+                    $user = $this->getModel('user')->findFirst(array(
+                            'id=' . $v['user_id'],
+                            'columns' => array('real_name', 'mobile')
+                        )
+                    );
+                    if (is_object($user)) {
+                        $user = $user->toArray();
+                    }
+                    $list[$k]['user'] = $user;
+                }
+                if ($v['shop_id'] > 0) {
+                    //查询商铺信息
+                    $shop = $this->getModel('shop')->findFirst(array(
+                            'id=' . $v['shop_id'],
+                            'columns' => array('name')
+                        )
+                    );
+                    if (is_object($shop)) {
+                        $shop = $shop->toArray();
+                    }
+                    $list[$k]['shop'] = $shop;
+                }
+                if ($v['partner_id'] > 0) {
+                    //查询配销商信息
+                    $partner = $this->getModel('partner')->findFirst(array(
+                            'id=' . $v['partner_id'],
+                            'columns' => array('contact_name')
+                        )
+                    );
+                    if (is_object($partner)) {
+                        $partner = $partner->toArray();
+                    }
+                    $list[$k]['partner'] = $partner;
+                }
+                $list[$k]['type_name'] = $this->changeTypeName($v['type']);
+            }
+        }
+        return $list;
+    }
+
+    /**
+     * 根据参数获取流水记录数
+     * @auth chuan
+     * @param $conditions
+     * @return mixed
+     */
+    public function getFlowCountByParams($conditions)
+    {
+        return $this->getModel('balanceFlow')->count($conditions);
+    }
+
+
+    /**
+     * @function 获取金额变化类型友好信息
+     * @param $type
+     * @author：chuan
+     * @date：2015/8/4
+     * @return string
+     */
+    public function changeTypeName($type)
+    {
+        // 0 充值 1冻结资金 2实际扣款 3提现 4 拒收解冻资金 5 订单取消解冻资金 6 争议退款 7 货到付款已到账 8 系统自动核销 9 人工审核核销
+        $arr = array(
+            '充值',
+            '冻结金额',
+            '实际扣款',
+            '提现',
+            '拒收解冻资金',
+            '订单取消解冻资金',
+            '争议退款',
+            '货到付款已到账',
+            '系统自动核销',
+            '人工审核核销'
+        );
+        return $arr[$type] ? $arr[$type] : '';
+    }
+
+    /**
+     * @function 根据类型的金额统计查询
+     * @author 常晓川
+     * @param $type
+     * @return String
+     */
+    public function getIncomeList($userId, $type, $offset, $limit)
+    {
+        if ($userId == 0) {
+            return '';
+        }
+        $where = "";
+        if (is_array($type)) {
+            $where = sprintf(" AND type in(%s)", implode(',', $type));
+        } else {
+            if (!$type == -1) {
+                $where = ' AND type=' . $type;
+            }
+        }
+        $resSet = $this->getModel('BalanceFlow')->find(array(
+                "conditions" => 'is_del = 0 AND user_id=' . $userId . $where,
+                'limit' => array('number' => $limit, 'offset' => $offset),
+                'order' => "ctime DESC"
+            )
+        );
+        if ($resSet) {
+            $resSet = $resSet->toArray();
+            foreach ($resSet as $k => $v) {
+                $resSet[$k]['shop_name'] = '';
+                unset($resSet[$k]['user_id']);
+                unset($resSet[$k]['creator_id']);
+                unset($resSet[$k]['is_del']);
+                unset($resSet[$k]['utime']);
+                $resSet[$k]['type_name'] = $this->getModel('balanceFlow')->changeTypeName($v['type']);
+                $resSet[$k]['ctime'] = date('Y-m-d H:i:s', $v['ctime']);
+                if ($v['shop_id'] > 0) {
+                    $resSet[$k]['shop_name'] = $this->getModel('shop')->findFirst($v['shop_id'])->name;
+                }
+            }
+        }
+        $resArr = array();
+        $resArr['list'] = $resSet;
+        $resArr['num'] = $this->getModel('balanceFlow')->count(array(
+                'is_del = 0 AND user_id=:uid: ' . $where,
+                'bind' => array('uid' => $userId)
+            )
+        );
+        return $resArr;
+    }
+
+    /**
+     * 根据条件获取资金流的资金和
+     * @auth chuan
+     * @param null $type 可以是数字或数组  array(0,1)
+     * @param int $is_del
+     * @param int $user_id
+     * @param int $shop_id
+     * @param null $ctime 创建时间  比较时传Array 格式:array('>='=>1)
+     * @return int
+     */
+    public function getSumAmount($type = null, $is_del = 0, $user_id = 0, $shop_id = 0, $ctime = null)
+    {
+        $conditions = array();
+        $conditions['conditions'] = sprintf("is_del=%s", $is_del);
+        if ($user_id > 0) {
+            $conditions['conditions'] .= sprintf(" and user_id=%s", $user_id);
+        }
+        if ($shop_id > 0) {
+            $conditions['conditions'] .= sprintf(" and partner_id=%s", $shop_id);
+        }
+        if ($ctime) {
+            if (is_array($ctime)) {
+                foreach ($ctime as $key => $val) {
+                    $conditions['conditions'] .= sprintf(" and ctime%s%s", $key, $val);
+                }
+            } else {
+                $conditions['conditions'] .= sprintf(" and ctime=%s", $ctime);
+            }
+        }
+        if ($type != null) {
+            if (is_array($type)) {
+                $conditions['conditions'] .= sprintf(" and type in(%s)", implode(',', $type));
+            } else {
+                $conditions['conditions'] .= sprintf(" and type=%s", $type);
+            }
+        }
+        $conditions['columns'] = array('sum(amount) amount');
+        $incomeArr = $this->getModel('BalanceFlow')->findFirst($conditions);
+        return $incomeArr->amount ? $incomeArr->amount : 0;
+    }
+}

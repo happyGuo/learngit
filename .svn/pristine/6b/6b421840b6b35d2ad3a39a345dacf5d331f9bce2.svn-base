@@ -1,0 +1,364 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: jiangzhuoran
+ * Date: 2015/9/13
+ * Time: 16:41
+ */
+namespace Modules\App\Controllers;
+
+class BOrderController extends BAppController
+{
+
+    public function listAction()
+    {
+        $type = $this->request->getQuery('type','int',5);
+        $limit = $this->request->getQuery('limit','int',10);
+        $offset = $this->request->getQuery('offset','int',0);
+        $partnerId = $this->userId;
+        $condition = "is_del = 0 and partner_id = ".$partnerId." and platform in ('app_ykyj','partner')";
+        switch($type){
+            case 1:
+                $condition .= " and status = 0";
+                break;
+            case 2:
+                $condition .= " and status = 1";
+                break;
+            case 3:
+                $condition .= " and status > 2";
+                break;
+            default:
+        }
+        $columns = ['id','order_id','subcontract','ctime','shop_id','pay_amount','order_sn','buy_amount','status'];
+        $list = $this->getModel('OrderSubcontract')->find(array('conditions'=>$condition,'order'=>'ctime desc','columns' => $columns,'limit'=>$limit,'offset'=>$offset));
+        if($list){
+            $list = $list->toArray();
+            foreach($list as $key=>$val){
+                $list[$key]['ctime'] = date('Y-m-d H:i:s',$list[$key]['ctime']);
+                $list[$key]['shop_name'] = $this->mc->getShop($list[$key]['shop_id'])['name'];
+            }
+        }
+        return $this->renderJson(['list'=>$list,'num'=>$this->getModel('OrderSubcontract')->count(array($condition))]);
+    }
+
+
+
+    public function searchAction(){
+
+        if($this->request->isPost()) {
+            $limit = $this->request->getPost('limit') ? $this->request->getPost('limit') : 10;
+            $offset = $this->request->getPost('offset') ? $this->request->getPost('offset') : 0;
+            $search = $this->request->getPost('search');
+            $userId = $this->userId;
+            $condition = "is_del = 0 and partner_id = " . $userId . " and platform in ('app_ykyj','partner')";
+            if ($search && is_numeric($search)) {
+                $condition .= " and order_sn = '{$search}'";
+            }elseif($search){
+                $shopsku = $this->getModel('shopSku')->find(['is_del = 0 and partner_id =' . $userId])->toArray();
+                if (!empty($shopsku)) {
+                    foreach ($shopsku as $key => $val) {
+                        $shopid[] = $val['shop_id'];
+                        $newshop = array_unique($shopid);
+                    }
+                    $box = '';
+                    if (isset($newshop)) {
+                        foreach ($newshop as $key => $val) {
+                            $box .= "," . $val;
+                        }
+                    }
+                    $newbox = substr($box, 1);
+                    //搜索条件初始化
+                    $where = " is_del = 0 and type = 1 and id in (" . $newbox . ") and name  like '%" . $search . "%'";
+                    $columns = ['id'];
+                    $shoplist = $this->getModel('shop')->find(array($where,"order"=>"id desc",'columns'=>$columns));
+
+                    $shop = '';
+                    if($shoplist){
+                        $shoplist = $shoplist->toArray();
+                        foreach ($shoplist as $key => $val) {
+                            $shop .= "," . $val['id'];
+                        }
+                        $shopIds = substr($shop,1);
+                    }
+                    if(isset($shopIds) && !empty($shopIds)){
+                        $condition .= " and shop_id in ('.$shopIds.')";
+                    }
+                }
+            }
+            $columns = ['id', 'order_id', 'ctime', 'shop_id', 'pay_amount', 'order_sn'];
+            $list = $this->getModel('OrderSubcontract')->find(array('conditions' => $condition, 'order' => 'ctime desc', 'columns' => $columns, 'limit' => $limit, 'offset' => $offset))->toArray();
+            if ($list) {
+                foreach ($list as $key => $val) {
+                    $list[$key]['ctime'] = date('Y-m-d H:i:s', $list[$key]['ctime']);
+                    $list[$key]['shop_name'] = $this->mc->getShop($list[$key]['shop_id'])['name'];
+                }
+            }
+            return $this->renderJson(['list' => $list, 'num' => $this->getModel('OrderSubcontract')->count(array($condition))]);
+        }
+    }
+
+
+    public function detailAction(){
+        $result = array();
+        $order_id = $this->request->getQuery('order_id');
+        $order = $this->getModel('order')->findFirst($order_id);
+        if (!$order) {
+            $message = '没有权限查看该订单';
+            return $this->renderJson(array(), $message);
+        }
+        $orderSku = $this->getModel('OrderSku')->find(array('is_del = 0 and order_id = ' . $order_id))->toArray();
+        $subcontract = array();
+        $skuNum = 0;
+        $skuNum = count($orderSku);
+        foreach ($orderSku as $k => $v) {
+            $sku = $this->getModel('sku')->findById($v['sku_id']);
+            unset($orderSku[$k]['order_detail']);
+            unset($orderSku[$k]['id']);
+            unset($orderSku[$k]['order_id']);
+            unset($orderSku[$k]['user_id']);
+            unset($orderSku[$k]['utime']);
+            unset($orderSku[$k]['is_del']);
+            $orderSku[$k]['pay_amount'];
+            $unit = $this->dict($sku['unit_id']);
+            $orderSku[$k]['unit_name'] = isset($unit['name']) ? $unit['name'] : '';
+            unset($orderSku[$k]['unit_id']);
+            $measure = $this->dict($sku['measure_id']);
+            $orderSku[$k]['measure_name'] = isset($measure['name']) ? $measure['name'] : '';
+            unset($orderSku[$k]['measure_id']);
+            $orderSku[$k]['tag'] = $sku['tag'];
+            if(!isset($subcontract[$v['subcontract']]['subcontract'])) {
+                $subcontract[$v['subcontract']]['subcontract'] = $v['subcontract'];
+                $sub = $this->getModel('OrderSubcontract')->findFirst(sprintf("subcontract='%s'",$v['subcontract']));
+                $subcontract[$v['subcontract']]['status'] = $sub->status ? $sub->status : 0;
+            }
+            $subcontract[$v['subcontract']]['list'][] = $orderSku[$k];
+        }
+        $orderInfo = $order->toArray();
+        $orderInfo['ctime'] = date('Y-m-d H:i:s',$orderInfo['ctime']);
+        $shop_name = $this->getModel('shop')->findFirst($order->shop_id)->name;
+        $orderInfo['skuNum'] = $skuNum;
+        $orderInfo['shop_name'] = $shop_name;
+        unset($orderInfo['shop_id']);
+        unset($orderInfo['utime']);
+        unset($orderInfo['is_del']);
+        unset($orderInfo['user_id']);
+        $result['order_info'] = $orderInfo;
+        $result['detail'] = array_values($subcontract);
+        $this->renderJson($result);
+    }
+
+
+    public function createAction()
+    {
+        //提交订单
+        if($this->request->isPost()){
+
+            //客户ID
+            $shop_id = $this->request->getPost('shop_id');
+            $shop_id = unserialize($shop_id);
+            //订单备注
+            $order_remark = $this->request->getPost('order_remark');
+            $order_remark =
+            //价格数组
+            $price = $this->request->getPost('price');
+            //购买数量数组
+            $number = $this->request->getPost('number');
+            //商品备注数组
+            $remark = $this->request->getPost('remark');
+
+            //商品列表
+            $order_data  = [];
+            foreach ($price as $key => $val) {
+                $order_data[$key]['sku_id'] = $key;
+                $order_data[$key]['buy_number'] = $number[$key];
+                $order_data[$key]['user_remark'] = $remark[$key];
+                //写入一客一价
+                $this->createModel('PartnerSkuYkyj')->savePrice($shop_id,$this->userId,$key,$val);
+            }
+            //生成订单
+            $is_success = $this->getModel('order')->createOrder($this->mc->getShop($shop_id)['user_id'], $shop_id, $order_data , 1, $order_remark);
+           return $this->renderJson($is_success);
+        }
+    }
+
+    //实时采购单
+    public function purchaseAction(){
+        $partnerId = $this->userId;
+        $limit = $this->request->getQuery('limit') ? $this->request->getQuery('limit','int') : 10;
+        $offset = $this->request->getQuery('offset') ? $this->request->getQuery('offset','int') : 0;
+        $categoryId = $this->request->getQuery('category_ids');
+        $today = \Libs\Util::getStartUnixTime();//今日起始时间
+        $yesterday = \Libs\Util::getStartUnixTime(1);
+        $type = $this->request->getQuery('type','int') ? $this->request->getQuery('type','int') : 0;
+        $condition = "is_del = 0 and partner_id = ".$partnerId." and platform in ('partner','app_ykyj')";
+        $columns = ['id','subcontract'];
+        $ord= $this->getModel('OrderSubcontract')->find(array($condition,'columns'=>$columns));
+        $ids = '';
+        if($ord){
+            $ord = $ord->toArray();
+            foreach($ord as $v){
+                $ids.=",".$v['subcontract'];
+            }
+            $ids=substr($ids,1);
+            $where = "partner_id=" . $partnerId . " and is_del=0  and subcontract in($ids)";
+            if(intval($type)==1){
+                $where .= " and ctime >= '{$today}'";
+            }else if(intval($type)==2){
+                $where .= " and ctime >= '{$yesterday}' and ctime < '{$today}'";
+            }else{
+                $where .= " and ctime < '{$yesterday}'";
+            }
+
+            $res_order = $this->getModel('orderSku')->find(array($where,'limit'=>$limit,'offset'=>$offset, 'group' => 'sku', 'columns' => "sum(buy_number) as nums,count(id) as purchase_num,group_concat(buy_number) as buy_numbers,group_concat(shop_id) as shop_ids,group_concat(user_remark) as user_remarks,group_concat(sku_type) as types,concat(sku_id,'|',sku_type) as sku,sku_name,sku_id,shop_id,unit_price,buy_number,partner_id,unit_id,order_sn,category_id,spec,remark", 'order' => 'sku_id desc, sku_name asc'))->toArray();
+            return $this->renderJson(['list'=>$res_order,'num'=>$this->getModel('orderSku')->count(array($where))]);
+        }else{
+            return $this->renderJson(['list'=>array(),'num'=>0]);
+        }
+    }
+
+
+    public function changeOrderStatusAction() {
+        if($this->request->isPost()){
+            $orderIds = $this->request->getPost('order_id');
+
+            $order_id = trim($orderIds, ',');
+            $status = $this->request->getPost('status');
+            $partner_id = $this->userId;
+            $message = '';
+            $ids = '';
+            $subcontract = $this->find(array('conditions'=>'order_id in ('.$order_id.')'));
+            foreach ($subcontract as $key => $value) {
+                $ids .= $value->order_id.',';
+            }
+            $ids = trim($ids, ',');
+            $order = $this->getModel('Order')->find(array('conditions'=>'id in ('.$ids.')'));
+            foreach ($order as $key => $value) {
+                if ($value->status == 3 || $value->status == 4) {
+                    $message .= '订单' . $value['order_sn'] . '已取消';
+                    continue;
+                }
+                if ($status == 1) {
+                    $value->status = 1;
+                    $value->save();
+                }
+
+                if ($status == 6) {
+                    $value->status = 4;
+                    $value->save();
+                }
+
+                $orders = $this->getModel('orderSubcontract')->findFirst(array('order_id=' . $value->id . ' and partner_id=' . $partner_id));
+                if ($orders->partner_id != $partner_id) {
+                    continue;
+                }
+                if ($status == 1) {
+                    if ($orders->status != 0) {
+                        continue;
+                    }
+                } else if ($status == 2) {
+                    if ($orders->status != 1) {
+                        continue;
+                    }
+                } else {
+                    continue;
+                }
+                $orders->status = $status;
+                if ($status == 1) {
+                    $orders->confirm_time = time();
+                } else if ($status == 2) {
+                    $orders->send_time = time();
+                }
+                if ($orders->save()) {
+                    $order_id = $orders->id;
+                    $message = '操作成功';
+                } else {
+                    $message = $orders->getError();
+                    $order_id = 0;
+                }
+            }
+            return $this->renderJson(['list'=>$order],$message);
+        }
+        }
+
+
+    public function addskuAction(){
+        if($this->request->isPost()){
+            //客户ID
+            $shop_id = $this->request->getPost('shop_id','int',0);
+            //订单备注
+            $orderId = $this->request->getPost('order_id');
+            $order_remark = $this->request->getPost('order_remark','string','');
+            //价格数组
+            $price = $this->request->getPost('price');
+            //购买数量数组
+            $number = $this->request->getPost('number');
+            //商品备注数组
+            $remark = $this->request->getPost('remark');
+
+            //商品列表
+            $order_data  = [];
+            foreach ($price as $key => $val) {
+                $order_data[$key]['sku_id'] = $key;
+                $order_data[$key]['buy_number'] = $number[$key];
+                $order_data[$key]['user_remark'] = $remark[$key];
+                //写入一客一价
+                $ykyjPrice = $this->getModel('PartnerSkuYkyj')->getYkyj($shop_id,$this->userId,$key);
+                $this->createModel('PartnerSkuYkyj')->savePrice($shop_id,$this->userId,$key,$val);
+            }
+
+            $is_success = $this->getModel('orderSku')->add($this->mc->getShop($shop_id)['user_id'], $shop_id, $order_data , 1, $order_remark, $orderId, $this->userId);
+            $this->renderJson(array('id'=>$is_success['id'], $is_success['message']));
+        }
+    }
+
+
+    //整体打折
+
+    public function changepriceAction(){
+        $message = '无效';
+        if($this->request->isPost()) {
+            $subcontract = $this->request->getPost('subcontract');
+            $orderSubcontract = $this->getModel('orderSubcontract')->findFirst(array('subcontract="' . $subcontract . '"'));
+            $partnerId = $this->userId;
+            $discount = $this->request->getPost('discount');
+            if ($partnerId != $orderSubcontract->partner_id) {
+                return '非自己订单不可操作';
+            }
+            $discount = floatval($discount);
+            if ($discount <= 0 || $discount >= 1) {
+                return '打折额度输入有误，请输入0.50-0.99的数字';
+            }
+
+            if ($orderSubcontract->pay_discount != '0.00') {
+                return '该订单已打折，不可再次打折';
+            }
+            if (empty($note)) {
+                return '备注不能为空';
+            }
+            if (!in_array($orderSubcontract->status, array(1, 2))) {
+                return '不是待发货或已发货状态';
+            }
+
+            //更新每个商品价格
+            $skus = $this->getModel('OrderSku')->find('subcontract="' . $subcontract . '"');
+            $totalChange = 0;
+            foreach ($skus as $sku) {
+                $beforeValue = $sku->pay_amount;
+                $sku->pay_amount = round($sku->pay_amount * $discount, 2);
+                $totalChange += $sku->pay_amount - $beforeValue;
+                $sku->save();
+            }
+
+            $orderSubcontract->pay_amount = $orderSubcontract->pay_amount + $totalChange;
+            $orderSubcontract->pay_discount = $discount;
+            $orderSubcontract->save();
+            //更新订单总金额
+            $order = $this->getModel('order')->findFirst($orderSubcontract->order_id);
+            $this->getModel('order')->updateOne($orderSubcontract->order_id, array('pay_amount' => $order->pay_amount + $totalChange));
+        }
+        return $this->renderJson([],$message);
+    }
+
+
+
+}

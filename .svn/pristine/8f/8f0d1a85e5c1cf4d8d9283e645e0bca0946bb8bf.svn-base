@@ -1,0 +1,79 @@
+<?php
+namespace Modules\App\Controllers;
+
+class DictController extends ApiController
+{
+    public function createAction()
+    {
+        $dict = new \Models\Dict();
+        $dict->name =  $this->request->getPost('name');
+        $dict->parent_id =  $this->request->getPost('parent_id');
+		
+		
+		if($dict->parent_id){
+			$p = $this->dict($dict->parent_id);
+			if($p['parent_id']==0)
+				$dict->module = $dict->parent_id;
+			else
+				$dict->module = $p['module'];
+		}
+		else{
+			$dict->module =$dict->parent_id;
+		}
+        $dict->code =  $this->request->getPost('code');
+		if(!empty($dict->code)){
+			$item = $this->getModel('dict')->findFirst('is_del=0 and code="'.$dict->code.'" and module='.$dict->module);
+			if($item){
+				$this->renderJson('',1);
+			}
+		}
+		
+		
+		$dict->role =  $this->request->getPost('role');
+        $dict->sort =  $this->request->getPost('sort');
+        $r = $dict->save();
+        $this->renderJson($r);
+
+    }
+	
+	public function deleteAction()
+	{
+		$dict = $this->getModel('dict')->findFirst($this->request->getPost('id'));
+		$dict->is_del =  1;
+		$r = $dict->save();
+		$this->renderJson($r);
+		
+	}
+	
+	public function updateAction()
+	{
+		$dict = \Models\Dict::findFirst($this->request->getPost('id'));
+		$dict->name =  $this->request->getPost('name');
+		$dict->code =  $this->request->getPost('code');
+		$dict->role =  $this->request->getPost('role');
+		$dict->sort =  $this->request->getPost('sort');
+		if(!empty($dict->code)){
+            //echo 'is_del=0 and code="'.$dict->code.'" and module='.$dict->module.' and id<>'.$dict->id;
+			$item = $this->getModel('dict')->findFirst('is_del=0 and code="'.$dict->code.'" and module='.$dict->module.' and id<>'.$dict->id);
+            if($item){
+				$this->renderJson(array('status'=>1,'error'=>'code重复'));
+			}
+		}
+		
+		$r = $dict->save();
+		$this->renderJson($r);
+	}
+	
+    public function listAction(){
+		$list = \Models\Dict::find(array('is_del=0 and parent_id='.$this->request->getQuery('parent_id'),'offset'=>$this->request->getQuery('offset'),'limit'=>$this->request->getQuery('limit'),'order'=>'sort asc'));
+	
+        $num = \Models\Dict::count('is_del=0 and parent_id='.$this->request->getQuery('parent_id'));
+		$this->renderJson(array('list'=>$list->toArray(),'num'=>$num));
+    }
+	
+	public function detailAction(){
+		$detail = $this->getModel('dict')->findById($this->request->getQuery('id'));
+		
+		$this->renderJson($detail);
+	}
+}

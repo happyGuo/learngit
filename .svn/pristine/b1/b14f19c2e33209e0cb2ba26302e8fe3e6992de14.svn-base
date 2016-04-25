@@ -1,0 +1,92 @@
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改店铺
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" onsubmit="return cre()">
+	<?php foreach($shop as $v) { ?>
+	<input type = 'hidden' id='status' name='status' value='<?php echo $v->status?>'>
+                     <?php if(isset($messages)) {?>
+                        <div class="alert alert-danger fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?> 
+                    <input type="hidden" name="id" value="<?php echo $v->id; ?>">
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            店铺名称：
+                        </label>                      
+                        <div class="col-md-10">
+                        <input name="name" id='name'class="form-control" type="text" value="<?php echo $v->name; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            地址：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="address" class="form-control" type="text" value="<?php echo $v->address; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            联系人：
+                        </label>
+                        <div class="col-md-10">
+                        <input name="contact_name" class="form-control" type="text" value="<?php echo $v->contact_name; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+
+		    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            联系电话：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="contact_mobile" class="form-control" type="text" value="<?php echo $v->contact_mobile; ?>" onblur="checkrequired($(this))">
+                        </div>
+                    </div>
+		     <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            最佳送货时间：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="best_time" class="form-control" type="text" value="<?php echo $v->best_time; ?>">
+                        </div>
+                    </div>
+
+			 <?php } ?>
+                    </div>
+
+                    <input class="btn btn-info btn-block" value="提交" type="submit">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    function cre(){
+        var checkflag = true;
+        if($("#spname").html() == '<font color="red">店铺名称已占用</font>' || $("#spname").html() == ''){
+            checkflag = false;
+        }
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+</script>

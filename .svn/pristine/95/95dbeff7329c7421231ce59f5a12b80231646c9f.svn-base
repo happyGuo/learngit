@@ -1,0 +1,80 @@
+<div class="row">
+    <div class="tabbable tabbable-custom tabbable-full-width">
+        <ul class="nav nav-tabs">
+            <li <?php if($type == 0){?>class="active" <?php }?>><a data-toggle="tab" onclick="gohre(0)" href="javascript:void(0)">未核销订单<span></span></a></li>
+            <li <?php if($type == 1){?>class="active" <?php }?>><a data-toggle="tab" onclick="gohre(1)" href="javascript:void(0)">已核销订单<span></span></a></li>
+        </ul>
+    </div>
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 订单列表</h4>
+
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+                <table class="table table-hover table-striped table-bordered table-highlight-head">
+                    <thead>
+                    <tr>
+                        <th>订单批次号</th>
+                        <th>订单金额</th>
+                        <th>已核销金额</th>
+                        <?php if($type == 0){?>
+                            <th>待核销金额</th>
+                        <?php } ?>
+                        <th>下单时间</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($orders as $k => $v) { ?>
+                        <tr>
+                            <td><?php echo $v->subcontract; ?></td>
+                            <td><?php echo \Libs\Util::moenyConversion($v->pay_amount); ?></td>
+                            <td><?php echo \Libs\Util::moenyConversion($v->confirm_amount); ?></td>
+                            <?php if($type == 0){?>
+                                <td><?php echo \Libs\Util::moenyConversion($v->pay_amount - $v->confirm_amount); ?></td>
+                            <?php } ?>
+                            <td><?php echo date('Y-m-d H:i:s', $v->ctime); ?></td>
+                            <td>
+                                <span class="btn-group">
+                                    <?php if ($v->confirm_amount > 0) { ?>
+                                        <a href="<?php echo $this->url->get('order/accountdetail', array('subcontract' => $v->subcontract)); ?>"
+                                           class="btn btn-xs bs-tooltip" title="" data-original-title="详情">详情</a>
+                                    <?php } ?>
+                                    <a href="subcontract/psc?id=<?=$v->id?>" class="btn btn-xs bs-tooltip" title="取消">签收图片</a>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php } ?>
+
+                    </tbody>
+                </table>
+                <div class="row">
+                    <div class="table-footer">
+                        <div class="col-md-12">
+
+                        </div>
+                        <div class="col-md-12">
+                            <?php echo $page; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function gohre(type){
+location.href = 'order/account?type='+type;
+}
+
+</script>

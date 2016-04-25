@@ -1,0 +1,78 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: Administrator
+ * Date: 14-9-9
+ * Time: 下午7:26
+ */
+
+ use Phalcon\DI\FactoryDefault\CLI as CliDI,
+     Phalcon\CLI\Console as ConsoleApp;
+
+
+error_reporting(E_ALL);
+ini_set('display_errors','on');
+define('DEBUG',TRUE);
+define('LOG',TRUE);
+define('MODULE','console');
+
+defined('APPLICATION_PATH')
+|| define('APPLICATION_PATH', realpath(dirname(dirname(__FILE__))).'/apps');
+ini_set('date.timezone','Asia/Shanghai');
+try {
+    $config = include __DIR__ . "/../apps/config/config.php";
+    /**
+     * The FactoryDefault Dependency Injector automatically register the right services             providing a full stack framework
+     */
+    $di = new CliDI();
+
+    $loader = new \Phalcon\Loader();
+
+    /**
+     * We're a registering a set of directories taken from the configuration file
+     */
+    $loader->registerDirs(
+        array(
+            APPLICATION_PATH . '/tasks',
+        )
+    )->register();
+
+
+    require  __DIR__ ."/../apps/config/services.php";
+    /**
+     * Handle the request
+     */
+    $console = new ConsoleApp();
+    $console->setDI($di);
+
+
+    /**
+     * Process the console arguments
+     */
+    $arguments = array();
+    foreach($argv as $k => $arg) {
+        if($k == 1) {
+            $arguments['task'] = $arg;
+        } elseif($k == 2) {
+            $arguments['action'] = $arg;
+        } elseif($k >= 3) {
+            $arguments['params'][] = $arg;
+        }
+    }
+
+    // define global constants for the current task and action
+    define('CURRENT_TASK', (isset($argv[1]) ? $argv[1] : null));
+    define('CURRENT_ACTION', (isset($argv[2]) ? $argv[2] : null));
+
+    $console->handle($arguments);
+    $di->setShared('console', $console);
+
+} catch (Phalcon\Exception $e){
+        //$console->log->systemError(array('message'=>$e->getMessage(),'trace'=>$e->getTraceAsString()));
+        echo '<pre>'.$e->getMessage();
+        echo $e->getTraceAsString().'</pre>';
+} catch (PDOException $e){;
+    echo $e->getMessage();
+    exit(255);
+}
+

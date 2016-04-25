@@ -1,0 +1,548 @@
+<?php
+namespace Modules\Backend\Controllers;
+
+class OrderController extends BackendController
+{
+
+    //订单列表
+    public function listAction()
+    {
+        $where = 'is_del = 0 ';
+        $limit = 20;
+        $param = array();
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        if ($page == 0) {
+            $page = 1;
+        }
+        $val = $this->request->getQuery('val');
+        $start_time = $this->request->getQuery('start_time');
+        $end_time = $this->request->getQuery('end_time');
+        $type = $this->request->getQuery('type');
+        $platform = $this->request->getQuery('platform');
+        $user_type = $this->request->getQuery('user_type');
+        $status = $this->request->getQuery('status');
+        $this->view->type = $type;
+        $this->view->val = $val;
+        //搜索条件
+        if ($start_time) {
+            $param['start_time'] = $start_time;
+            $where .= ' and ctime >=' . strtotime($start_time);
+            $this->view->setVar('start_time', $start_time);
+        }
+        if ($end_time) {
+            $param['end_time'] = $end_time;
+            $et = strtotime($end_time) + 86400;
+            $where .= ' and ctime <=' . $et;
+            $this->view->setVar('end_time', $end_time);
+        }
+        if ($status) {
+            $param['status'] = $status;
+            if($status == -1){
+                $status = 0;
+            }
+            if (strstr($status, ',')) {
+                $where .= ' and status in(' . $status . ')';
+            } else {
+                $where .= ' and status =' . $status;
+            }
+            $this->view->setVar('status', $status);
+        }
+        $param['type'] = $type;
+        if ($type) {
+            if ($val) {
+                $param['val'] = $val;
+            }
+            switch ($type) {
+                case 1://订单号查询
+                    $where .= " and sn='{$val}'";
+                    break;
+                case 2://用户名查询
+                    if (!$val) {
+                        $res['num'] = 0;
+                        $res['list'] = array();
+                        break;
+                    }
+                    $users = $this->getModel('user')->find("real_name like '%{$val}%'");
+                    $userIds = '';
+                    foreach ($users as $v) {
+                        $userIds .= $v->id . ',';
+                    }
+                    if ($userIds == '') {
+                        $res['num'] = 0;
+                        $res['list'] = array();
+                    }
+                    $userIds = rtrim($userIds, ',');
+                    $where .= " and user_id in({$userIds})";
+                    break;
+                case 3://配销商 查询
+                    $res['num'] = 0;
+                    $res['list'] = array();
+                    if (!$val) {
+                        break;
+                    }
+                    $partners = $this->getModel('partner')->find("contact_name like '%{$val}%'");
+                    if ($partners) {
+                        $pids = '';
+                        foreach ($partners as $one) {
+                            $pids .= $one->id . ',';
+                        }
+                        $pids = rtrim($pids, ',');
+                        if ($pids == '') {
+                            break;
+                        }
+                        $where .= " and partner_id in ({$pids})";
+                        $orders = $this->getModel('OrderSubcontract')->find(array(
+                            'conditions' => $where,
+                            'columns' => 'distinct order_id',
+                            'order' => 'order_id desc',
+                            'limit' => array('number' => $limit, 'offset' => ($page - 1) * $limit)
+                        ));
+                        $ids = '';
+                        if ($orders) {
+                            $res['num'] = $this->getModel('OrderSubcontract')->count(array(
+                                'conditions' => $where,
+                                'columns' => 'distinct order_id',
+                            ));
+                            foreach ($orders as $one) {
+                                $ids .= $one->order_id . ',';
+                            }
+                        }
+                        $ids = rtrim($ids, ',');
+                        if ($ids) {
+                            $list = $this->getModel('order')->find("id in ({$ids})");
+                            if ($list) {
+                                $res['list'] = $list->toArray();
+                            }
+                        }
+                    }
+                    break;
+                case 4://用户类型查询
+                    $param['user_type'] = $user_type;
+                    $this->view->user_type = $user_type;
+                    $users = $this->getModel('user')->find("type={$user_type}");
+                    if ($users) {
+                        $uids = '';
+                        foreach ($users as $one) {
+                            $uids .= $one->id . ',';
+                        }
+                        $uids = rtrim($uids, ',');
+                        $where .= " and user_id in ({$uids})";
+                    }
+                    break;
+                case 5://下单渠道查询
+                    $param['platform'] = $platform;
+                    $this->view->platform = $platform;
+                    $where .= " and platform='{$platform}'";
+                    break;
+            }
+        }
+        $url = $this->url->get($this->currentAction, $param);
+        if (!$res) {
+            $res = $this->getModel('order')->findOrdersByParam(array('where' => $where, 'page' => $page, 'limit' => $limit));
+        }
+        $pageary = $this->pagination($res['num'], $limit, $page, $url);
+        $order = $res['list'];
+        if ($order) {
+            $order = is_array($order) ? $order : $order->toArray();
+            foreach ($order as $k => $v) {
+                $shop = $this->getModel('shop')->findById($v['shop_id']);
+                $order[$k]['shop_name'] = $shop['name'];
+                $order[$k]['platform'] = \Libs\Util::getPlatformName($v['platform']);
+                if ($type == 4) {
+                    $order[$k]['user_type'] = $user_type == 0 ? '平台用户' : '配销商用户';
+                } else {
+                    $user = $this->getModel('user')->findById($v['user_id']);
+                    $order[$k]['user_type'] = $user['type'] == 0 ? '平台用户' : '配销商用户';
+                }
+            }
+        }
+        $this->view->platform_list = \Libs\Util::getPlatformList();
+        $this->view->setVar('page', $pageary['html']);
+        $this->view->order = $order;
+    }
+
+    //修改订单
+    public function updateAction()
+    {
+        $orderId = intval($this->request->getQuery('id'));
+        $order = $this->getModel('order')->findFirst($orderId);
+        if (!$order) {
+            $this->response->redirect("order/list");
+        }
+        $order->platform = \Libs\Util::getPlatformName($order->platform);
+        $shopId = isset($order->shop_id) ? $order->shop_id : 0;
+        if ($this->request->isPost()) {
+
+            $orderId = $this->request->getPost('id');
+            $remark = $this->request->getPost('remark');
+            $contact_name = $this->request->getPost('contact_name');
+            $receive_address = $this->request->getPost('receive_address');
+            $receive_mobile = $this->request->getPost('receive_mobile');
+            $status = $this->request->getPost('status');
+            //修改大订单
+            $order = $this->getModel('order')->findFirst($orderId);
+            $order->remark = $remark;
+            $order->contact_name = $contact_name;
+            $order->status = $status;
+            $order->receive_address = $receive_address;
+            $order->receive_mobile = $receive_mobile;
+            $order->shop_id = $shopId;
+            if ($order->save()) {
+                return $this->response->redirect("order/list");
+            } else {
+                echo $order->getError();
+            }
+        }
+        $shop = $this->getModel('shop')->findById($shopId);
+        $this->view->order = $order;
+        $this->view->setVar('shop', $shop);
+        //订单详情列表
+        $orderSku = $this->getModel('OrderSku')->find(array('is_del = 0 and order_id =' . $orderId));
+        $orderSkuArr = array();
+        if ($orderSku) {
+            $orderSku = $orderSku->toArray();
+            foreach ($orderSku as $key => $val) {
+                $sku = $this->getModel('sku')->findById($val['sku_id']);
+                if ($sku->discount_price > 0) {
+                    $orderSku[$key]['price'] = $sku->discount_price;
+                } else {
+                    $orderSku[$key]['price'] = $sku->unit_price;
+                }
+                $orderSkuArr[$val['subcontract']]['list'][] = $orderSku[$key];
+            }
+        }
+        if ($orderSkuArr) {
+            foreach ($orderSkuArr as $k => $one) {
+                $orderSkuArr[$k]['partner'] = $this->getModel('partner')->findById($one['list'][0]['partner_id']);
+            }
+        }
+        $this->view->setVar('orderId', $orderId);
+        $this->view->ordersku = $orderSkuArr;
+
+    }
+
+    //修改订单详情
+    public function detailAction()
+    {
+        $orderId = $this->request->getQuery('orderId');
+        $order = $this->getModel('order')->findFirst($orderId);
+        $order->platform = \Libs\Util::getPlatformName($order->platform);
+        if ($this->request->isPost()) {
+            if ($order->status != 0) {
+                echo "不能修改";
+                exit();
+            }
+            $orderSkuId = intval($this->request->getPost('id'));
+            $buyNumber = intval($this->request->getPost('buy_number'));
+            //$buyAmount = $this->request->getPost('buy_amount');
+            //$payAmount = $this->request->getPost('pay_amount');
+            $note = $this->request->getPost('note');
+            $message = $this->getModel('OrderSku')->changBuyNumber(
+                $orderSkuId,
+                $buyNumber,
+                $this->userId,
+                $note);
+            echo $message;
+            exit();
+        }
+        //订单详情列表
+        $orderSku = $this->getModel('OrderSku')->find(array('is_del = 0 and order_id =' . $orderId));
+        $orderSkuArr = array();
+        if ($orderSku) {
+            $orderSku = $orderSku->toArray();
+            foreach ($orderSku as $key => $val) {
+                $sku = $this->getModel('sku')->findById($val['sku_id']);
+                if ($sku->discount_price > 0) {
+                    $orderSku[$key]['price'] = $sku->discount_price;
+                } else {
+                    $orderSku[$key]['price'] = $sku->unit_price;
+                }
+                $orderSkuArr[$val['subcontract']]['list'][] = $orderSku[$key];
+            }
+        }
+        if ($orderSkuArr) {
+            foreach ($orderSkuArr as $k => $one) {
+                $orderSkuArr[$k]['partner'] = $this->getModel('partner')->findById($one['list'][0]['partner_id']);
+            }
+        }
+        $this->view->setVar('orderId', $orderId);
+        $this->view->ordersku = $orderSkuArr;
+        $this->view->order = $order;
+    }
+
+    //取消订单
+    public function deleteAction()
+    {
+        $orderId = $this->request->getPost('id');
+        $order = $this->getModel('order')->findFirst($orderId);
+        if ($order->status != 0) {
+            $this->renderJson('', "不能取消！");
+        }
+        $order->status = 4;
+        if ($order->save()) {
+            $this->getModel('OrderSubcontract')->updateAll("order_id={$orderId}", array('status' => 6));
+            if ($order->pay_type != 1) {
+                $balanceFlow = array('user_id' => $order->user_id, 'shop_id' => $order->shop_id, 'order_id' => $orderId, 'order_sn' => $order->sn, 'amount' => $order->pay_amount, 'type' => 5, 'creator_id' => $this->userId, 'platform' => $order->platform);
+                $this->getModel('balanceFlow')->createFlow($balanceFlow);
+            }
+            $this->renderJson($order);
+        } else {
+            //var_dump($order->getMessages());
+            $this->renderJson('', $order->getMessages());
+        }
+    }
+
+    //客户下单
+    public function createAction()
+    {
+
+        // var_dump($this->getModel('user')->findById(4));exit;
+
+        //客户ID
+        $this->view->user_id = $user_id = $this->request->getQuery('userid', 'int', 0);
+
+        //店铺ID
+        $this->view->shop_id = $shop_id = $this->request->getQuery('shop_id', 'int', 0);
+
+        //提交订单
+        if ($this->request->isPost()) {
+
+            //用户ID
+            $user_id = $this->request->getPost('user_id', 'int', 0);
+
+            //店铺ID
+            $shop_id = $this->request->getPost('shop_id', 'int', 0);
+            //订单备注
+            $order_remark = $this->request->getPost('order_remark', 'string', '');
+            //价格数组
+            $price = $this->request->getPost('price');
+            //购买数量数组
+            $number = $this->request->getPost('number');
+            //商品备注数组
+            $remark = $this->request->getPost('remark');
+
+            //商品列表
+            $order_data = [];
+            foreach ($price as $key => $val) {
+                $order_data[$key]['sku_id'] = $key;
+                $order_data[$key]['buy_number'] = $number[$key];
+                $order_data[$key]['user_remark'] = $remark[$key];
+            }
+
+            $payType = $this->request->getPost('pay_type', 'int', 1);
+
+            //生成订单
+            $is_success = $this->getModel('order')->createOrder($user_id, $shop_id, $order_data, $payType, $order_remark);
+
+            //返回数据
+            if (!$is_success['error']) {
+                $this->renderJson($is_success);
+            } else {
+                $this->renderJson($is_success);
+            }
+        }
+
+        //ajax查询商品
+        if ($this->request->isAjax()) {
+            $term = $this->request->getQuery('term');
+            //变量初始化
+            if (!empty($term)) {
+                //初始化
+                $skuArr = $this->getModel('sku')->find(array("search_name LIKE '%" . $term . "%' and is_del=0"))->toArray();
+                foreach ($skuArr as $key => $value) {
+                    $skuArr[$key]['unit_name'] = $this->mc->getDict($value['unit_id'])['name'];
+                }
+            }
+            $this->renderJson($skuArr);
+        }
+
+        //店铺信息
+        $this->view->shopInfo = $this->mc->getShop($shop_id);
+
+        if ($shop_id > 0) {
+
+            //是否有订单号
+            $ordersn = $this->request->getQuery('ordersn', 'string', '');
+
+            //查询条件初始化
+            $skuWhere = 'is_del = 0 and shop_id=' . $shop_id;
+
+            //不传订单号取最近订单号
+            if (strlen($ordersn) < 7) {
+                //最近订单号
+                $lastestOrderSn = $this->getModel('orderSku')->findFirst([$skuWhere, 'order' => 'ctime desc']);
+                if (isset($lastestOrderSn->order_sn)) $ordersn = $lastestOrderSn->order_sn;
+            }
+            $skuWhere .= " and order_sn='$ordersn'";
+            $this->view->ordersn = $ordersn;
+
+            //商品列表
+            $this->view->sku = $this->getModel('orderSku')->find([$skuWhere, 'order' => 'ctime desc']);
+
+            //常购列表
+            $this->view->alwaysList = $this->getModel('UserSku')->getList($this->mc->getShop($shop_id)['user_id']);
+        }
+
+
+        //店铺列表
+        $this->view->shop = $this->getModel('shop')->getListByUserId($user_id);
+
+        //常购列表
+
+    }
+
+    //ajax添加商品
+    public function ajaxskuAction()
+    {
+        if ($this->request->isPost()) {
+            $sku = $this->createModel('sku');
+            $name = $this->request->getPost('name');
+            $category_id = $this->request->getPost('category_id');
+            $parent_category_id = $this->request->getPost('parent_category_id');
+            $sku->name = $name;
+            $sku->spec = $this->request->getPost('spec');
+            $sku->remark = '';
+            $sku->unit_id = $this->request->getPost('unit_id');
+            $sku->unit_price = $this->request->getPost('unit_price');
+            $sku->unit_number = $this->request->getPost('unit_number');
+            $sku->measure_id = $this->request->getPost('measure_id');
+            $sku->parent_category_id = $parent_category_id;
+            $sku->category_id = $category_id;
+            $sku->sort = 1000;
+            $sku->origin = '';
+
+            if ($sku->save()) {
+                $this->renderJson($sku);
+            } else {
+                $this->renderJson('', $sku->getError());
+            }
+
+        }
+        $this->view->setRenderLevel(\Phalcon\Mvc\View::LEVEL_ACTION_VIEW);
+
+
+        $this->view->setVar('measureArr', $this->getModel('dict')->find(['is_del=0 and parent_id=43', 'columns' => ['name', 'id'], 'order' => 'sort asc']));
+        $this->view->setVar('unitArr', $this->getModel('dict')->find(['is_del=0 and parent_id=37', 'columns' => ['name', 'id'], 'order' => 'sort asc']));
+        $this->view->setVar('categoryJson', $this->getModel('category')->getList('', true));
+
+        $this->view->pick('order/ajaxsku');
+    }
+
+    /*订单日志*/
+    public function logsAction()
+    {
+        $sn = $this->request->getQuery('sn');//订单号
+        $contact_name = $this->request->getQuery('contact_name');//操作人
+        $start_time = $this->request->getQuery('start_time');//创建开始时间
+        $end_time = $this->request->getQuery('end_time');//创建结束时间
+        $op_type = $this->request->getQuery('op_type');//类型
+        //条件判断
+        $page = $this->request->getQuery('page');
+        $page = isset($page) ? $page : 1;
+        $limit = 20;
+        $url = $this->currentAction . '?';
+        $condition = ' is_del=0 ';
+        $flag = 1;
+        if (is_numeric($sn)) {
+            $this->view->setVar('sn', $sn);
+            $condition .= " and subcontract like '%" . $sn . "%'  ";
+            $url .= "&sn=" . $sn;
+        }
+
+        if ($contact_name) {
+            $this->view->setVar('contact_name', $contact_name);
+            $where = "contact_name like '%" . $contact_name . "%' ";
+            $contact = $this->getModel('Partner')->find(array($where, 'columns' => 'id'))->toArray();
+            $contacts = '';
+            if ($contact) {
+                foreach ($contact as $v) {
+                    $contacts .= ',' . $v['id'];
+                }
+                $contacts = substr($contacts, 1);
+
+                $condition .= " and creator_id in ($contacts) ";
+                $url .= "&contact_name=" . $contact_name;
+
+            } else {
+                $flag = 0;
+            }
+
+
+        }
+        if ($start_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $start_time)) {
+            $this->view->setVar('start_time', $start_time);
+            $url .= "&start_time=" . $start_time;
+            $start_time = strtotime($start_time);
+            $condition .= " and ctime>=$start_time ";
+
+
+        }
+        if ($end_time && preg_match("/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/", $end_time)) {
+            $this->view->setVar('end_time', $end_time);
+            $url .= "&end_time=" . $end_time;
+            $end_time = strtotime($end_time);
+            $condition .= " and ctime<=$end_time ";
+
+        }
+        if (is_numeric($op_type)) {
+            $condition .= " and op_type=" . ($op_type - 1);
+            $url .= "&op_type=" . $op_type;
+            $this->view->setVar('op_type', $op_type);
+        }
+
+
+        if ($flag) {
+            $total = $this->getModel('OrderSkuLog')->count($condition);//总数量
+            $pageary = $this->pagination($total, $limit, $page, $url);
+
+            $logs = $this->getModel('OrderSkuLog')->find(array(
+                "conditions" => $condition,
+                "limit" => $limit,
+                "offset" => $pageary['offset'],
+                "order" => 'id desc',
+            ))->toArray();
+            $this->view->setVar('page', $pageary['html']);
+        } else {
+            $logs = array();
+        }
+        $this->view->logs = $logs;
+
+    }
+    /**
+     * @auth chuan
+     * 订单核销管理
+     */
+    public function accountAction(){
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $type = $this->request->getQuery('type');
+        if(!$type){
+            $type=0;
+        }
+        $where = 'status in(3,5,7) and is_del = 0 and confirm_status = '.$type;
+        $total = $this->view->orders = $this->getModel('orderSubcontract')->count($where);
+        $url = $this->url->get($this->currentAction,array('type'=>$type));
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $this->view->orders = $this->getModel('orderSubcontract')->find(array($where,"order"=>"ctime desc", "limit"=>$limit, "offset"=>$pageary['offset']));
+        $this->view->page = $pageary['html'];
+        $this->view->type= $type;
+    }
+
+    public function accountdetailAction(){
+        $page = intval($this->request->getQuery('page'));
+        $limit = 20;
+        $subcontract = $this->request->getQuery('subcontract');
+        if(!$subcontract){
+            echo "请传入订单批次号";
+            exit;
+        }
+        $where = 'type in(8,9) and is_del = 0 and subcontract = '.$subcontract;
+        $total = $this->view->orders = $this->getModel('balanceFlow')->count($where);
+        $url = $this->url->get($this->currentAction);
+        $pageary = $this->pagination($total, $limit, $page, $url);
+        $this->view->list = $this->getModel('balanceFlow')->find(array($where,"order"=>"ctime desc", "limit"=>$limit, "offset"=>$pageary['offset']));
+        $this->view->page = $pageary['html'];
+    }
+}
+

@@ -1,0 +1,167 @@
+<script type="text/javascript">
+    $(function(){
+        $(".col-md-4,col-md-10").css("margin-top",'7px');
+    });
+</script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder"></i>商品详情
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" enctype="multipart/form-data" onsubmit="return false">
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品名称：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['name'] ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            商品编码：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['sn'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品分类：
+                        </label>
+                        <div class="col-md-4" id="category">
+                            <?php echo $this->mc->getCategory($sku['parent_category_id'])['name']; ?>
+                            <?php echo $this->mc->getCategory($sku['category_id'])['name']; ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            商品标签：
+                        </label>
+                        <div class="col-md-4">
+                            <?php foreach ($tagArr as $key => $val)echo in_array($key, explode(',', $sku['tag']))?$val:"";?>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品简介：
+                        </label>
+                        <div class="col-md-10">
+                            <?php echo $sku['remark'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            产地：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['origin'] ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            规格：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['spec'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品详细：
+                        </label>
+                        <div class="col-md-10">
+                            <?php echo $sku['content'] ?>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品单价：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['unit_price'] ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            显示单位：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $this->mc->getDict($sku['unit_id'])['name'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            计量单位数值：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['unit_number'] ?>
+                        </div>
+
+                        <label class="col-md-2 control-label">
+                            计量单位：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $this->mc->getDict($sku['measure_id'])['name'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            折扣价格：
+                        </label>
+                        <div class="col-md-2">
+                            <?php echo $sku['discount_price'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品图片：
+                        </label>
+                        <div class="col-md-10">
+                            <img src="<?php echo $this->img->getUrlById('sku',$sku['id']) ?>">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            热销排序：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['hot'] ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            新品排序：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['new'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            热门搜索排序：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['search'] ?>
+                        </div>
+                        <label class="col-md-2 control-label">
+                            商品排序：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $sku['sort'] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">状态</label>
+                        <div class="col-md-4">
+                            <?php echo $isDelArr[$sku['is_del']] ?>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2">
+                            <input class="btn btn-info btn-block" value="返回" type="button" onclick="window.history.go(-1)">
+                        </div>
+                    </div>
+                    
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

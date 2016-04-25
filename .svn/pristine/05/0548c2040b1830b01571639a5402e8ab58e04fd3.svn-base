@@ -1,0 +1,302 @@
+<script type="text/javascript">
+var sku = [];
+$(function(){
+    $("#category").categorySelect({
+        data: <?php echo $categoryJson ?>
+    });
+    $('.select2-select-00').select2({
+        allowClear: true
+    });
+    $(".selectAddSku").select2({
+      language: "zh-CN",
+      ajax: {
+        url: "/partnersku/search",
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return {
+            term: params.term
+          };
+        },
+        processResults: function (data, page) {
+          // parse the results into the format expected by Select2.
+          // since we are using custom formatting functions we do not need to
+          // alter the remote JSON data
+          return {
+            results: data.data
+          };
+        },
+        cache: true
+      },
+      escapeMarkup: function (markup) { return markup; }, // let our custom formatter work
+      minimumInputLength: 1,
+      templateResult: formatRepo, // omitted for brevity, see the source of this page
+      templateSelection: formatRepoSelection // omitted for brevity, see the source of this page
+    });
+    $(".selectAddSku").on("change", function (e) { 
+        set_sku_val();
+    });
+});
+
+function set_sku_val(){
+    var sel_sku = sku[$(".selectAddSku").val()];
+    $("input[name=name]").val(sel_sku.name);
+    $(".cate1").val(sel_sku.parent_category_id);
+    $(".cate1").change();
+    $(".cate2").val(sel_sku.category_id);
+    $("input[name=remark]").val(sel_sku.remark);
+    $("input[name=origin]").val(sel_sku.origin);
+    $("input[name=spec]").val(sel_sku.spec);
+    $("textarea[name=content]").val(sel_sku.content);
+    $("input[name=unit_price]").val(sel_sku.unit_price);
+    $("select[name=unit_id]").val(sel_sku.unit_id);
+    $("input[name=unit_number]").val(sel_sku.unit_number);
+    $("select[name=measure_id]").val(sel_sku.measure_id);
+    $("input[name=discount_price]").val(sel_sku.discount_price);
+    $("#up_img").html("<img src='"+sel_sku.pic_url+"' >");
+    $("input[name=hot]").val(sel_sku.hot);
+    $("input[name=new]").val(sel_sku.new);
+    $("input[name=search]").val(sel_sku.search);
+    $("input[name=sort]").val(sel_sku.sort);
+    $("select[name=is_del]").val(sel_sku.is_del);
+    $("input:hidden[name=sku_id]").val(sel_sku.id);
+}
+function checkform(){
+    var checkflag=true;
+    $("input[onblur],select[onblur],textarea[onblur]").each(function(){
+        this.onblur();
+        if($(this).attr("check")==0)checkflag=false;
+    });
+    if($("#tag").val()!=null){
+        $("input:hidden[name=tag]").val($("#tag").val().join(','));
+    }
+    // if(FloatCalFun.floatCompare($("input[name=discount_price]").val(),$("input[name=unit_price]").val())){
+    //     showtip("折扣价格不能大于商品单价",2);
+    //     checkflag = false;
+    // }
+    checkfloat($("input[name=unit_number]"));
+    if($("select[name=measure_id]").val()>0 && $("input[name=unit_number]").attr('check')==0){
+        showtip('请填写计量单位数值',2);
+        checkflag = false;
+    }
+    
+    if(checkImgJpg('pic_url1')==false)checkflag=false;
+
+    return checkflag;
+}
+</script>
+<script type="text/javascript">
+function formatRepo (repo) {
+  if (repo.loading) return repo.text;
+
+  // change_sku = function(id,name,price,type)
+  var markup = '<div class="clearfix">' +
+  '<div clas="col-sm-10">' +
+  '<div class="clearfix">' +
+  '<div class="col-sm-6">' + repo.name + repo.spec + '</div>' +
+  '<div class="col-sm-3"><i class="fa fa-code-fork"></i> ' + repo.remark + '</div>' +
+  '<div class="col-sm-2"><i class="fa fa-star"></i> ' + repo.unit_price + '元/' + repo.unit_name + '</div>' +
+  '<div id=""></div>'
+  '</div>';
+
+  markup += '</div></div>';
+
+  sku[repo.id] = repo;
+
+  return markup;
+}
+
+function formatRepoSelection (repo) {
+  return repo.name || repo.unit_price;
+}
+
+</script>
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    添加商品
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" enctype="multipart/form-data" onsubmit="return checkform()">
+                    <?php if(isset($messages)): ?>
+                    <div class="alert alert-danger fade in">
+                        <i class="icon-remove close" data-dismiss="alert"></i>
+                        <?php echo $messages ?>
+                    </div>
+                    <?php endif; ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            从模板搜索：
+                        </label>
+                        <div class="col-md-4">
+                            <select class="selectAddSku form-control" data-placeholder="请选择商品">
+                                <option></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品名称：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this))" name="name" class="form-control" type="text">
+                        </div>
+                        <label class="col-md-2 control-label">
+                            商品分类：
+                        </label>
+                        <div class="col-md-4" id="category">
+                            <select onblur="checkrequired($(this))" class="form-control cate1" name="parent_category_id" style="display:inline;width:140px">
+                            </select>
+                            <select onblur="checkrequired($(this))" class="form-control cate2" name="category_id" style="display:inline;width:140px">
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品简介：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="remark" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            产地：
+                        </label>
+                        <div class="col-md-4">
+                            <input name="origin" class="form-control" type="text">
+                        </div>
+                        <label class="col-md-2 control-label">
+                            规格：
+                        </label>
+                        <div class="col-md-4">
+                            <input name="spec" class="form-control" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品详细：
+                        </label>
+                        <div class="col-md-10">
+                            <textarea name="content" class="form-control"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品单价：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkrequired($(this));checkfloat($(this))" name="unit_price" class="form-control" type="text" value="1.00">
+                        </div>
+                        <label class="col-md-2 control-label">
+                            显示单位：
+                        </label>
+                        <div class="col-md-4">
+                            <select onblur="checkrequired($(this))" class="form-control" name="unit_id">
+                                <option value="">请选择</option>
+                            <?php foreach ($unitArr as $key => $val) {
+                                echo '<option value="'.$val->id.'">'.$val->name.'</option>';
+                            }
+                            ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+
+                        <label class="col-md-2 control-label">
+                            计量单位数值：
+                        </label>
+                        <div class="col-md-4">
+                            <input name="unit_number" class="form-control" type="text">
+                        </div>
+
+                        <label class="col-md-2 control-label">
+                            计量单位：
+                        </label>
+                        <div class="col-md-4">
+                            <select class="form-control" name="measure_id">
+                                <option value="">请选择</option>
+                            <?php foreach ($measureArr as $key => $val) {
+                                echo '<option value="'.$val->id.'">'.$val->name.'</option>';
+                            }
+                            ?>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- 
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            折扣价格：
+                        </label>
+                        <div class="col-md-2">
+                            <input onblur="checkfloat($(this))" name="discount_price" class="form-control" type="text" value="0.00">
+                        </div>
+                    </div>
+                    -->
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            商品图片：
+                        </label>
+                        <div class="col-md-10">
+                            <input name="pic_url" id="pic_url1" data-style="fileinput" class="form-control" type="file">
+                            <div id="up_img"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            热销排序：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkint($(this))" name="hot" class="form-control" type="text" value="0">
+                        </div>
+                        <label class="col-md-2 control-label">
+                            新品排序：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkint($(this))" name="new" class="form-control" type="text" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            热门搜索排序：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkint($(this))" name="search" class="form-control" type="text" value="0">
+                        </div>
+                        <label class="col-md-2 control-label">
+                            商品排序：
+                        </label>
+                        <div class="col-md-4">
+                            <input onblur="checkint($(this))" name="sort" class="form-control" type="text" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">状态</label>
+                        <div class="col-md-4">
+                            <select class="form-control" name="is_del" id="is_del" style="display:inline;width:140px">
+                                <?php foreach ($isDelArr as $key => $val):?>
+                                <option value="<?php echo $key ?>"><?php echo $val ?></option>
+                                <?php endforeach;?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label"></label>
+                        <div class="col-md-2">
+                            <input type="hidden" name="sku_id" value="">
+                            <input class="btn btn-info btn-block" value="提交" type="submit">
+                        </div>
+                    </div>
+                    
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

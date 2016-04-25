@@ -1,0 +1,112 @@
+<script type="text/javascript">
+$(function(){
+    $("#category").categorySelect({
+        data: <?php echo $categoryJson ?>
+        <?php echo isset($s_parent_category_id)?',cate1:'.$s_parent_category_id:'' ?>
+        <?php echo isset($s_category_id)?',cate2:'.$s_category_id:'' ?>
+    });
+    $("#is_del").val('<?php echo isset($s_is_del)?$s_is_del:'' ?>');
+});
+</script>
+    <!--=== Table with Footer ===-->
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4><i class="icon-reorder"></i> 商品列表</h4>
+                <div class="toolbar no-padding">
+                    <div class="btn-group">
+                        <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-content">
+
+                <form class="form-horizontal row-border" action="" method="get">
+                    <div class="form-group">
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <input type="text" name="name" placeholder="商品名称" class="form-control" value="<?php echo isset($s_name)?$s_name:''?>">
+                                </div>
+                                <div class="col-md-3" id="category">
+                                    <select class="form-control cate1" name="parent_category_id" style="display:inline;width:45%">
+                                    </select>
+                                    <select class="form-control cate2" name="category_id" style="display:inline;width:45%">
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select name="type" class="form-control">
+                                        <option value="">请选择</option>
+                                        <option value="hot">热销</option>
+                                        <option value="new">新品</option>
+                                        <option value="discount_price">折扣</option>
+                                        <option value="search">热搜</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-control" name="is_del" id="is_del" style="display:inline;width:140px">
+                                        <option value="">请选择上下架</option>
+                                        <?php foreach ($isDelArr as $key => $val):?>
+                                        <option value="<?php echo $key ?>"><?php echo $val ?></option>
+                                        <?php endforeach;?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="submit" value="搜索" class="btn btn-primary">
+                                    <a href="sku/export" class="btn btn-primary">导出所有商品</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                    </div>
+                </form>
+
+                <table class="table table-hover table-striped table-checkable table-bordered table-highlight-head">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>商品编号</th>
+                            <th>商品图片</th>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>商品单价</th>
+                            <th>计量单位</th>
+                            <th>状态</th>
+                            <th class="align-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach($sku as $k=>$v) { ?>
+                        <tr>
+                            <td><?php echo $v->id; ?></td>
+                            <td><?php echo $v->sn; ?></td>
+                            <td><img style="height:80px;" src="<?php echo $this->img->getUrlById('sku',$v->id) ?>"></td>
+                            <td><?php echo $v->name; ?><br /><?php echo $v->spec; ?></td>
+                            <td><?php echo $this->mc->getCategory($v->parent_category_id)['name']; ?><br />
+                            <?php echo $this->mc->getCategory($v->category_id)['name']; ?></td>
+                            <td><?php echo $v->unit_price.'/'; ?><?php echo $this->mc->getDict($v->unit_id)['name']; ?></td>
+                            <td><?php echo $v->measure_id?$v->unit_number.$this->mc->getDict($v->measure_id)['name'].'/'.$this->mc->getDict($v->unit_id)['name']:'' ?></td>
+                            <td><span class="label label-<?php echo $v->is_del==1?'danger':'success'?>"><?php echo $isDelArr[$v->is_del]; ?></span></td>
+                            <td class="align-center">
+                                <a href="sku/detail/<?php echo $v->id; ?>" class="btn btn-xs bs-tooltip" title="商品详情">商品详情</a>
+                                <a href="sku/update?id=<?php echo $v->id; ?>" class="btn btn-xs bs-tooltip" title="修改">修改</a>
+                                <a href="javascript:;" class="btn btn-xs bs-tooltip" title="<?php echo $v->is_del==0?$isDelArr[1]:$isDelArr[0] ?>" onclick="deleteSku('<?php echo $this->url->get($this->dispatcher->getControllerName().'/updateajax') ?>','<?php echo $v->id ?>','<?php echo $v->is_del ?>');"><?php echo $v->is_del==0?$isDelArr[1]:$isDelArr[0] ?></i></a>
+                            </td>
+                        </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+                <div class="row">
+                    <div class="table-footer">
+                        <div class="col-md-12">
+                            <?php echo $pagination['html'] ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

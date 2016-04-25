@@ -1,0 +1,103 @@
+
+		<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value=''>请选择查询条件</option>
+				<option value="id">id</option>
+				<option value="real_name">账户名</option>
+				<option value="mobile">手机号</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="keyword" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 已删除用户列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">账户名</th>
+						<th class="align-center">手机号</th>
+						<th class="align-center">性别</th>
+						<th class="align-center">城市</th>
+						<th class="align-center">来源</th>
+						<th class="align-center">余额</th>
+						<th class="align-center">创建时间</th>
+						<th class="align-center">更新时间</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($user as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->real_name; ?></td>
+						<td><?php echo $v->mobile; ?></td>
+						<td><?php 
+							if($v->sex==0){
+								echo '男';
+							}else{
+								echo '女';
+							}
+						 ?></td>
+						<td><?php echo $v->city; ?></td>
+						<td><?php echo \Libs\Util::getPlatformName($v->platform); ?></td>
+						<td><?php echo $v->balance; ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->utime); ?></td>
+						<td class="align-center">
+							<a class="btn btn-xs bs-tooltip" title="恢复已删除用户" onclick="recoveruser(<?php echo $v->id?>)">恢复已删除用户</a>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function recoveruser(userId){
+	if(confirm('确定恢复删除用户么?')){
+		$.post('<?php echo $this->url->get('user/recoveruser')?>',{id:userId},function(data){
+			if(data){
+				alert('恢复成功');
+				window.location.href = '<?php echo $this->url->get('user/list');?>';
+			}else{
+				alert(data);
+				window.location.href = '<?php echo $this->url->get('user/catdeluser');?>';
+			}
+			
+		});
+	}
+}
+</script>

@@ -1,0 +1,189 @@
+<script type="text/javascript" src="assets/js/fl.order.create.js"></script>
+<style type="text/css">
+.selectAddSku{
+    width: 400px;
+}
+#shop_id{font-size: 14px;}
+textarea{resize:none;height: 35px;}
+</style>
+<div class="col-md-12">
+    <div class="widget box">
+        <div class="widget-header">
+            <h4><i class="icon-reorder"></i>添加商品</h4>
+            <div class="toolbar no-padding">
+                <div class="btn-group">
+                    <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                </div>
+            </div>
+        </div>
+        <div class="widget-content">
+            <table class="table table-hover table-striped table-bordered table-highlight-head">
+                <thead>
+                    <tr>
+                        <th colspan="2">客户信息</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-md-2">店铺名称</td>
+                        <td><?php echo $shopInfo['name'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>店铺地址</td>
+                        <td><?php echo $shopInfo['address'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>联系人姓名电话</td>
+                        <td><?php echo $shopInfo['contact_name'].' / '.$shopInfo['contact_mobile'] ?></td>
+                    </tr>
+                    <tr>
+                        <td>最佳送货时间</td>
+                        <td><?php echo $shopInfo['best_time'] ?></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="widget box">
+                <div class="widget-header">
+                    <h4><i class="icon-reorder"></i> 选择商品</h4>
+                    <div class="toolbar no-padding">
+                        <div class="btn-group">
+                            <span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="shop_id" value="<?=$shopInfo['id']?>">
+                <div class="widget-content">
+                    <form id="form_order" class="form-horizontal row-border" action="" method="POST" onsubmit="return false;" >
+                        <div class="form-group">
+                            <input type='hidden' name='shop_id' value="<?=$shopInfo['id']?>">
+                            <input type='hidden' name='order_id' value="<?=$order_id?>">
+                            <div class="col-md-6">
+                                <label class="control-label" style="width:auto;display:inline;">搜索商品：</label>
+                                <select name="selectAddSku" class="selectAddSku form-control" data-placeholder="请选择商品">
+                                    <option></option>
+                                </select>
+                                
+                            </div>
+                            <div class="col-md-5">
+                                <label class="control-label">数量：</label>
+                                <input id="sku_number" type="text" class="form-control input-width-small" style="display: inline;" onKeyPress="if((event.keyCode<48 || event.keyCode>57) && event.keyCode!=46 || /\.\d\d$/.test(value))event.returnValue=false">
+                                <input type="button" disabled="disabled"  class="btn btn-primary" id="add_result" value="添加">
+                            </div>
+                        </div>
+                        
+                        <table class="table table-hover table-striped table-bordered table-highlight-head" id="skulist">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>品名</th>
+                                    <th>单价</th>
+                                    <th>数量</th>
+                                    <th>小计</th>
+                                    <th width="100">备注</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order_list">
+                                <tr id="addTip">
+                                    <td colspan="7">请添加商品</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr id="orderamount" style="display:none;">
+                                    <th colspan="3"></th>
+                                    <th>订单总价</th>
+                                    <th><span id="order_amount"></span>元</th>
+                                    <th></th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <div class="form-group">
+                            <label class="control-label" style="width:auto;float:left;margin-left:15px;">订单备注：</label>
+                            <div class="col-md-10"><textarea rows='1' cols='141' name="order_remark" id="remark" class="form-control"></textarea></div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <input type="button" value="确认添加" onclick="add_sku()" class="btn btn-lg btn-primary">
+                                <input type="hidden" name="user_id" id="user_id" value="<?php echo $user_id?>">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="padding20">
+                <h4><i class="icon"></i>订单已有商品</i></h4>
+            </div>
+            <table class="table table-hover table-striped table-bordered table-highlight-head padding20" id="skulist">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>品名</th>
+                        <th>单价</th>
+                        <th>数量</th>
+                        <th>小计</th>
+                        <th width="100">备注</th>
+                    </tr>
+                </thead>
+                <tbody id="order_list">
+                    <?php foreach ($order_sku as $key => $value):?>
+                    <tr id="sku_<?=$value['sku_id']?>">
+                        <td><?php echo $key+1;?></td>
+                        <td><?=$value['sku_name']?></td>
+                        <td><?=$value['unit_price']?></td>
+                        <td><?=$value['real_number']?></td>
+                        <td><?=$value['buy_amount']?></td>
+                        <td><?=$value['user_remark']?></td>
+                        <input type="hidden" id="sku_ids" value="<?=$value['sku_id']?>">
+                    </tr>
+                <?php endforeach;?>
+                </tbody>
+            </table>       
+        </div>
+    </div>
+</div>
+ <script type="text/javascript">
+   
+    var add_sku = function(){
+        if($("input[name^=number]").length==0){
+            showtip('请添加商品',2);
+            return false;
+        }
+        
+        var reg=/^[0-9]+([.]{1}[0-9]{1,2})?$/;
+        $("input[name^=number]").each(function(){
+            if(reg.test($(this).val())==false){
+                showtip('数量设置错误');
+                $(this).focus().select();
+                return false;
+            }
+        });
+
+        bootbox.confirm("是否确认添加",function(confirmed){
+            if(confirmed){
+                $("input[type=submit]").attr("disabled",true);
+                $.ajax({
+                   type:'POST', 
+                   url:"partnerorder/addsku",
+                   dataType:'json',
+                   data:$("#form_order").serialize(), 
+                   async:true,
+                   success:function(result)
+                   {
+                      if(result.errno == 1){
+                          alert(result.errmsg);
+                          $(window).unbind('beforeunload');
+                          window.history.go(-1);
+                      }else{
+                          alert(result.errmsg);
+                      }
+                   }
+               });  
+            }
+        });  
+    }
+ </script>
+</head>
+<body>

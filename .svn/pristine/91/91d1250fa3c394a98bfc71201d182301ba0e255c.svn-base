@@ -1,0 +1,61 @@
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 确认用户核销列表</h4>
+			<?php if(isset($messages)) {?>
+				<div class="alert alert-danger fade in">
+					<i class="icon-remove close" data-dismiss="alert"></i>
+					<?php echo $messages ;?>
+				</div>
+				<?php
+				}
+				?>
+			<span>用户ID为：<font style="color:red"><?php echo $recharge['user_id'];?></font></span>
+			<span>充值ID为：<font style="color:red"><?php echo $recharge['id'];?></font></span>
+			<span>充值金额为：<font style="color:red"><?php echo $recharge['amount'];?></font></span>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<form method="post" action="">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center"></th>
+						<th class="align-center">订单批次号</th>
+						<th class="align-center">订单支付金额</th>
+						<th class="align-center">已确认到账金额</th>
+						<th class="align-center">核销金额</th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php foreach($orderList as $key => $val){?>
+					<tr  class="align-center">
+						<td><input type="checkbox" class="uniform" name="check[]" value="<?php echo $val->id?>"></td>
+						<td><?php echo $val->order_sn; ?></td>
+						<td><?php echo $val->pay_amount?></td>
+						<td><?php echo $val->confirm_amount ?></td>
+						<td><input type="text" class="form-control" name='<?php echo $val->id?>-hexiao' value="<?php echo $val->pay_amount-$val->confirm_amount?>"/></td>
+				</tr>
+				<?php } ?>
+				</tbody>
+			</table>
+				<input type="hidden" value="<?php echo $recharge_id;?>" name="recharge_id">
+			<input type="submit" class="btn btn-info btn-block" value="确认">
+			</form>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->

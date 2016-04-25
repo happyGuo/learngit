@@ -1,0 +1,77 @@
+<?php
+/*
+author:��ΰ
+function:��ȡ��Ϣ�б�
+date:
+*/
+namespace Modules\App\Controllers;
+class BMessageController extends BAppController{
+
+
+    public function listAction(){
+
+        $access_token = $this->request->getQuery('access_token');
+
+        $offset = $this->request->getQuery('offset') ? $this->request->getQuery('offset') : 0;
+        $limit = $this->request->getQuery('limit') ? $this->request->getQuery('limit') : 10;
+
+        $where = "access_token = '".$access_token."'";
+        $partnerDevice = $this->getModel('partnerDevice')->findFirst($where)->toArray();
+
+
+        $userpush = $this->getModel('userPush')->find(
+            array(
+                'user_id='.$partnerDevice['partner_id'],
+                'offset'=>$offset,
+                'limit'=>$limit,
+                'order'=>'ctime desc'
+            )
+        )->toArray();
+
+
+        $userinfo = $this->getModel('userPush')->find(
+            array(
+                'user_id='.$partnerDevice['partner_id'],
+            )
+        )->toArray();
+        $count = count($userinfo);
+        $message = [];
+        foreach($userpush as $k=>$v){
+            $message[] = json_decode($userpush[$k]['content']);
+        }
+
+        $list = array(
+            'count'=>$count,
+            'messages'=>$message
+        );
+
+
+        $user = $this->getModel('partner')->findFirst('id='.$partnerDevice['user_id']);
+        $user -> read_message_time = time();
+        $user -> save();
+
+        return $this->renderJson($list);
+    }
+
+
+    public function countAction(){
+
+        $access_token = $this->request->getQuery('access_token');
+
+        $where = "access_token = '".$access_token."'";
+        $partnerDevice = $this->getModel('partnerDevice')->findFirst($where)->toArray();
+
+        $userinfo = $this->getModel('partner')->findById($partnerDevice['partner_id']);
+        $read_message_time = $userinfo['read_message_time'];
+
+        $where = 'user_id ='.$partnerDevice['partner_id'].' and ctime between '.$read_message_time.' and '.time();
+        $userpush = $this->getModel('userPush')->find($where)->toArray();
+
+
+        $list = array(
+            'succeed'=>1,
+            'count'=>count($userpush)
+        );
+        return $this->renderJson($list);
+    }
+}

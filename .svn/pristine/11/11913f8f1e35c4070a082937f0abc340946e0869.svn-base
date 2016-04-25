@@ -1,0 +1,252 @@
+
+		<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value=''>请选择查询条件</option>
+				<option value="id">id</option>
+				<option value="real_name">账户名</option>
+				<option value="mobile">手机号</option>
+				<option value="free_d">冻结</option>
+				<option value="free_j">解冻</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="keyword" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<input name="type" value="<?=$type?>" type="hidden">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	</div>
+<!--=== Table with Footer ===-->
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 用户列表</h4>
+			<?php
+				if($type == 0){?>
+					<a href="<?php echo $this->url->get('user/list',array('type'=>0));?>" class="btn btn-xs bs-tooltip" style="color:red">平台用户</a>
+					<a href="<?php echo $this->url->get('user/list',array('type'=>1));?>" class="btn btn-xs bs-tooltip">配销商用户</a>
+		   <?php }
+			?>
+			<?php
+				if($type == 1){?>
+					<a href="<?php echo $this->url->get('user/list',array('type'=>0));?>" class="btn btn-xs bs-tooltip" >平台用户</a>
+					<a href="<?php echo $this->url->get('user/list',array('type'=>1));?>" class="btn btn-xs bs-tooltip" style="color:red">配销商用户</a>
+			<?php }
+			?>
+			
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">账户名</th>
+						<th class="align-center">手机号</th>
+						<th class="align-center">性别</th>
+						<th class="align-center">城市</th>
+						<th class="align-center">来源</th>
+						<?php if($type == 0){
+						?>
+						<th class="align-center">余额</th>
+						<th class="align-center">账期</th>
+						<?php
+						}
+						?>
+						<th class="align-center">创建时间</th>
+						<th class="align-center">更新时间</th>
+						<th class="align-center">账户状态</th>
+						<th class="align-center">操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($user as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->real_name;?></td>
+						<td><?php echo $v->mobile; ?></td>
+						<td><?php 
+							if($v->sex==0){
+								echo "未设置";
+							}elseif($v->sex==1){
+								echo "男";
+							}else{
+								echo '女';
+							}
+						 ?></td>
+						<td><?php echo $v->city; ?></td>
+						<td><?php echo \Libs\Util::getPlatformName($v->platform); ?></td>
+						<?php if($type == 0){
+						?>
+						<td><?php echo $v->balance; ?></td>
+						<td><?php 
+							     if($v->pay_day_id == 0 || $v->pay_day_id==''){
+							     	echo "现结";
+							     }else{
+							     	echo $this->mc->getDict($v->pay_day_id)['name'];
+							     }
+						?></td>
+						<?php
+						}
+						?>
+						<td><?php echo date('Y-m-d H:i:s',$v->ctime); ?></td>
+						<td><?php echo date('Y-m-d H:i:s',$v->utime); ?></td>
+						<td><?php 
+								if($v->freeze == 0 && $v->payment_freeze == 0) {
+									echo "正常";
+								}
+								if($v->freeze == 1 && $v->payment_freeze == 0) {
+									echo "已冻结";
+								}
+						?></td>
+						<td class="align-center">
+							<span class="btn-group">
+								<?php
+									switch($v->type){
+										case 0:
+								?>
+							<?php	if($v->freeze == 0 && $v->payment_freeze == 0) { ?>
+										<a href="<?php echo $this->url->get('order/create',array('userid'=>$v->id)); ?>" class="btn btn-xs bs-tooltip" title="创建订单">创建订单</a>
+							<?php	} ?>
+										<a href="<?php echo $this->url->get('user/detail',array('userid'=>$v->id,'type'=>0));?>" class="btn btn-xs bs-tooltip" title="查看详情">查看详情</a>
+										<a href="balance/recharge?userid=<?php echo $v->id; ?>" class="btn btn-xs bs-tooltip" title="充值">充值</a>
+										<a href="<?php echo $this->url->get('user/update',array('userid'=>$v->id,'type'=>0));?>" class="btn btn-xs bs-tooltip" title="编辑">编辑</a>
+										<?php
+											if($v->freeze == 0){?>
+												<!-- <a onclick="deleteuser(<?php echo $v->id?>)" class="btn btn-xs bs-tooltip" title="删除">删除</a> -->
+											<?php	}
+											?>
+										<?php
+											if($v->freeze == 0){?>
+												<a onclick="ajaxfrost(<?php echo $v->id?>,0)" class="btn btn-xs bs-tooltip" title="冻结">冻结</a>
+											<?php	}
+											?>
+										<?php
+											if($v->freeze == 1){?>
+												<a onclick="ajaxthaw(<?php echo $v->id?>,0)" class="btn btn-xs bs-tooltip" title="解冻">解冻</a>
+											<?php	}
+											?>
+										<?php
+											if($v->pay_day_id !=0){?>
+												<a href='<?php echo $this->url->get('bankcard/list',array('userid'=>$v->id));?>' class="btn btn-xs bs-tooltip" title="银行卡信息">银行卡信息</a>
+												<?php
+											}
+											?>
+                                                                                         <a href="<?php echo $this->url->get('user/bill',array('userid'=>$v->id));?>" class="btn btn-xs bs-tooltip" title="用户账单">用户账单</a>
+										<?php
+											break;
+										case 1:
+										?>
+											<a href="<?php echo $this->url->get('user/detail',array('userid'=>$v->id,'type'=>1));?>" class="btn btn-xs bs-tooltip" title="查看详情">查看详情</a>
+											<a href="<?php echo $this->url->get('user/update',array('userid'=>$v->id,'type'=>1));?>" class="btn btn-xs bs-tooltip" title="编辑">编辑</a>
+											<?php
+											if($v->freeze == 0){?>
+												<a onclick="ajaxfrost(<?php echo $v->id?>,1)" class="btn btn-xs bs-tooltip" title="冻结">冻结</a>
+											<?php	}
+											?>
+										<?php
+											if($v->freeze == 1){?>
+												<a onclick="ajaxthaw(<?php echo $v->id?>,1)" class="btn btn-xs bs-tooltip" title="解冻">解冻</a>
+											<?php	}
+											?>
+
+										<?php
+											break;
+										}
+									?>
+                                                                                
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function deleteuser(userId){
+	if(confirm('确定删除该用户吗?')){
+		$.post('<?php echo $this->url->get('user/delete')?>',{userId:userId,},function(data){
+			if(data == 1){
+				alert('删除成功！');
+			}else if(data==2){
+				alert('删除失败，该用户有店铺！');
+			}else{
+				alert(data);
+			}
+			window.location.href = '<?php echo $this->url->get('user/list');?>';
+		});
+	}
+}
+function ajaxfrost(id,type){
+	var data = 'id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"user/ajaxfrost",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+            	if (result == 1) {
+            		alert("冻结成功");
+            	}
+            	if (result == 2) {
+            		alert("冻结失败");
+            	}
+				if(type==0){
+					window.location.href = '<?php echo $this->url->get('user/list');?>';
+				}else if(type==1){
+					window.location.href = '<?php echo $this->url->get('user/list?type=1');?>';
+				}
+
+            }
+        });	
+}
+function ajaxthaw(id,type){
+	var data = 'id='+id;
+        $.ajax({
+            type:'POST', 
+            url:"user/ajaxthaw",
+            dataType:'text',
+            data:data, 
+            async:false,
+            success:function(result)
+            {
+            	if (result == 1) {
+            		alert("解冻成功");
+            	}
+            	if (result == 2) {
+            		alert("解冻失败");
+            	}
+				if(type==0){
+					window.location.href = '<?php echo $this->url->get('user/list');?>';
+				}else if(type==1){
+					window.location.href = '<?php echo $this->url->get('user/list?type=1');?>';
+				}
+            }
+        });	
+}
+</script>

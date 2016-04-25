@@ -1,0 +1,19 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: zyf
+ * Date: 15-3-26
+ * Time: 下午4:44
+ * 需要回调本地api的接口
+ */
+namespace Apis;
+class Native extends BaseApi {
+
+    public function dealSubOrder($orderId){
+        return $this->post('/dealorder',array('order_id'=>$orderId,'city'=>CITY));
+    }
+
+    public function call(){
+        return $this->get('http://127.0.0.1:8848/call?fff=1&cc=22',array('mobile'=>15921709039,'msg'=>'test'));
+    }
+}

@@ -1,0 +1,179 @@
+<!-- 
+		<div class="row">
+			<div class="col-md-2"></div>
+	<form class="form-horizontal row-border" method="get" action="">
+		<div class="col-md-2">
+			<select class="form-control" name="select">
+				<option value=''>请选择查询条件</option>
+				<option value="id">id</option>
+				<option value="real_name">账户名</option>
+				<option value="mobile">手机号</option>
+			</select>
+		</div>
+		<div class="col-md-2">
+			<input name="keyword" class="form-control" placeholder="" type="text">
+		</div>
+		<div class="col-md-2">
+			<input class="btn btn-info btn-block" value="搜索" type="submit">
+		</div>
+	</form>
+		</div> <!--.row -->
+
+	<!--</div> -->
+<!--=== Table with Footer ===-->
+<div class="tabbable tabbable-custom tabbable-full-width">
+<ul class="nav nav-tabs">
+		<li <?php if($state==1){?> class="active" <?php }?>><a href="javascript:void(0)" onclick="gohref('partner/payment?state=1')" data-toggle="tab">待审核</a></li>
+		<li <?php if($state==2){?> class="active" <?php }?>><a href="javascript:void(0)" data-toggle="tab" onclick="gohref('partner/payment?state=2')">已审核</a></li>
+		
+</ul>
+<div class="tab-content row">
+    <form method="get" action="" class="form-horizontal">
+                <div class="form-group col-md-5">
+                    
+                </div>
+                <div class="form-group col-md-5">
+                    <label class="col-md-4 control-label">日期：</label>
+
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" placeholder="起始日期" class="form-control datepicker" value="<?php echo $start_time;?>" readonly="readonly" name="start_time" id="dp1442904624955">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" placeholder="结束日期" class="form-control datepicker" value="<?php echo $end_time;?>" readonly="readonly" name="end_time" id="dp1442904624956">
+                            </div>
+                            <input type="hidden" name="state" value="<?php echo $state;?>"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group col-md-2">
+                    <label class="col-md-4 control-label"></label>
+                    <input type="submit" class="btn btn-primary" value="搜索">
+                </div>
+</form>
+<div class="col-md-12">
+	<div class="widget box">
+		<div class="widget-header">
+			<h4><i class="icon-reorder"></i> 货到付款核销列表</h4>
+			<div class="toolbar no-padding">
+				<div class="btn-group">
+					<span class="btn btn-xs widget-collapse"><i class="icon-angle-down"></i></span>
+				</div>
+			</div>
+		</div>
+		<div class="widget-content">
+			<table class="table table-hover table-striped table-bordered table-highlight-head">
+				<thead>
+					<tr>
+						<th class="align-center">ID</th>
+						<th class="align-center">订单号</th>
+						<th class="align-center">子订单号</th>	
+						<th class="align-center">系统计算总价</th>
+						<th class="align-center">支付金额</th>
+						<th class="align-center">折扣</th>
+						<th class="align-center">实际支付金额</th>
+						<th class="align-center">发货时间</th>
+						<th class="align-center">确认收货时间</th>
+                                                <?php if($state==1){ ?>
+						<th class="align-center">操作</th>
+                                                <?php }else{ ?>
+                                                <th class="align-center">审核人</th>
+                                                <?php }?>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach($orderSubcontract as $k=>$v) { ?>
+					<tr class="align-center">
+						<td><?php echo $v->id; ?></td>
+						<td><?php echo $v->order_sn; ?></td>
+						<td><?php echo $v->subcontract; ?></td>
+						<td><?php echo \Libs\Util::moenyConversion($v->buy_amount);?></td>
+						<td><?php echo \Libs\Util::moenyConversion($v->pay_amount);?></td>
+						<td><?php echo $v->pay_discount;?></td>
+						<td><?php echo \Libs\Util::moenyConversion($v->confirm_amount);?></td>
+						<td><?php echo !empty($v->send_time)?date('Y-m-d H:i:s',$v->send_time):''; ?></td>
+						<td><?php echo !empty($v->confirm_time)?date('Y-m-d H:i:s',$v->confirm_time):''; ?></td>
+						<td class="align-center">
+							<span class="btn-group">
+									<?php if($state==1){ ?>
+										<a onclick="comfrim(<?php echo $v->id?>,<?php echo $v->pay_amount?>)" class="btn btn-xs bs-tooltip" title="确认">确认</a>
+									<?php }else{
+										$where="subcontract='".$v->subcontract."' and type=7";
+										echo $this->mc->getAdmin($this->mc->getModel('balanceFlow')->findFirst($where)->creator_id)['real_name'];//"subcontract='".$v->subcontract."' and type=7"
+									}
+									?>
+                                                                    
+                                                                
+								
+							</span>
+						</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+			<div class="row">
+				<div class="table-footer">
+					<div class="col-md-12">
+						<?php echo $page; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+	<!-- /Table with Footer -->
+</div>
+</div>
+</div>
+<!-- /Page Content -->
+<script type="text/javascript">
+function comfrim(id,pay_amount) {
+	var html = "<input class='form-control' type='text' id='remark' value="+pay_amount+"><font style='color:red'>请确认是否已收到"+pay_amount+"元，点击确定立即转到配销商提现金额中！</font>";
+	bootbox.dialog({
+		message  : html,
+		title    : "添加备注",
+		onEscape : function () {
+		},
+		show     : true,
+		backdrop : true,
+		size     : 'large',
+		animate  : true,
+		className: "my-modal",
+		buttons  : {
+			success: {
+				label    : "确认",
+				className: "btn-success",
+				callback : function () {
+					var remark = $("#remark").val();
+					$.ajaxSetup({async: false});
+					$.post('partner/confirm', {id: id,pay_amount:pay_amount, remark: remark},
+						function (data) {
+							if(data){
+								window.location.href = '<?php echo $this->url->get('partner/payment');?>';
+							}else{
+								alert(data);
+							}
+						}, 'text');
+				}
+			},
+			"取消"   : {
+				className: "btn-danger",
+			}
+		}
+	});
+}
+var gohref = function(href)
+{
+        window.location.href=href;
+}
+ $("form").submit(function(e){
+            var start_val=$("input[name='start_time']").val();
+            var end_val=$("input[name='end_time']").val();
+            
+            if(start_val>end_val){
+                       e.preventDefault();
+                       alert("结束日期必须大于开始日期!");
+            }
+ });
+</script>

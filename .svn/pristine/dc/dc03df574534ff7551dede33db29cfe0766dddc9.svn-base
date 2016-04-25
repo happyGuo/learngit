@@ -1,0 +1,30 @@
+<div class="col-md-12">
+    <a href="balance/statistics" class="btn <?php echo $type == 0 ? 'btn-primary' : 'btn-default'; ?> btn-lg"
+       role="button">今日</a>
+    <a href="balance/statistics?type=1" class="btn <?php echo $type == 1 ? 'btn-primary' : 'btn-default'; ?> btn-lg "
+       role="button">昨日</a>
+    <a href="balance/statistics?type=2" class="btn <?php echo $type == 2 ? 'btn-primary' : 'btn-default'; ?> btn-lg"
+       role="button">本周</a>
+    <a href="balance/statistics?type=3" class="btn <?php echo $type == 3 ? 'btn-primary' : 'btn-default'; ?> btn-lg"
+       role="button">本月</a>
+</div>
+<div class="col-md-12 padding-top-10px">
+    <table class="table table-striped table-bordered table-hover table-checkable datatable">
+        <tr>
+            <td colspan="5">新增订单数：<?php echo $newTotalNum; ?>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="5">充值金额：<?php echo $incomeMoney; ?>元</td>
+        </tr>
+        <tr>
+            <td colspan="5">流出金额：<?php echo $outMoney; ?>元</td>
+        </tr>
+        <tr>
+            <td colspan="5">交易金额：<?php echo $dealMoney; ?>元</td>
+        </tr>
+        <tr>
+            <td colspan="5">冻结金额：<?php echo $freezeMoney; ?>元</td>
+        </tr>
+    </table>
+</div>

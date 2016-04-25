@@ -1,0 +1,322 @@
+<?php
+namespace Models;
+
+class BaseModel extends \Phalcon\Mvc\Model
+{
+    public static $cacheTable = array('dict', 'sku', 'partner_sku', 'category', 'user', 'admin', 'shop', 'partner');
+    public $mc;
+
+    public function initialize()
+    {
+        $this->setup(array(
+            'notNullValidations' => false,
+        ));
+        $this->keepSnapshots(true);
+        $this->useDynamicUpdate(true);
+        $this->mc = $this->getDI()['mc'];
+
+        $this->useDb($this->getDb());
+    }
+
+    public function useDb($city)
+    {
+        if (!isset($this->getDI()[$city . '_db'])) {
+            $eventsManager = $this->getDI()->getShared('eventsManager');
+
+            $this->getDI()->set($city . '_db', $this->getDI()->get('fl_db', array($city)));
+            $eventsManager->attach('db', $this->getDI()['dbListener']);
+            $this->setReadConnectionService($city . '_db');
+            $this->setWriteConnectionService($city . '_db');
+            $this->getReadConnection()->setEventsManager($eventsManager);
+        }
+        else{
+            $this->setReadConnectionService($city . '_db');
+            $this->setWriteConnectionService($city . '_db');
+        }
+    }
+
+
+    public function beforeValidationOnCreate()
+    {
+        $this->utime = $this->ctime = time();
+        if(!isset($this->platform))
+            $this->platform = \Libs\Util::getPlatform();
+        $this->is_del = 0;
+    }
+
+    public function beforeValidationOnUpdate()
+    {
+        $this->utime = time();
+    }
+
+    public function getError()
+    {
+        $message = '';
+        $v = $this->getMessages();
+        if (!empty($v)) {
+            foreach ($v as $msg) {
+                $message = $msg->getMessage();
+                break;
+            }
+            if (defined('LOG') && LOG) {
+                //存入日志
+                $this->getDI()['log']->modelError('[mysql:'.$this->getSource().']'.$message, print_r($this->toArray(), true));
+            }
+        }
+        return $message;
+    }
+
+    public function afterCreate()
+    {
+        if (in_array($this->getSource(), self::$cacheTable))
+            $this->cacheMetaData();
+    }
+
+    public function afterUpdate()
+    {
+        if (in_array($this->getSource(), self::$cacheTable))
+            $this->cacheMetaData();
+    }
+
+    public function afterSave()
+    {
+        if (!in_array(\Libs\Util::getPlatform(), array('backend', 'partner'))) {
+            return false;
+        }
+
+        if ($this->getDI()['auth']->isLogin() && !\Libs\Util::isAlone()) {
+            $data = array('city' => CITY, 'op_info' => $this->getDI()['auth']->getInfo(), 'data' => $this->toArray(), 'target_id' => $this->id, 'action' => $this->getDI()['dispatcher']->getControllerName() . '/' . $this->getDI()['dispatcher']->getActionName(), 'ip' => \Libs\Util::getIp(), 'table' => $this->getSource(), 'module' => \Libs\Util::getPlatform(), 'ctime' => time(),'time'=>date("Y-m-d H:i:s",time()));
+            $this->getApi('common')->operatelog($data);
+        }
+        //$this->getDI()['eventsManager']->fire("db:afterSave", $this);
+
+    }
+
+    public function getAsynModel($model,$method,$params){
+        $this->getComplex()->call('model','arouse',array('model'=>$model,'method'=>$method,'params'=>json_encode($params)));
+    }
+
+    public function getComplex(){
+        return $this->getDI()['complex'];
+    }
+
+    public function getImg(){
+        return $this->getDI()['img'];
+    }
+
+    public function getModel($name)
+    {
+        return $this->getDI()['mc']->getModel($name);
+    }
+
+    public function createModel($name)
+    {
+        return $this->getDI()['mc']->createModel($name);
+    }
+
+    public function cacheMetaData()
+    {
+
+        //当是删除操作
+        if ($this->is_del) {
+            return $this->getDI()['modelsCache']->delete($this->getSource() . '_' . $this->id);
+        } else {
+            $obj = $this->findFirst($this->id);
+            return $this->saveData($this->id, $obj->toArray());
+        }
+    }
+
+    public function saveData($key, $data, $time = 0)
+    {
+        $key = $this->getDb() . '_' . $this->getSource() . '_' . $key;
+
+        return $this->getDI()['modelsCache']->save($key, $data, $time);
+    }
+
+    public function getData($key)
+    {
+        $key = $this->getDb() . '_' . $this->getSource() . '_' . $key;
+
+        return $this->getDI()['modelsCache']->get($key);
+    }
+
+    public function getApi($name)
+    {
+        return $this->getDI()['api']->getApi($name);
+    }
+
+    /**
+     * $type : true 返回数组  false 返回对象
+     */
+    public function findById($id, $type = true)
+    {
+        if (in_array($this->getSource(), self::$cacheTable)) {
+            $data = $this->getData($id);
+            if (empty($data)) {
+                $data = $this->findFirst('is_del=0 and id=' . $id);
+                if ($data) {
+                    $data = $data->toArray();
+                    $this->saveData($id, $data);
+                }
+            }
+        } else {
+            $data = $this->findFirst($id);
+            if ($data) {
+                $data = $data->toArray();
+            }
+        }
+        if (!$type) {
+            $data = (Object)$data;
+        }
+
+        return $data;
+    }
+
+    /*
+     * 创建单挑记录
+     */
+    public function createOne(array $data)
+    {
+        $id = 0;
+        $error = '';
+        $new = $this->createModel(explode('\\', get_class($this))[1]);
+        foreach ($data as $k => $v) {
+            $new->$k = $v;
+        }
+
+        if ($new->save()) {
+            $id = $new->id;
+        } else {
+            $error = $new->getError();
+        }
+        return array('id' => $id, 'error' => $error);
+    }
+
+    /**
+     * 更新单条记录
+     * @param array $where
+     * @param array $data
+     * @return array
+     */
+    public function updateOne($where, array $data)
+    {
+        $error = '';
+        $m = $this->getModel(explode('\\', get_class($this))[1])->findFirst($where);
+        if ($m) {
+            foreach ($data as $k => $item) {
+                $m->$k = $item;
+            }
+
+            if ($m->update()) {
+            } else {
+                $error = $m->getError();
+            }
+        } else {
+            $error = '更新数据不存在';
+        }
+        return array('error' => $error);
+    }
+
+    //批量更新
+    public function updateAll($where, array $data)
+    {
+        $error = '';
+        $m = $this->getModel(explode('\\', get_class($this))[1])->find($where);
+
+        if (count($m)) {
+            foreach ($m as $item) {
+                if ($item->update($data)) {
+
+                } else {
+                    $error = $item->getError();
+                }
+            }
+        } else {
+            $error = '更新数据不存在';
+        }
+        return array('error' => $error);
+    }
+
+    //假删除
+    public function deleteOne($where)
+    {
+        $error = '';
+        $m = $this->getModel(explode('\\', get_class($this))[1])->findFirst($where);
+        if ($m) {
+            if ($m->update(array('is_del' => 1))) {
+
+            } else {
+                $error = $m->getError();
+            }
+        } else {
+            $error = '删除数据不存在';
+        }
+        return array('error' => $error);
+    }
+
+    //假删除
+    public function deleteAll($where)
+    {
+        $error = '';
+        $m = $this->getModel(explode('\\', get_class($this))[1])->find($where);
+        if (count($m)) {
+            foreach ($m as $item) {
+                if ($item->update(array('is_del' => 1))) {
+
+                } else {
+                    $error = $item->getError();
+                }
+            }
+        } else {
+            $error = '更新数据不存在';
+        }
+        return array('error' => $error);
+    }
+
+
+    //返回为数组
+    public function findOneByCache($search, $time = 3600)
+    {
+        $key = serialize($search);
+        $data = false;
+        if (!DEBUG) {
+            $data = $this->getData($key);
+        }
+        if (empty($data)) {
+            $data = $this->findFirst($search);
+            if(!empty($data)){
+                $data = $data->toArray();
+            }
+            else{
+                $data = array();
+            }
+            if (!DEBUG)
+                $this->saveData($key, $data, $time);
+        }
+        return $data;
+    }
+
+    //返回为数组
+    public function findByCache($search, $time = 3600)
+    {
+        $key = serialize($search);
+        $data = false;
+        if (!DEBUG) {
+            $data = $this->getData($key);
+        }
+        if (empty($data)) {
+            $data = $this->find($search)->toArray();
+            if (!DEBUG)
+                $this->saveData($key, $data, $time);
+        }
+        return $data;
+    }
+
+
+    public function debug($message,$trace='')
+    {
+        return $this->getDI()['log']->debug($message,$trace);
+    }
+
+
+}

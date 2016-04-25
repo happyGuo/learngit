@@ -1,0 +1,75 @@
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="widget box">
+            <div class="widget-header">
+                <h4>
+                    <i class="icon-reorder">
+                    </i>
+                    修改密码
+                </h4>
+            </div>
+            <div class="widget-content">
+                <form class="form-horizontal row-border" method="POST" action="" enctype="multipart/form-data" onsubmit="return checkform()">
+                    <?php if(isset($messages)) {?>
+                        <div class="alert alert-<?php echo $messages=='密码修改成功'?"success":"danger" ?> fade in">
+                            <i class="icon-remove close" data-dismiss="alert"></i>
+                            <?php echo $messages ;?>
+                        </div>
+                    <?php
+                    }
+                    ?>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                           当前用户：
+                        </label>
+                        <div class="col-md-4">
+                            <?php echo $current_user['real_name'];?>
+                        </div>
+                    </div>
+            <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            旧密码：
+                        </label>
+                        <div class="col-md-2">
+                            <input name="oldpwd" class="form-control" type="password" minlength="6" onblur="checkminlength($(this))">
+                        </div>
+                    </div>
+            <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            新密码：
+                        </label>
+                        <div class="col-md-2">
+                            <input name="pwd" class="form-control" type="password" minlength="6" onblur="checkminlength($(this))">
+                        </div>
+                    </div>
+            <div class="form-group">
+                        <label class="col-md-2 control-label">
+                            确认密码：
+                        </label>
+                        <div class="col-md-2">
+                            <input name="repwd" class="form-control" to="pwd" type="password" minlength="6" onblur="checkcompare($(this))">
+                        </div>
+                    </div>        
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">
+                        </label>
+                            <div class="col-md-2"><input class="btn btn-info btn-block" value="保存" type="submit"></div>
+                    </div>
+                    
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    function checkform() {
+        var checkflag = true;
+        $("input[onblur],select[onblur],textarea[onblur]").each(function () {
+            this.onblur();
+            if ($(this).attr("check") == 0)checkflag = false;
+        });
+
+        return checkflag;
+    }
+</script>

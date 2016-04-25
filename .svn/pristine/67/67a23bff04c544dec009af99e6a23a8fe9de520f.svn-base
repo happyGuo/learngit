@@ -1,0 +1,13 @@
+<?php
+/**
+ * 余额流转模型
+ * User: xiaochuan
+ * Date: 2015/8/31
+ * Time: 17:07
+ */
+
+namespace Models;
+
+class BalanceTransfer extends CityModel
+{
+}
